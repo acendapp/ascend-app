@@ -1,0 +1,562 @@
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import BottomNav from '../components/BottomNav'
+import StreakDots from '../components/StreakDots'
+import { supabase } from '../lib/supabase'
+import {
+  displayGoal, displayExperience, displayEquipment,
+  GOAL_OPTIONS, EXPERIENCE_OPTIONS, EQUIPMENT_OPTIONS, SCHOOL_YEAR_OPTIONS,
+} from '../lib/display'
+import { calculateAscendScore, calculateConsistencyScore } from '../lib/scoring'
+import type { UserProfile, UserScores, FriendshipWithProfile, FriendProfile } from '../types'
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+
+function initials(name: string | null | undefined) {
+  if (!name) return '?'
+  return name.split(' ').map(n => n[0] ?? '').filter(Boolean).join('').slice(0, 2).toUpperCase() || '?'
+}
+
+function formatVolume(lbs: number): string {
+  if (lbs >= 1_000_000) return `${(lbs / 1_000_000).toFixed(1)}M lb`
+  if (lbs >= 1000) return `${Math.round(lbs / 1000)}k lb`
+  return `${lbs} lb`
+}
+
+// ── Editable field ────────────────────────────────────────────────────────────
+
+interface EditableFieldProps {
+  label: string
+  value: string
+  display?: string
+  onSave?: (v: string) => Promise<void>
+  options?: { value: string; label: string }[]
+  locked?: boolean
+}
+
+function EditableField({ label, value, display, onSave, options, locked }: EditableFieldProps) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const [saving, setSaving] = useState(false)
+
+  async function commit() {
+    if (draft === value) { setEditing(false); return }
+    setSaving(true)
+    await onSave?.(draft)
+    setSaving(false)
+    setEditing(false)
+  }
+
+  if (editing && !locked) {
+    return (
+      <div style={{ background: '#0D1728', border: '1px solid #4A9EFF', borderRadius: 12, padding: '12px 16px', marginBottom: 8 }}>
+        <p style={{ color: '#4A9EFF', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 6px' }}>{label}</p>
+        {options ? (
+          <select value={draft} onChange={e => setDraft(e.target.value)} style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: 14, width: '100%', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+            <option value="" style={{ background: '#0D1728' }}>Not set</option>
+            {options.map(o => <option key={o.value} value={o.value} style={{ background: '#0D1728' }}>{o.label}</option>)}
+          </select>
+        ) : (
+          <input
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            autoFocus
+            onKeyDown={e => e.key === 'Enter' && commit()}
+            style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: 14, width: '100%', outline: 'none', fontFamily: 'inherit' }}
+          />
+        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <button onClick={commit} disabled={saving} style={{ background: '#4A9EFF', color: '#FFF', border: 'none', borderRadius: 8, padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button onClick={() => setEditing(false)} style={{ background: 'transparent', color: '#5A7A9A', border: 'none', padding: '5px 6px', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => { if (!locked) { setDraft(value); setEditing(true) } }}
+      style={{ width: '100%', background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: locked ? 'default' : 'pointer', textAlign: 'left' }}
+    >
+      <div>
+        <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>{label}</p>
+        <p style={{ color: (display ?? value) ? '#FFFFFF' : '#5A7A9A', fontSize: 14, margin: 0 }}>{(display ?? value) || 'Tap to set'}</p>
+      </div>
+      {locked
+        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="#5A7A9A" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round"/></svg>
+        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      }
+    </button>
+  )
+}
+
+// ── Score mini-card ───────────────────────────────────────────────────────────
+
+function ScoreCard({ label, value, unit, accent }: { label: string; value: number; unit?: string; accent?: boolean }) {
+  return (
+    <div style={{ flex: 1, background: accent ? '#0A1F3A' : '#0D1728', border: `1px solid ${accent ? '#1E3D6E' : '#1A2A42'}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+      <p style={{ color: '#5A7A9A', fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>{label}</p>
+      <p style={{ color: accent ? '#4A9EFF' : '#FFFFFF', fontSize: 24, fontWeight: 700, margin: 0, lineHeight: 1 }}>{value}{unit}</p>
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function Profile() {
+  const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [scores, setScores] = useState<UserScores | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+
+  const [weekDays, setWeekDays] = useState<boolean[]>(new Array(7).fill(false))
+  const [prs, setPrs] = useState<{ exercise_name: string; weight: number }[]>([])
+  const [totalWorkouts, setTotalWorkouts] = useState(0)
+  const [totalVolume, setTotalVolume] = useState(0)
+  const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0)
+
+  interface FriendCard { id: string; name: string; username: string; avatar_url: string | null; ascend_score: number }
+  const [friendCards, setFriendCards] = useState<FriendCard[]>([])
+  const [friends, setFriends] = useState<FriendshipWithProfile[]>([])
+  const [pendingReceived, setPendingReceived] = useState<FriendshipWithProfile[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<FriendProfile[]>([])
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set())
+
+  const loadFriends = useCallback(async (userId: string) => {
+    const { data: rows } = await supabase
+      .from('friendships')
+      .select('id, requester_id, recipient_id, status')
+      .or(`requester_id.eq.${userId},recipient_id.eq.${userId}`)
+
+    if (!rows || rows.length === 0) return
+
+    const otherIds = rows.map(r => r.requester_id === userId ? r.recipient_id : r.requester_id)
+    const [profilesRes, scoresRes] = await Promise.all([
+      supabase.from('users').select('id, name, username, avatar_url, affiliation').in('id', otherIds),
+      supabase.from('user_scores').select('user_id, ascend_score').in('user_id', otherIds),
+    ])
+
+    const profileMap = new Map((profilesRes.data ?? []).map(p => [p.id, p as FriendProfile]))
+    const scoreMap = new Map((scoresRes.data ?? []).map(s => [s.user_id, s.ascend_score as number]))
+
+    const accepted: FriendshipWithProfile[] = []
+    const incoming: FriendshipWithProfile[] = []
+    const cards: FriendCard[] = []
+
+    for (const row of rows) {
+      const friendId = row.requester_id === userId ? row.recipient_id : row.requester_id
+      const fp = profileMap.get(friendId)
+      if (!fp) continue
+      const item: FriendshipWithProfile = { id: row.id, status: row.status as 'pending' | 'accepted', isRequester: row.requester_id === userId, friend: fp }
+      if (row.status === 'accepted') {
+        accepted.push(item)
+        cards.push({ id: fp.id, name: fp.name, username: fp.username, avatar_url: fp.avatar_url, ascend_score: scoreMap.get(fp.id) ?? 0 })
+      } else if (row.status === 'pending' && row.recipient_id === userId) {
+        incoming.push(item)
+      }
+    }
+
+    setFriends(accepted)
+    setPendingReceived(incoming)
+    setFriendCards(cards)
+  }, [])
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user) { navigate('/auth'); return }
+        const user = session.user
+
+        console.log('[Profile] session user id:', user.id, '| email:', user.email)
+
+        const sevenAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        const monday = new Date()
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+        monday.setHours(0, 0, 0, 0)
+
+        const [profileRes, scoresRes, allPRsRes, workoutsRes, recentWorkoutsRes] = await Promise.all([
+          supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
+          supabase.from('user_scores').select('*').eq('user_id', user.id).maybeSingle(),
+          supabase.from('personal_records').select('exercise_name, weight').eq('user_id', user.id).order('weight', { ascending: false }),
+          supabase.from('workouts').select('id', { count: 'exact' }).eq('user_id', user.id).eq('completed', true),
+          supabase.from('workouts').select('id, workout_date').eq('user_id', user.id).eq('completed', true).gte('workout_date', sevenAgo),
+        ])
+
+        console.log('[Profile] users query result — data:', profileRes.data, '| error:', profileRes.error)
+
+        let profileData = profileRes.data
+        if (!profileData && user.email) {
+          // Fallback: look up by email in case the row id doesn't match auth uid
+          const { data: byEmail, error: byEmailErr } = await supabase
+            .from('users').select('*').eq('email', user.email).maybeSingle()
+          console.log('[Profile] email fallback — data:', byEmail, '| error:', byEmailErr)
+          profileData = byEmail
+        }
+
+        if (!profileData) {
+          console.error('[Profile] no profile row found for uid:', user.id, 'email:', user.email)
+          setLoadError(true)
+          return
+        }
+
+        setProfile(profileData)
+        if (scoresRes.data) setScores(scoresRes.data)
+        setTotalWorkouts(workoutsRes.count ?? (workoutsRes.data?.length ?? 0))
+
+        // Top 5 PRs (best per exercise)
+        const prMap = new Map<string, number>()
+        for (const pr of allPRsRes.data ?? []) {
+          const cur = prMap.get(pr.exercise_name) ?? 0
+          if (pr.weight > cur) prMap.set(pr.exercise_name, pr.weight)
+        }
+        const top5 = Array.from(prMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([exercise_name, weight]) => ({ exercise_name, weight }))
+        setPrs(top5)
+
+        // Streak
+        const today = new Date()
+        if (recentWorkoutsRes.data) {
+          const filled = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(today)
+            d.setDate(d.getDate() - 6 + i)
+            return recentWorkoutsRes.data!.some(w => isSameDay(new Date(w.workout_date), d))
+          })
+          setWeekDays(filled)
+          const weekCount = recentWorkoutsRes.data.filter(w => new Date(w.workout_date) >= monday).length
+          setWorkoutsThisWeek(weekCount)
+        }
+
+        // Total volume
+        const recentIds = (recentWorkoutsRes.data ?? []).map(w => w.id)
+        const allWorkoutIds = (workoutsRes.data ?? []).map((w: { id: string }) => w.id)
+        const idsForVolume = [...new Set([...recentIds, ...allWorkoutIds.slice(0, 50)])]
+        if (idsForVolume.length > 0) {
+          const { data: logs } = await supabase
+            .from('exercise_logs')
+            .select('weight, reps, sets')
+            .in('workout_id', idsForVolume)
+          const vol = (logs ?? []).reduce((s, l) => s + ((l.weight ?? 0) * (l.reps ?? 0) * (l.sets ?? 0)), 0)
+          setTotalVolume(vol)
+        }
+
+        await loadFriends(user.id)
+      } catch (err) {
+        console.error('Profile page load error:', err)
+        setLoadError(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [navigate, loadFriends, retryKey])
+
+  // Debounced search
+  useEffect(() => {
+    if (searchQuery.length < 2) { setSearchResults([]); return }
+    const t = setTimeout(async () => {
+      const excluded = new Set([...friends.map(f => f.friend.id), ...pendingReceived.map(f => f.friend.id), ...sentIds, profile?.id ?? ''])
+      const { data } = await supabase.from('users').select('id, name, username, avatar_url, affiliation').ilike('username', `%${searchQuery}%`).limit(6)
+      setSearchResults(((data as FriendProfile[]) ?? []).filter(u => !excluded.has(u.id)))
+    }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery, profile, friends, pendingReceived, sentIds])
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+    setAvatarUploading(true)
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `${profile.id}/avatar.${ext}`
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    if (upErr) { console.error('Avatar upload error:', upErr); setAvatarUploading(false); return }
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+    await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', profile.id)
+    setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : prev)
+    setAvatarUploading(false)
+  }
+
+  async function updateField(field: string, value: string) {
+    if (!profile) return
+    const { error } = await supabase.from('users').update({ [field]: value || null }).eq('id', profile.id)
+    if (error) { console.error(`Error updating ${field}:`, error); return }
+    setProfile(prev => prev ? { ...prev, [field]: value || null } : prev)
+  }
+
+  async function sendFriendRequest(recipientId: string) {
+    if (!profile) return
+    const { error } = await supabase.from('friendships').insert({ requester_id: profile.id, recipient_id: recipientId, status: 'pending' })
+    if (error) { console.error('Friend request error:', error); return }
+    setSentIds(prev => new Set(prev).add(recipientId))
+    setSearchResults(prev => prev.filter(u => u.id !== recipientId))
+  }
+
+  async function acceptFriend(friendshipId: string) {
+    await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId)
+    if (profile) await loadFriends(profile.id)
+  }
+
+  async function declineFriend(friendshipId: string) {
+    await supabase.from('friendships').delete().eq('id', friendshipId)
+    if (profile) await loadFriends(profile.id)
+  }
+
+  async function removeFriend(friendshipId: string) {
+    await supabase.from('friendships').delete().eq('id', friendshipId)
+    if (profile) await loadFriends(profile.id)
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    localStorage.removeItem('onboarding_goal')
+    localStorage.removeItem('onboarding_experience')
+    localStorage.removeItem('onboarding_equipment')
+    navigate('/onboarding/step1')
+  }
+
+  if (loading) {
+    return (
+      <div className="app-shell">
+        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <div style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadError || !profile) {
+    return (
+      <div className="app-shell">
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '0 24px', gap: 12 }}>
+          <p style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 700, margin: 0 }}>Couldn't load your profile</p>
+          <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', margin: 0 }}>Check your connection and try again.</p>
+          <button
+            onClick={() => { setLoadError(false); setLoading(true); setProfile(null); setRetryKey(k => k + 1) }}
+            style={{ background: '#4A9EFF', color: '#FFF', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}
+          >
+            Retry
+          </button>
+        </div>
+        <BottomNav />
+      </div>
+    )
+  }
+
+  const strengthScore = scores?.strength_score ?? 0
+  const consistencyScore = calculateConsistencyScore(workoutsThisWeek)
+  const socialScore = scores?.social_score ?? 0
+  const ascendScore = calculateAscendScore(strengthScore, consistencyScore, socialScore)
+  const weeksActive = Math.max(1, Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1)
+  const avatarIni = initials(profile.name)
+
+  return (
+    <div className="app-shell">
+      <div className="app-content page-scroll">
+        <div style={{ padding: '48px 20px 0' }}>
+
+          {/* ── Avatar + identity ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ position: 'relative', marginBottom: 14 }}>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{ width: 88, height: 88, borderRadius: '50%', background: '#1A2A42', border: '3px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
+              >
+                {profile.avatar_url
+                  ? <img src={profile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span style={{ color: '#4A9EFF', fontSize: 28, fontWeight: 700 }}>{avatarIni}</span>}
+                {avatarUploading && (
+                  <div style={{ position: 'absolute', inset: 0, background: '#080E1C99', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ color: '#4A9EFF', fontSize: 12 }}>…</span>
+                  </div>
+                )}
+              </div>
+              <div onClick={() => fileInputRef.current?.click()} style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: '#4A9EFF', border: '2px solid #080E1C', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="#FFF" strokeWidth="2"/><circle cx="12" cy="13" r="4" stroke="#FFF" strokeWidth="2"/></svg>
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
+            </div>
+            <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 3px', textAlign: 'center' }}>{profile.name}</h1>
+            <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 3px' }}>@{profile.username}</p>
+            {(profile.school_year || profile.affiliation) && (
+              <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                {[profile.school_year, profile.affiliation].filter(Boolean).join(' · ')}
+              </p>
+            )}
+          </div>
+
+          {/* ── Score row ── */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <ScoreCard label="Strength" value={strengthScore} />
+            <ScoreCard label="Consistency" value={consistencyScore} unit="%" />
+            <ScoreCard label="Ascend" value={ascendScore} accent />
+          </div>
+
+          {/* ── Campus rank ── */}
+          <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
+            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>Campus Rank</p>
+            <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>Ranked #12 at Penn</p>
+            <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+              <span style={{ color: '#4A9EFF' }}>↑ 3 spots</span> this week
+            </p>
+          </div>
+
+          {/* ── Streak ── */}
+          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
+            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Last 7 Days</p>
+            <StreakDots days={weekDays} />
+          </div>
+
+          {/* ── Personal Records ── */}
+          {prs.length > 0 && (
+            <>
+              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Personal Records</p>
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 16px', marginBottom: 14 }}>
+                {prs.map((pr, i) => (
+                  <div key={pr.exercise_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: i < prs.length - 1 ? '1px solid #1A2A42' : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ color: i === 0 ? '#F5A623' : '#5A7A9A', fontSize: 14 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅'}</span>
+                      <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600 }}>{pr.exercise_name}</span>
+                    </div>
+                    <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{pr.weight} lb</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ── Stats row ── */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            {[
+              { label: 'Workouts', value: String(totalWorkouts) },
+              { label: 'Volume', value: formatVolume(totalVolume) },
+              { label: 'Weeks Active', value: String(weeksActive) },
+            ].map(stat => (
+              <div key={stat.label} style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
+                <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: '0 0 3px' }}>{stat.value}</p>
+                <p style={{ color: '#5A7A9A', fontSize: 10, margin: 0 }}>{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Friends horizontal scroll ── */}
+          <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Friends</p>
+          {friendCards.length > 0 ? (
+            <div className="friend-scroll" style={{ marginBottom: 14 }}>
+              {friendCards.map(fc => (
+                <div key={fc.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#1A2A42', border: '2px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {fc.avatar_url
+                      ? <img src={fc.avatar_url} alt={fc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{initials(fc.name)}</span>}
+                  </div>
+                  <p style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 600, margin: 0, maxWidth: 56, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                    {fc.name.split(' ')[0]}
+                  </p>
+                  <p style={{ color: '#4A9EFF', fontSize: 10, fontWeight: 700, margin: 0 }}>{fc.ascend_score}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: '#5A7A9A', fontSize: 13, marginBottom: 14 }}>Search below to add friends.</p>
+          )}
+
+          {/* Friend search */}
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by username…"
+            style={{ width: '100%', background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px 16px', color: '#FFFFFF', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8 }}
+          />
+
+          {searchResults.length > 0 && (
+            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
+              {searchResults.map(u => (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #1A2A42' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                    {initials(u.name)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{u.name}</p>
+                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{u.username}</p>
+                  </div>
+                  <button onClick={() => sendFriendRequest(u.id)} style={{ background: '#4A9EFF', border: 'none', borderRadius: 8, padding: '5px 12px', color: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Add</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Pending requests */}
+          {pendingReceived.length > 0 && (
+            <div style={{ background: '#0D1728', border: '1px solid #1E3D6E', borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
+              <p style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 700, margin: '10px 0 4px' }}>Friend Requests ({pendingReceived.length})</p>
+              {pendingReceived.map(item => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid #1A2A42' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials(item.friend.name)}</div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{item.friend.name}</p>
+                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{item.friend.username}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => acceptFriend(item.id)} style={{ background: '#4A9EFF', border: 'none', borderRadius: 8, padding: '5px 10px', color: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Accept</button>
+                    <button onClick={() => declineFriend(item.id)} style={{ background: 'transparent', border: '1px solid #1A2A42', borderRadius: 8, padding: '5px 10px', color: '#5A7A9A', fontSize: 12, cursor: 'pointer' }}>Decline</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Friends list with remove */}
+          {friends.length > 0 && (
+            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
+              {friends.map((item, i) => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < friends.length - 1 ? '1px solid #1A2A42' : 'none' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: '1.5px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials(item.friend.name)}</div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{item.friend.name}</p>
+                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{item.friend.username}</p>
+                  </div>
+                  <button onClick={() => removeFriend(item.id)} style={{ background: 'transparent', border: 'none', color: '#5A7A9A', fontSize: 11, cursor: 'pointer', padding: '4px 0' }}>Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Editable fields ── */}
+          <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '20px 0 10px' }}>Profile Settings</p>
+
+          <EditableField label="Full Name" value={profile.name} onSave={v => updateField('name', v)} />
+          <EditableField label="Username" value={profile.username} locked />
+          <EditableField label="Goal" value={profile.goal ?? ''} display={displayGoal(profile.goal)} options={GOAL_OPTIONS} onSave={v => updateField('goal', v)} />
+          <EditableField label="Experience Level" value={profile.experience_level ?? ''} display={displayExperience(profile.experience_level)} options={EXPERIENCE_OPTIONS} onSave={v => updateField('experience_level', v)} />
+          <EditableField label="Equipment" value={profile.equipment ?? ''} display={displayEquipment(profile.equipment)} options={EQUIPMENT_OPTIONS} onSave={v => updateField('equipment', v)} />
+          <EditableField label="School Year" value={profile.school_year ?? ''} options={SCHOOL_YEAR_OPTIONS} onSave={v => updateField('school_year', v)} />
+          <EditableField label="Affiliation (frat, club, team…)" value={profile.affiliation ?? ''} onSave={v => updateField('affiliation', v)} />
+
+          {/* Sign out */}
+          <button
+            onClick={handleSignOut}
+            style={{ width: '100%', background: 'transparent', border: 'none', color: '#5A7A9A', fontSize: 14, padding: '20px 0 8px', cursor: 'pointer' }}
+          >
+            Sign out
+          </button>
+
+        </div>
+      </div>
+      <BottomNav />
+    </div>
+  )
+}

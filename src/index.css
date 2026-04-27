@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background-color: #080E1C;
+  }
+
+  input, button, textarea, select {
+    font-family: inherit;
+  }
+}
+
+/* App shell: centers 390px content, fills rest with #080E1C */
+.app-shell {
+  min-height: 100vh;
+  background-color: #080E1C;
+  display: flex;
+  justify-content: center;
+}
+
+.app-content {
+  width: 100%;
+  max-width: 390px;
+  min-height: 100vh;
+  background-color: #080E1C;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Scrollable page with bottom nav padding */
+.page-scroll {
+  overflow-y: auto;
+  height: 100vh;
+  padding-bottom: 80px;
+}
+
+/* Scrollable onboarding page */
+.onboarding-scroll {
+  overflow-y: auto;
+  height: 100vh;
+  padding: 56px 20px 40px;
+}
+
+/* Range slider — recovery screen */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #1A2A42;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #4A9EFF;
+  cursor: pointer;
+  box-shadow: 0 0 12px #4A9EFF66;
+  border: 3px solid #080E1C;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #4A9EFF;
+  cursor: pointer;
+  border: 3px solid #080E1C;
+}
+
+/* Horizontal friend scroll */
+.friend-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+.friend-scroll::-webkit-scrollbar { display: none; }
