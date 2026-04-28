@@ -269,7 +269,7 @@ export default function Home() {
     }
   }, [navigate])
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { loadData() }, [loadData, location.key])
 
   // Reset the "completed today" flag at midnight
   useEffect(() => {

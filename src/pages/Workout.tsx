@@ -901,7 +901,7 @@ export default function Workout() {
             )}
           </div>
 
-          <div style={{ padding: '12px 24px 48px' }}>
+          <div style={{ padding: '12px 24px 88px' }}>
             <button
               onClick={() => setPhase('celebration')}
               style={{
