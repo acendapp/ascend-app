@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import BottomNav from '../components/BottomNav'
 import StreakDots from '../components/StreakDots'
 import { supabase } from '../lib/supabase'
 import { calculateAscendScore, calculateConsistencyScore } from '../lib/scoring'
@@ -16,13 +15,6 @@ interface LeaderboardRow {
   score: number
   userId?: string
 }
-
-const CAMPUS_PLACEHOLDER: LeaderboardRow[] = [
-  { rank: 1, initials: 'MR', name: 'Marcus R.', group: 'Sigma Chi',   score: 94 },
-  { rank: 2, initials: 'AK', name: 'Anika K.',  group: 'Penn Track',  score: 91 },
-  { rank: 3, initials: 'JP', name: 'Jake P.',   group: 'Wharton MBA', score: 87 },
-  { rank: 4, initials: 'SL', name: 'Sofia L.',  group: 'Club Swim',   score: 85 },
-]
 
 const RANK_COLORS: Record<number, string> = { 1: '#F5A623', 2: '#B0B8C4', 3: '#CD7F32' }
 
@@ -73,6 +65,8 @@ export default function Home() {
   const [workoutCompletedToday, setWorkoutCompletedToday] = useState(false)
 
   const [showPRBanner, setShowPRBanner] = useState(newPRs.length > 0)
+  const [hasAnyWorkout, setHasAnyWorkout] = useState(false)
+  const [campusLeaderboard, setCampusLeaderboard] = useState<LeaderboardRow[]>([])
 
   const loadData = useCallback(async () => {
     try {
@@ -230,6 +224,44 @@ export default function Home() {
       }
     }
 
+    // Total workout count (for empty state detection)
+    const { count: workoutCount } = await supabase
+      .from('workouts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('completed', true)
+    setHasAnyWorkout((workoutCount ?? 0) > 0)
+
+    // Campus / all-time leaderboard (real data)
+    const { data: allScores } = await supabase
+      .from('user_scores')
+      .select('user_id, ascend_score')
+      .order('ascend_score', { ascending: false })
+      .limit(20)
+
+    if (allScores && allScores.length > 0) {
+      const allIds = allScores.map(s => s.user_id)
+      const { data: allProfiles } = await supabase
+        .from('users')
+        .select('id, name, affiliation')
+        .in('id', allIds)
+      if (allProfiles) {
+        const profileMap = new Map(allProfiles.map(p => [p.id, p]))
+        const rows: LeaderboardRow[] = allScores.map((s, i) => {
+          const p = profileMap.get(s.user_id)
+          return {
+            rank: i + 1,
+            initials: initials(p?.name ?? '??'),
+            name: p?.name ?? 'Unknown',
+            group: p?.affiliation ?? 'Penn',
+            score: s.ascend_score,
+            userId: s.user_id,
+          }
+        })
+        setCampusLeaderboard(rows)
+      }
+    }
+
     } catch (err) {
       console.error('[Home] loadData error:', err)
     } finally {
@@ -276,7 +308,7 @@ export default function Home() {
     }
   }
 
-  const currentLeaderboard = filter === 'friends' ? friendsLeaderboard : CAMPUS_PLACEHOLDER
+  const currentLeaderboard = filter === 'friends' ? friendsLeaderboard : campusLeaderboard
 
   if (loading) {
     return (
@@ -394,15 +426,17 @@ export default function Home() {
           <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
             <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 16 }}>
               <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Strength Score</p>
-              <p style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{strengthScore}</p>
-              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Top 35% at Penn</p>
+              <p style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{hasAnyWorkout ? strengthScore : '—'}</p>
+              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
+                {hasAnyWorkout ? 'Top 35% at Penn' : 'Complete your first workout to unlock'}
+              </p>
             </div>
 
             <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 16 }}>
               <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Consistency</p>
-              <p style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{consistencyScore}%</p>
+              <p style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{hasAnyWorkout ? `${consistencyScore}%` : '—'}</p>
               <p style={{ color: isPerfectWeek ? '#4A9EFF' : '#5A7A9A', fontSize: 11, margin: 0, fontWeight: isPerfectWeek ? 700 : 400 }}>
-                {isPerfectWeek ? 'Perfect week 🔥' : `${streakDays} day streak`}
+                {hasAnyWorkout ? (isPerfectWeek ? 'Perfect week 🔥' : `${streakDays} day streak`) : 'Complete your first workout to unlock'}
               </p>
             </div>
           </div>
@@ -410,19 +444,33 @@ export default function Home() {
           {/* Ascend Score */}
           <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 16, padding: 16, marginBottom: 14 }}>
             <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Ascend Score</p>
-            <p style={{ color: '#4A9EFF', fontSize: 36, fontWeight: 700, margin: '0 0 4px' }}>{ascendScore}</p>
-            <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 10px' }}>
-              Ranked <span style={{ color: '#FFFFFF' }}>#12</span> on campus ·{' '}
-              <span style={{ color: '#4A9EFF' }}>↑ 3 spots</span> this week
-            </p>
-            <div style={{ display: 'inline-block', background: '#0D2E5A', color: '#4A9EFF', fontSize: 10, borderRadius: 6, padding: '2px 8px' }}>
-              Top 20 · Penn Campus
-            </div>
+            <p style={{ color: '#4A9EFF', fontSize: 36, fontWeight: 700, margin: '0 0 4px' }}>{hasAnyWorkout ? ascendScore : '—'}</p>
+            {hasAnyWorkout ? (
+              <>
+                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 10px' }}>
+                  Ranked <span style={{ color: '#FFFFFF' }}>#12</span> on campus ·{' '}
+                  <span style={{ color: '#4A9EFF' }}>↑ 3 spots</span> this week
+                </p>
+                <div style={{ display: 'inline-block', background: '#0D2E5A', color: '#4A9EFF', fontSize: 10, borderRadius: 6, padding: '2px 8px' }}>
+                  Top 20 · Penn Campus
+                </div>
+              </>
+            ) : (
+              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Complete your first workout to unlock</p>
+            )}
           </div>
+
+          {/* View history */}
+          <button
+            onClick={() => navigate('/profile')}
+            style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: '0 0 14px', display: 'block' }}
+          >
+            View history →
+          </button>
 
           {/* CTA */}
           <button
-            onClick={() => navigate('/workout')}
+            onClick={() => navigate('/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
             style={{
               width: '100%',
               background: workoutCompletedToday ? '#1A2A42' : '#4A9EFF',
@@ -473,6 +521,10 @@ export default function Home() {
           {filter === 'friends' && !hasFriends ? (
             <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20 }}>
               <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Add friends to see how you rank against them.</p>
+            </div>
+          ) : filter !== 'friends' && currentLeaderboard.length < 3 ? (
+            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 32, textAlign: 'center', marginBottom: 20 }}>
+              <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Be the first on the leaderboard. Start training.</p>
             </div>
           ) : (
             <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: '4px 14px', marginBottom: 20 }}>
@@ -579,7 +631,6 @@ export default function Home() {
 
         </div>
       </div>
-      <BottomNav />
     </div>
   )
 }

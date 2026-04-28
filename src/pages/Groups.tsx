@@ -1,5 +1,3 @@
-import BottomNav from '../components/BottomNav'
-
 export default function Groups() {
   return (
     <div className="app-shell">
@@ -9,7 +7,6 @@ export default function Groups() {
           <p style={{ color: '#5A7A9A', fontSize: 14 }}>Find your crew and compete together.</p>
         </div>
       </div>
-      <BottomNav />
     </div>
   )
 }

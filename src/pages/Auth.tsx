@@ -48,6 +48,7 @@ function Field({ label, ...props }: InputProps) {
 export default function Auth() {
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('signup')
+  const [signupStep, setSignupStep] = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -170,14 +171,24 @@ export default function Auth() {
         </p>
 
         {/* Fields */}
-        {mode === 'signup' && (
+        {mode === 'signup' ? (
+          signupStep === 1 ? (
+            <>
+              <Field label="Full Name" type="text" placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} />
+              <Field label="Username" type="text" placeholder="janesmith" value={username} onChange={e => setUsername(e.target.value)} />
+            </>
+          ) : (
+            <>
+              <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} />
+              <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+            </>
+          )
+        ) : (
           <>
-            <Field label="Full Name" type="text" placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} />
-            <Field label="Username" type="text" placeholder="janesmith" value={username} onChange={e => setUsername(e.target.value)} />
+            <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} />
+            <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
           </>
         )}
-        <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} />
-        <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
 
         {/* Error */}
         {error && (
@@ -186,7 +197,17 @@ export default function Auth() {
 
         {/* Submit */}
         <button
-          onClick={mode === 'signup' ? handleSignup : handleSignin}
+          onClick={() => {
+            if (mode === 'signup' && signupStep === 1) {
+              setError(null)
+              if (!name.trim() || !username.trim()) { setError('Name and username are required.'); return }
+              setSignupStep(2)
+            } else if (mode === 'signup') {
+              handleSignup()
+            } else {
+              handleSignin()
+            }
+          }}
           disabled={loading}
           style={{
             width: '100%',
@@ -202,14 +223,24 @@ export default function Auth() {
             transition: 'background 0.2s',
           }}
         >
-          {loading ? 'One moment…' : mode === 'signup' ? "Let's go →" : 'Sign in →'}
+          {loading ? 'One moment…' : mode === 'signup' ? (signupStep === 1 ? 'Continue →' : "Let's go →") : 'Sign in →'}
         </button>
+
+        {/* Back button on signup step 2 */}
+        {mode === 'signup' && signupStep === 2 && (
+          <button
+            onClick={() => { setSignupStep(1); setError(null) }}
+            style={{ width: '100%', background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, padding: '14px', cursor: 'pointer', marginTop: 4 }}
+          >
+            ← Back
+          </button>
+        )}
 
         {/* Toggle */}
         <p style={{ color: '#5A7A9A', fontSize: 14, textAlign: 'center', marginTop: 20 }}>
           {mode === 'signup' ? 'Already have an account? ' : "Don't have an account? "}
           <button
-            onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(null) }}
+            onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setSignupStep(1); setError(null) }}
             style={{ color: '#4A9EFF', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0 }}
           >
             {mode === 'signup' ? 'Sign in' : 'Sign up'}

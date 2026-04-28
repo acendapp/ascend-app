@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import BottomNav from '../components/BottomNav'
+
 import StreakDots from '../components/StreakDots'
 import { supabase } from '../lib/supabase'
 import {
@@ -351,7 +351,6 @@ export default function Profile() {
             Retry
           </button>
         </div>
-        <BottomNav />
       </div>
     )
   }
@@ -556,7 +555,6 @@ export default function Profile() {
 
         </div>
       </div>
-      <BottomNav />
     </div>
   )
 }

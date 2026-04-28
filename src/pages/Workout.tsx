@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import BottomNav from '../components/BottomNav'
+import { useNavigate, useLocation } from 'react-router-dom'
+import AscendBolt from '../components/AscendBolt'
 import { supabase } from '../lib/supabase'
 import { generateWorkout, suggestSubstitution, parseReps } from '../lib/workout-generator'
 import type { GeneratedWorkout, ExerciseItem } from '../lib/workout-generator'
@@ -8,7 +8,7 @@ import type { UserProfile } from '../types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Phase = 'session-picker' | 'recovery' | 'loading' | 'workout' | 'error' | 'summary'
+type Phase = 'session-picker' | 'recovery' | 'loading' | 'workout' | 'error' | 'summary' | 'celebration'
 
 interface SummaryData {
   sessionLabel: string
@@ -154,6 +154,7 @@ function ExerciseCard({
   swapping,
   isBodyweight,
   savedWeights,
+  isPreview,
   onCompleteSet,
   onSkipRest,
   onSwap,
@@ -167,6 +168,7 @@ function ExerciseCard({
   swapping: boolean
   isBodyweight: boolean
   savedWeights: Record<string, number>
+  isPreview?: boolean
   onCompleteSet: (setIdx: number, weight: number | null) => void
   onSkipRest: () => void
   onSwap: () => void
@@ -284,7 +286,8 @@ function ExerciseCard({
         {exercise.coaching_tip}
       </p>
 
-      {/* Set dots */}
+      {/* Set dots + weight input — disabled in preview */}
+      <div style={{ opacity: isPreview ? 0.4 : 1, pointerEvents: isPreview ? 'none' : undefined }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: pendingSetIdx !== null || isResting ? 8 : 0 }}>
         {Array.from({ length: exercise.sets }, (_, i) => {
           const isNext = i === completedSets
@@ -367,9 +370,10 @@ function ExerciseCard({
           onSkip={onSkipRest}
         />
       )}
+      </div>{/* end preview-disabled wrapper */}
 
       {/* Swap */}
-      {!done && (
+      {!isPreview && !done && (
         <button
           onClick={onSwap}
           disabled={swapping}
@@ -390,12 +394,15 @@ function ExerciseCard({
 
 export default function Workout() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const isPreview = !!(location.state as { preview?: boolean } | null)?.preview
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [firstSessionType, setFirstSessionType] = useState<string | null>(null)
-  const [phase, setPhase] = useState<Phase>(() =>
-    localStorage.getItem('ascend_first_session_done') ? 'recovery' : 'session-picker'
-  )
+  const [phase, setPhase] = useState<Phase>(() => {
+    if (isPreview) return 'loading'
+    return localStorage.getItem('ascend_first_session_done') ? 'recovery' : 'session-picker'
+  })
   const [recoveryScore, setRecoveryScore] = useState(5)
   const [workout, setWorkout] = useState<GeneratedWorkout | null>(null)
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0)
@@ -415,6 +422,7 @@ export default function Workout() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const workoutTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef<number>(0)
+  const previewStarted = useRef(false)
 
   // Load profile
   useEffect(() => {
@@ -452,6 +460,21 @@ export default function Workout() {
     if (timerRef.current) clearInterval(timerRef.current)
     if (workoutTimerRef.current) clearInterval(workoutTimerRef.current)
   }, [])
+
+  // Auto-generate for preview mode once profile is available
+  useEffect(() => {
+    if (!isPreview || !profile || previewStarted.current) return
+    previewStarted.current = true
+    handleGenerate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPreview, profile])
+
+  // Navigate home after celebration
+  useEffect(() => {
+    if (phase !== 'celebration' || !summaryData) return
+    const t = setTimeout(() => navigate('/home', { state: { prs: summaryData.newPRs } }), 1500)
+    return () => clearTimeout(t)
+  }, [phase, summaryData, navigate])
 
   function startRestTimer(key: string, seconds: number) {
     if (timerRef.current) clearInterval(timerRef.current)
@@ -680,7 +703,6 @@ export default function Workout() {
               Let's go →
             </button>
           </div>
-          <BottomNav />
         </div>
       </div>
     )
@@ -756,7 +778,6 @@ export default function Workout() {
               Generate My Workout →
             </button>
           </div>
-          <BottomNav />
         </div>
       </div>
     )
@@ -808,6 +829,35 @@ export default function Workout() {
     )
   }
 
+  // ── Celebration screen ────────────────────────────────────────────────────
+
+  if (phase === 'celebration' && summaryData) {
+    return (
+      <div style={{
+        minHeight: '100vh', background: '#080E1C',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 20,
+      }}>
+        <div style={{ animation: 'celebScale 0.6s cubic-bezier(0.175,0.885,0.32,1.275) forwards' }}>
+          <AscendBolt size={120} />
+        </div>
+        <p style={{ color: '#4A9EFF', fontSize: 26, fontWeight: 700, margin: 0, animation: 'celebFade 0.5s ease 0.3s both' }}>
+          +{summaryData.scoreChange} Ascend points
+        </p>
+        <style>{`
+          @keyframes celebScale {
+            from { transform: scale(0.5); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+          }
+          @keyframes celebFade {
+            from { transform: translateY(10px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+          }
+        `}</style>
+      </div>
+    )
+  }
+
   // ── Summary screen ────────────────────────────────────────────────────────
 
   if (phase === 'summary' && summaryData) {
@@ -815,7 +865,7 @@ export default function Workout() {
       <div className="app-shell">
         <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '60px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🏁</div>
+            <div style={{ marginBottom: 12 }}><AscendBolt size={72} /></div>
             <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Workout Complete
             </p>
@@ -853,7 +903,7 @@ export default function Workout() {
 
           <div style={{ padding: '12px 24px 48px' }}>
             <button
-              onClick={() => navigate('/home', { state: { prs: summaryData.newPRs } })}
+              onClick={() => setPhase('celebration')}
               style={{
                 width: '100%', background: '#4A9EFF', color: '#FFFFFF',
                 fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
@@ -888,6 +938,15 @@ export default function Workout() {
         </div>
 
         <div style={{ padding: '52px 20px 0' }}>
+
+          {/* Preview mode banner */}
+          {isPreview && (
+            <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'center' }}>
+              <p style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 600, margin: 0 }}>
+                Preview mode — come back tomorrow to train
+              </p>
+            </div>
+          )}
 
           {sessionPRs.map(name => (
             <div
@@ -952,6 +1011,7 @@ export default function Workout() {
                 swapping={swappingKey === key}
                 isBodyweight={isBodyweightExercise(ex)}
                 savedWeights={setWeights}
+                isPreview={isPreview}
                 onCompleteSet={(setIdx, weight) => handleCompleteSet(key, setIdx, weight, ex.sets)}
                 onSkipRest={() => { if (timerRef.current) clearInterval(timerRef.current); setActiveRest(null) }}
                 onSwap={() => handleSwap(key, ex)}
@@ -989,6 +1049,7 @@ export default function Workout() {
                     swapping={swappingKey === key}
                     isBodyweight={isBodyweightExercise(ex)}
                     savedWeights={setWeights}
+                    isPreview={isPreview}
                     onCompleteSet={(setIdx, weight) => handleCompleteSet(key, setIdx, weight, ex.sets)}
                     onSkipRest={() => { if (timerRef.current) clearInterval(timerRef.current); setActiveRest(null) }}
                     onSwap={() => handleSwap(key, ex)}
@@ -998,24 +1059,37 @@ export default function Workout() {
             </>
           )}
 
-          <button
-            onClick={handleFinish}
-            disabled={!anySetsDone}
-            style={{
-              width: '100%',
-              background: anySetsDone ? '#4A9EFF' : '#1A2A42',
-              color: '#FFFFFF',
-              fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
-              border: 'none', cursor: anySetsDone ? 'pointer' : 'not-allowed',
-              marginTop: 16, marginBottom: 8, transition: 'background 0.2s',
-            }}
-          >
-            Finish Workout & Log Progress
-          </button>
+          {isPreview ? (
+            <button
+              onClick={() => navigate('/home')}
+              style={{
+                width: '100%', background: '#1A2A42', color: '#5A7A9A',
+                fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
+                border: 'none', cursor: 'pointer',
+                marginTop: 16, marginBottom: 8,
+              }}
+            >
+              See you tomorrow 💪
+            </button>
+          ) : (
+            <button
+              onClick={handleFinish}
+              disabled={!anySetsDone}
+              style={{
+                width: '100%',
+                background: anySetsDone ? '#4A9EFF' : '#1A2A42',
+                color: '#FFFFFF',
+                fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
+                border: 'none', cursor: anySetsDone ? 'pointer' : 'not-allowed',
+                marginTop: 16, marginBottom: 8, transition: 'background 0.2s',
+              }}
+            >
+              Finish Workout & Log Progress
+            </button>
+          )}
 
         </div>
       </div>
-      <BottomNav />
     </div>
   )
 }

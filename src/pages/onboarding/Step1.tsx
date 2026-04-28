@@ -39,6 +39,9 @@ export default function Step1() {
       onBack={handleSkip}
       backLabel="Not sure yet — build me something"
     >
+      <p style={{ color: '#5A7A9A', fontSize: 11, margin: '-12px 0 20px', textAlign: 'center', letterSpacing: '0.5px' }}>
+        Takes less than 60 seconds
+      </p>
       {OPTIONS.map(opt => (
         <OptionCard
           key={opt.value}
