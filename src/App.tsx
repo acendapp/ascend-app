@@ -17,7 +17,6 @@ const TAB_PATHS = new Set(['/home', '/workout', '/groups', '/profile'])
 function AppRoutes() {
   const [authed, setAuthed] = useState(false)
   const [authReady, setAuthReady] = useState(false)
-  const [splashBurst, setSplashBurst] = useState(false)
   const [splashFading, setSplashFading] = useState(false)
   const [splashDone, setSplashDone] = useState(false)
   const location = useLocation()
@@ -33,12 +32,11 @@ function AppRoutes() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Splash timeline: hold 4 s → burst 600 ms → fade 400 ms → done
+  // Splash timeline: hold 2.5 s → fade 800 ms → done
   useEffect(() => {
-    const t1 = setTimeout(() => setSplashBurst(true), 4000)
-    const t2 = setTimeout(() => setSplashFading(true), 4600)
-    const t3 = setTimeout(() => setSplashDone(true), 5000)
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+    const t1 = setTimeout(() => setSplashFading(true), 2500)
+    const t2 = setTimeout(() => setSplashDone(true), 3300)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
   const showNav = authReady && TAB_PATHS.has(location.pathname)
@@ -71,38 +69,21 @@ function AppRoutes() {
         <div
           style={{
             position: 'fixed',
-            inset: 0,
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
             zIndex: 9999,
             background: '#080E1C',
-            overflow: 'hidden',
-            animation: splashBurst ? 'splashBg 600ms ease-in forwards' : undefined,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             opacity: splashFading ? 0 : 1,
-            transition: 'opacity 0.4s ease',
+            transition: 'opacity 0.8s ease',
+            pointerEvents: splashFading ? 'none' : 'auto',
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            <div style={{ animation: splashBurst ? 'splashBolt 600ms ease-in forwards' : undefined }}>
-              <AscendBolt size={120} />
-            </div>
-          </div>
-
-          <style>{`
-            @keyframes splashBg {
-              from { background-color: #080E1C; }
-              to   { background-color: #0D2A5A; }
-            }
-            @keyframes splashBolt {
-              from { transform: translate(-50%, -50%) scale(1); }
-              to   { transform: translate(-50%, -50%) scale(25); }
-            }
-          `}</style>
+          <AscendBolt size={120} />
         </div>
       )}
     </>

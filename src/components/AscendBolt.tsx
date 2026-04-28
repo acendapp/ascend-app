@@ -1,25 +1,29 @@
-interface Props {
-  size?: number
+import React from 'react';
+
+interface AscendBoltProps {
+  size?: number;
 }
 
-export default function AscendBolt({ size = 120 }: Props) {
+const AscendBolt: React.FC<AscendBoltProps> = ({ size = 120 }) => {
   return (
     <svg
       width={size}
-      height={size}
-      viewBox="0 0 200 280"
-      fill="none"
+      height={size * 1.4}
+      viewBox="0 0 100 140"
       xmlns="http://www.w3.org/2000/svg"
+      style={{ display: 'block' }}
     >
       <polygon
-        points="97,20 20,139 90,139 33,260 174,126 116,126 180,20"
+        points="58,0 30,65 50,65 22,140 90,55 66,55 95,0"
         fill="#4A9EFF"
       />
       <polygon
-        points="97,20 59,80 74,80 90,139 93,139 140,57"
+        points="58,0 42,40 58,40 48,65 50,65 72,10"
         fill="#8DCFFF"
-        opacity="0.3"
+        opacity="0.35"
       />
     </svg>
-  )
-}
+  );
+};
+
+export default AscendBolt;

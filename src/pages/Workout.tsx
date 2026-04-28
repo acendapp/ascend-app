@@ -435,6 +435,24 @@ export default function Workout() {
     load()
   }, [navigate])
 
+  // Skip first-session picker if user already has completed workouts in Supabase
+  useEffect(() => {
+    if (isPreview) return
+    async function checkHistory() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { count } = await supabase
+        .from('workouts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('completed', true)
+      if (count && count > 0) {
+        setPhase(p => p === 'session-picker' ? 'recovery' : p)
+      }
+    }
+    checkHistory()
+  }, [isPreview])
+
   // Loading message rotation
   useEffect(() => {
     if (phase !== 'loading') return

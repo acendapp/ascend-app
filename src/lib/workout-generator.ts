@@ -152,6 +152,47 @@ async function getPreviousWeights(userId: string): Promise<Record<string, number
   }
 }
 
+async function getDetailedWorkoutHistory(userId: string): Promise<string> {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: workouts } = await supabase
+      .from('workouts')
+      .select('id, workout_date, workout_type')
+      .eq('user_id', userId)
+      .gte('workout_date', sevenDaysAgo)
+      .order('workout_date', { ascending: false })
+
+    if (!workouts || workouts.length === 0) return ''
+
+    const workoutIds = workouts.map(w => w.id)
+    const { data: logs } = await supabase
+      .from('exercise_logs')
+      .select('workout_id, exercise_name, sets, reps, weight')
+      .in('workout_id', workoutIds)
+
+    const logsByWorkout = new Map<string, Array<{ exercise_name: string; sets: number; reps: number; weight: number }>>()
+    for (const log of logs ?? []) {
+      const arr = logsByWorkout.get(log.workout_id) ?? []
+      arr.push(log)
+      logsByWorkout.set(log.workout_id, arr)
+    }
+
+    const lines: string[] = ['Last 7 days of training (use this for progressive overload — increase weight by 2.5 lb upper / 5 lb lower on each exercise if recovery >= 4):']
+    for (const w of workouts) {
+      const date = new Date(w.workout_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      lines.push(`${date} — ${w.workout_type ?? 'Workout'}`)
+      const wLogs = logsByWorkout.get(w.id) ?? []
+      for (const log of wLogs) {
+        const weightStr = log.weight > 0 ? ` @ ${log.weight} lb` : ' (bodyweight)'
+        lines.push(`  • ${log.exercise_name}: ${log.sets} sets × ${log.reps} reps${weightStr}`)
+      }
+    }
+    return lines.join('\n')
+  } catch {
+    return ''
+  }
+}
+
 // ── API call ─────────────────────────────────────────────────────────────────
 
 async function callAnthropic(prompt: string): Promise<string> {
@@ -192,9 +233,10 @@ const FIRST_SESSION_INSIGHT = "Welcome to your first Ascend workout. We've built
 export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWorkout> {
   const { userId, goal, experience_level, equipment, recovery_score, firstSessionType } = input
 
-  const [hoursSince, previousWeights] = await Promise.all([
+  const [hoursSince, previousWeights, detailedHistory] = await Promise.all([
     getRecentMuscleHoursSince(userId),
     getPreviousWeights(userId),
+    getDetailedWorkoutHistory(userId),
   ])
 
   const isFirstSession = Object.keys(hoursSince).length === 0 && Object.keys(previousWeights).length === 0
@@ -211,7 +253,7 @@ export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWor
 
   const historyContext = isFirstSession
     ? `Training history: None — this is the athlete's very first session. Use conservative beginner-friendly weights (e.g. bench press 45–95 lb, squat 45–95 lb, row 45–75 lb). Prioritize form-friendly exercises with moderate weight.${sessionFocusLine}`
-    : `Previous exercise weights (for progressive overload — add 2.5 lb upper body, 5 lb lower body if logged before, no increase if recovery < 4): ${JSON.stringify(previousWeights)}`
+    : `${detailedHistory || `Previous weights: ${JSON.stringify(previousWeights)}`}`
 
   const muscleConstraint = avoidMuscles.length > 0
     ? `STRICTLY AVOID these muscle groups — not yet recovered (upper body needs 48 h, legs need 72 h): ${avoidMuscles.join(', ')}.`

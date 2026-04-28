@@ -126,6 +126,9 @@ export default function Profile() {
   const [totalVolume, setTotalVolume] = useState(0)
   const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0)
 
+  interface ProfileGroup { group_id: string; role: 'admin' | 'member'; name: string }
+  const [myProfileGroups, setMyProfileGroups] = useState<ProfileGroup[]>([])
+
   interface FriendCard { id: string; name: string; username: string; avatar_url: string | null; ascend_score: number }
   const [friendCards, setFriendCards] = useState<FriendCard[]>([])
   const [friends, setFriends] = useState<FriendshipWithProfile[]>([])
@@ -255,6 +258,27 @@ export default function Profile() {
         }
 
         await loadFriends(user.id)
+
+        // My groups
+        try {
+          const { data: memberRows } = await supabase
+            .from('group_members')
+            .select('group_id, role')
+            .eq('user_id', user.id)
+            .eq('status', 'approved')
+          if (memberRows && memberRows.length > 0) {
+            const groupIds = memberRows.map(m => m.group_id as string)
+            const { data: groupData } = await supabase.from('groups').select('id, name').in('id', groupIds)
+            const groupMap = new Map((groupData ?? []).map(g => [g.id, g.name as string]))
+            setMyProfileGroups(memberRows.map(m => ({
+              group_id: m.group_id as string,
+              role: m.role as 'admin' | 'member',
+              name: groupMap.get(m.group_id) ?? '',
+            })))
+          }
+        } catch {
+          // groups section is non-critical
+        }
       } catch (err) {
         console.error('Profile page load error:', err)
         setLoadError(true)
@@ -418,6 +442,27 @@ export default function Profile() {
             <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Last 7 Days</p>
             <StreakDots days={weekDays} />
           </div>
+
+          {/* ── My Groups ── */}
+          {myProfileGroups.length > 0 && (
+            <>
+              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>My Groups</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                {myProfileGroups.map(m => (
+                  <div key={m.group_id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 8, padding: '5px 10px', color: '#FFFFFF', fontSize: 12, fontWeight: 600 }}>
+                      {m.name}
+                    </span>
+                    {m.role === 'admin' && (
+                      <span style={{ background: '#0D2E5A', color: '#4A9EFF', fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 7px', letterSpacing: '0.5px' }}>
+                        ADMIN
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* ── Personal Records ── */}
           {prs.length > 0 && (

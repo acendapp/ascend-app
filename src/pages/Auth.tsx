@@ -56,6 +56,7 @@ export default function Auth() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
 
   async function handleSignup() {
     setError(null)
@@ -179,7 +180,10 @@ export default function Auth() {
             </>
           ) : (
             <>
-              <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} />
+              <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => { setEmail(e.target.value); setEmailError(null) }} />
+              {emailError && (
+                <p style={{ color: '#E85D24', fontSize: 13, marginBottom: 10, marginTop: -4 }}>{emailError}</p>
+              )}
               <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
             </>
           )
@@ -203,6 +207,12 @@ export default function Auth() {
               if (!name.trim() || !username.trim()) { setError('Name and username are required.'); return }
               setSignupStep(2)
             } else if (mode === 'signup') {
+              setEmailError(null)
+              const isPennEmail = email.endsWith('@penn.edu') || email.endsWith('@wharton.upenn.edu')
+              if (!isPennEmail) {
+                setEmailError('Ascend at Penn is for Penn students only. Please use your Penn email (@penn.edu or @wharton.upenn.edu).')
+                return
+              }
               handleSignup()
             } else {
               handleSignin()
@@ -240,7 +250,7 @@ export default function Auth() {
         <p style={{ color: '#5A7A9A', fontSize: 14, textAlign: 'center', marginTop: 20 }}>
           {mode === 'signup' ? 'Already have an account? ' : "Don't have an account? "}
           <button
-            onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setSignupStep(1); setError(null) }}
+            onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setSignupStep(1); setError(null); setEmailError(null) }}
             style={{ color: '#4A9EFF', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0 }}
           >
             {mode === 'signup' ? 'Sign in' : 'Sign up'}
