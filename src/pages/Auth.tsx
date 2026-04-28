@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Goal, Experience, Equipment } from '../types'
 
@@ -47,7 +47,8 @@ function Field({ label, ...props }: InputProps) {
 
 export default function Auth() {
   const navigate = useNavigate()
-  const [mode, setMode] = useState<Mode>('signup')
+  const location = useLocation()
+  const [mode, setMode] = useState<Mode>((location.state as { mode?: Mode } | null)?.mode ?? 'signup')
   const [signupStep, setSignupStep] = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -208,9 +209,9 @@ export default function Auth() {
               setSignupStep(2)
             } else if (mode === 'signup') {
               setEmailError(null)
-              const isPennEmail = email.endsWith('@penn.edu') || email.endsWith('@wharton.upenn.edu')
+              const isPennEmail = email.endsWith('upenn.edu')
               if (!isPennEmail) {
-                setEmailError('Ascend at Penn is for Penn students only. Please use your Penn email (@penn.edu or @wharton.upenn.edu).')
+                setEmailError('Ascend is currently in beta for Penn students only. Please use your Penn email to join.')
                 return
               }
               handleSignup()

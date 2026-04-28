@@ -147,6 +147,7 @@ INSERT INTO public.groups (name, formal_name, category) VALUES
 ('PGN',      'Phi Gamma Nu',          'Fraternity'),
 
 -- ── Sororities ────────────────────────────────────────────────────────────────
+('A Phi',     'Alpha Phi',            'Sorority'),
 ('OAX',       NULL,                   'Sorority'),
 ('Tabard',    NULL,                   'Sorority'),
 ('Theta',     NULL,                   'Sorority'),

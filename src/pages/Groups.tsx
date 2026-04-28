@@ -7,6 +7,13 @@ const CATEGORIES = ['Fraternity', 'Sorority', 'Club Sport', 'Club'] as const
 type Category = typeof CATEGORIES[number]
 type Tab = 'browse' | 'my-groups'
 
+const CATEGORY_PLURAL: Record<Category, string> = {
+  'Fraternity': 'Fraternities',
+  'Sorority':   'Sororities',
+  'Club Sport': 'Club Sports',
+  'Club':       'Clubs',
+}
+
 interface Group {
   id: string
   name: string
@@ -97,6 +104,10 @@ export default function Groups() {
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([])
   const [manageLoading, setManageLoading] = useState(false)
   const [managingId, setManagingId] = useState<string | null>(null)
+
+  // Leave group
+  const [leaveConfirm, setLeaveConfirm] = useState<MyMembership | null>(null)
+  const [leaveLoading, setLeaveLoading] = useState(false)
 
   // ── Init: get user + all groups ───────────────────────────────────────────
 
@@ -255,13 +266,14 @@ export default function Groups() {
     if (!userId || !detailGroup || joinLoading) return
     setJoinLoading(true)
     try {
-      const { count } = await supabase
+      const { count, error: countError } = await supabase
         .from('group_members')
         .select('id', { count: 'exact', head: true })
         .eq('group_id', detailGroup.id)
         .eq('status', 'approved')
 
-      const isFirst = (count ?? 0) === 0
+      if (countError) throw countError
+      const isFirst = count === 0
       const now = new Date().toISOString()
 
       const { error } = await supabase.from('group_members').insert({
@@ -315,6 +327,43 @@ export default function Groups() {
       setPendingRequests(prev => prev.filter(r => r.membershipId !== req.membershipId))
     } finally {
       setManagingId(null)
+    }
+  }
+
+  async function handleLeave(m: MyMembership) {
+    if (!userId || leaveLoading) return
+    setLeaveLoading(true)
+    try {
+      const groupId = m.group.id
+
+      // If leaving user is admin, promote the earliest-joined remaining member
+      if (m.role === 'admin') {
+        const { data: nextMembers } = await supabase
+          .from('group_members')
+          .select('id')
+          .eq('group_id', groupId)
+          .eq('status', 'approved')
+          .neq('user_id', userId)
+          .order('approved_at', { ascending: true })
+          .limit(1)
+        if (nextMembers && nextMembers.length > 0) {
+          await supabase.from('group_members').update({ role: 'admin' }).eq('id', nextMembers[0].id)
+        }
+      }
+
+      // Delete own membership row
+      await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId)
+
+      // Decrement member_count
+      const { data: gd } = await supabase.from('groups').select('member_count').eq('id', groupId).maybeSingle()
+      const newCount = Math.max(0, (gd?.member_count ?? 1) - 1)
+      await supabase.from('groups').update({ member_count: newCount }).eq('id', groupId)
+
+      setMyGroups(prev => prev.filter(mg => mg.membershipId !== m.membershipId))
+      setAllGroups(prev => prev.map(g => g.id === groupId ? { ...g, member_count: newCount } : g))
+      setLeaveConfirm(null)
+    } finally {
+      setLeaveLoading(false)
     }
   }
 
@@ -560,7 +609,7 @@ export default function Groups() {
                   <input
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    placeholder={`Search ${selectedCategory.toLowerCase()}s…`}
+                    placeholder={`Search ${CATEGORY_PLURAL[selectedCategory].toLowerCase()}…`}
                     style={{ width: '100%', background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px 16px', color: '#FFFFFF', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 10 }}
                   />
                   {filteredGroups.length === 0 ? (
@@ -643,6 +692,14 @@ export default function Groups() {
                           <p style={{ color: '#4A9EFF', fontSize: 16, fontWeight: 700, margin: 0 }}>{m.avgScore || '—'}</p>
                         </div>
                       </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                        <button
+                          onClick={() => setLeaveConfirm(m)}
+                          style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 12, cursor: 'pointer', padding: 0 }}
+                        >
+                          Leave group
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -651,6 +708,36 @@ export default function Groups() {
           )}
         </div>
       </div>
+
+      {/* Leave group confirmation modal */}
+      {leaveConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(8,14,28,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: '24px 20px', width: '100%', maxWidth: 342 }}>
+            <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>
+              Leave {leaveConfirm.group.name}?
+            </p>
+            <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 22px', lineHeight: 1.5 }}>
+              Are you sure you want to leave {leaveConfirm.group.name}? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setLeaveConfirm(null)}
+                disabled={leaveLoading}
+                style={{ flex: 1, background: 'transparent', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px', color: '#5A7A9A', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleLeave(leaveConfirm)}
+                disabled={leaveLoading}
+                style={{ flex: 1, background: '#FF6B6B', border: 'none', borderRadius: 12, padding: '12px', color: '#FFFFFF', fontSize: 14, fontWeight: 700, cursor: leaveLoading ? 'not-allowed' : 'pointer' }}
+              >
+                {leaveLoading ? 'Leaving…' : 'Leave'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

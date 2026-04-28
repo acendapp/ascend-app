@@ -449,16 +449,10 @@ export default function Profile() {
               <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>My Groups</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
                 {myProfileGroups.map(m => (
-                  <div key={m.group_id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 8, padding: '5px 10px', color: '#FFFFFF', fontSize: 12, fontWeight: 600 }}>
-                      {m.name}
-                    </span>
-                    {m.role === 'admin' && (
-                      <span style={{ background: '#0D2E5A', color: '#4A9EFF', fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 7px', letterSpacing: '0.5px' }}>
-                        ADMIN
-                      </span>
-                    )}
-                  </div>
+                  <span key={m.group_id} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600 }}>
+                    <span style={{ color: '#FFFFFF' }}>{m.name}</span>
+                    {m.role === 'admin' && <span style={{ color: '#4A9EFF' }}> (Admin)</span>}
+                  </span>
                 ))}
               </div>
             </>

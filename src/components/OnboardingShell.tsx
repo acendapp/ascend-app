@@ -9,6 +9,7 @@ interface OnboardingShellProps {
   onBack?: () => void
   backLabel?: string
   continueDisabled?: boolean
+  footer?: React.ReactNode
 }
 
 export default function OnboardingShell({
@@ -22,6 +23,7 @@ export default function OnboardingShell({
   onBack,
   backLabel = 'Back',
   continueDisabled = false,
+  footer,
 }: OnboardingShellProps) {
   return (
     <div className="app-shell">
@@ -99,6 +101,8 @@ export default function OnboardingShell({
         >
           {backLabel}
         </button>
+
+        {footer}
       </div>
     </div>
   )

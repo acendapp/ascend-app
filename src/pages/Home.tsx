@@ -79,9 +79,8 @@ export default function Home() {
 
   const loadData = useCallback(async () => {
     try {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) { navigate('/auth'); return }
-    const user = session.user
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { navigate('/auth'); return }
 
     const [profileRes, scoresRes] = await Promise.all([
       supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
