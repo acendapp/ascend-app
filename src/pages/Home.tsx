@@ -5,26 +5,6 @@ import { supabase } from '../lib/supabase'
 import { calculateAscendScore, calculateConsistencyScore } from '../lib/scoring'
 import type { UserProfile, UserScores, ActivityItem } from '../types'
 
-type LeaderboardFilter = 'friends' | 'groups' | 'campus' | 'alltime'
-
-interface LeaderboardRow {
-  rank: number
-  initials: string
-  name: string
-  group: string
-  score: number
-  userId?: string
-}
-
-interface GroupLeaderboardRow {
-  rank: number
-  name: string
-  category: string
-  memberCount: number
-  avgScore: number
-}
-
-const RANK_COLORS: Record<number, string> = { 1: '#F5A623', 2: '#B0B8C4', 3: '#CD7F32' }
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -63,11 +43,6 @@ export default function Home() {
   const [weekDays, setWeekDays] = useState<boolean[]>(new Array(7).fill(false))
   const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0)
 
-  const [filter, setFilter] = useState<LeaderboardFilter>('campus')
-  const [friendsLeaderboard, setFriendsLeaderboard] = useState<LeaderboardRow[]>([])
-  const [hasFriends, setHasFriends] = useState(false)
-  const [groupsLeaderboard, setGroupsLeaderboard] = useState<GroupLeaderboardRow[]>([])
-
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
   const [isCheckedIn, setIsCheckedIn] = useState(false)
   const [checkinLoading, setCheckinLoading] = useState(false)
@@ -75,7 +50,8 @@ export default function Home() {
 
   const [showPRBanner, setShowPRBanner] = useState(newPRs.length > 0)
   const [hasAnyWorkout, setHasAnyWorkout] = useState(false)
-  const [campusLeaderboard, setCampusLeaderboard] = useState<LeaderboardRow[]>([])
+  const [campusRank, setCampusRank] = useState(0)
+  const [bestChallenge, setBestChallenge] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -150,34 +126,7 @@ export default function Home() {
     const friendIds = (friendships ?? []).map(f =>
       f.requester_id === user.id ? f.recipient_id : f.requester_id
     )
-    setHasFriends(friendIds.length > 0)
-
     if (friendIds.length > 0) {
-      // Friends leaderboard
-      const allIds = [user.id, ...friendIds]
-      const [scoresData, profilesData] = await Promise.all([
-        supabase.from('user_scores').select('user_id, ascend_score').in('user_id', allIds),
-        supabase.from('users').select('id, name, affiliation').in('id', allIds),
-      ])
-      if (scoresData.data && profilesData.data) {
-        const profileMap = new Map(profilesData.data.map(p => [p.id, p]))
-        const rows: LeaderboardRow[] = scoresData.data
-          .sort((a, b) => b.ascend_score - a.ascend_score)
-          .map((s, i) => {
-            const p = profileMap.get(s.user_id)
-            return {
-              rank: i + 1,
-              initials: initials(p?.name ?? '??'),
-              name: p?.name ?? 'Unknown',
-              group: p?.affiliation ?? 'Penn',
-              score: s.ascend_score,
-              userId: s.user_id,
-            }
-          })
-        setFriendsLeaderboard(rows)
-        setFilter('friends')
-      }
-
       // Activity feed: recent friend workouts
       const { data: friendWorkouts } = await supabase
         .from('workouts')
@@ -240,76 +189,31 @@ export default function Home() {
       .eq('completed', true)
     setHasAnyWorkout((workoutCount ?? 0) > 0)
 
-    // Campus / all-time leaderboard (real data)
-    const { data: allScores } = await supabase
+    // Campus rank for Compete teaser
+    const { count: higherCount } = await supabase
       .from('user_scores')
-      .select('user_id, ascend_score')
-      .order('ascend_score', { ascending: false })
-      .limit(20)
+      .select('user_id', { count: 'exact', head: true })
+      .gt('ascend_score', scoresRes.data?.ascend_score ?? 0)
+    setCampusRank((higherCount ?? 0) + 1)
 
-    if (allScores && allScores.length > 0) {
-      const allIds = allScores.map(s => s.user_id)
-      const { data: allProfiles } = await supabase
-        .from('users')
-        .select('id, name, affiliation')
-        .in('id', allIds)
-      if (allProfiles) {
-        const profileMap = new Map(allProfiles.map(p => [p.id, p]))
-        const rows: LeaderboardRow[] = allScores.map((s, i) => {
-          const p = profileMap.get(s.user_id)
-          return {
-            rank: i + 1,
-            initials: initials(p?.name ?? '??'),
-            name: p?.name ?? 'Unknown',
-            group: p?.affiliation ?? 'Penn',
-            score: s.ascend_score,
-            userId: s.user_id,
-          }
-        })
-        setCampusLeaderboard(rows)
-      }
-    }
-
-    // Groups leaderboard
+    // Best active challenge for teaser (graceful fail if tables not yet migrated)
     try {
-      const { data: allMemberships } = await supabase
-        .from('group_members')
-        .select('group_id, user_id')
-        .eq('status', 'approved')
-
-      if (allMemberships && allMemberships.length > 0) {
-        const memberUserIds = [...new Set(allMemberships.map(m => m.user_id as string))]
-        const groupIds = [...new Set(allMemberships.map(m => m.group_id as string))]
-
-        const [memberScoresRes, groupsDataRes] = await Promise.all([
-          supabase.from('user_scores').select('user_id, ascend_score').in('user_id', memberUserIds),
-          supabase.from('groups').select('id, name, category, member_count').in('id', groupIds),
-        ])
-
-        const scoreMap = new Map((memberScoresRes.data ?? []).map(s => [s.user_id, s.ascend_score as number]))
-        const groupMap = new Map((groupsDataRes.data ?? []).map(g => [g.id, g as { id: string; name: string; category: string; member_count: number }]))
-
-        const groupScoreMap = new Map<string, number[]>()
-        for (const m of allMemberships) {
-          const arr = groupScoreMap.get(m.group_id) ?? []
-          arr.push(scoreMap.get(m.user_id) ?? 0)
-          groupScoreMap.set(m.group_id, arr)
-        }
-
-        const rows: GroupLeaderboardRow[] = []
-        for (const [gid, scores] of groupScoreMap.entries()) {
-          const g = groupMap.get(gid)
-          if (!g) continue
-          const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
-          rows.push({ rank: 0, name: g.name, category: g.category, memberCount: g.member_count, avgScore: avg })
-        }
-        rows.sort((a, b) => b.avgScore - a.avgScore)
-        rows.forEach((r, i) => { r.rank = i + 1 })
-        setGroupsLeaderboard(rows.slice(0, 15))
+      const now = new Date().toISOString()
+      const { data: myParticipations } = await supabase
+        .from('challenge_participants')
+        .select('challenge_id')
+        .eq('user_id', user.id)
+      if (myParticipations && myParticipations.length > 0) {
+        const { data: active } = await supabase
+          .from('challenges')
+          .select('title')
+          .in('id', myParticipations.map(p => p.challenge_id as string))
+          .lte('start_date', now)
+          .gte('end_date', now)
+          .limit(1)
+        if (active && active.length > 0) setBestChallenge(`Active in ${active[0].title}`)
       }
-    } catch {
-      // groups leaderboard is non-critical
-    }
+    } catch { /* challenge tables not yet migrated */ }
 
     } catch (err) {
       console.error('[Home] loadData error:', err)
@@ -356,8 +260,6 @@ export default function Home() {
       ))
     }
   }
-
-  const currentPersonLeaderboard = filter === 'friends' ? friendsLeaderboard : campusLeaderboard
 
   if (loading) {
     return (
@@ -536,113 +438,29 @@ export default function Home() {
             {workoutCompletedToday ? "Preview Tomorrow's Workout →" : "Generate Today's Workout →"}
           </button>
 
-          {/* Leaderboard header + filter tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700 }}>Leaderboard</span>
-            <button style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, cursor: 'pointer', padding: 0 }}>See all →</button>
+          {/* Compete teaser */}
+          <div
+            style={{
+              background: '#0A1F3A',
+              border: '1px solid #1E3D6E',
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 20,
+            }}
+          >
+            <p style={{ color: '#4A9EFF', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>
+              Campus Rank #{campusRank > 0 ? campusRank : '—'}
+            </p>
+            {bestChallenge && (
+              <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 12px' }}>{bestChallenge}</p>
+            )}
+            <button
+              onClick={() => navigate('/compete')}
+              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+            >
+              View leaderboards →
+            </button>
           </div>
-
-          {/* Filter tabs */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: '#0D1728', borderRadius: 10, padding: 4 }}>
-            {(['friends', 'groups', 'campus', 'alltime'] as LeaderboardFilter[]).map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                style={{
-                  flex: 1,
-                  background: filter === f ? '#4A9EFF' : 'transparent',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '6px 0',
-                  color: filter === f ? '#FFFFFF' : '#5A7A9A',
-                  fontSize: 10,
-                  fontWeight: filter === f ? 700 : 400,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {f === 'friends' ? 'Friends' : f === 'groups' ? 'Groups' : f === 'campus' ? 'Campus' : 'All Time'}
-              </button>
-            ))}
-          </div>
-
-          {/* Leaderboard card */}
-          {filter === 'groups' ? (
-            groupsLeaderboard.length === 0 ? (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 28, textAlign: 'center', marginBottom: 20 }}>
-                <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>No groups are on the leaderboard yet.</p>
-              </div>
-            ) : (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: '4px 14px', marginBottom: 20 }}>
-                {groupsLeaderboard.map((entry, idx) => (
-                  <div
-                    key={idx}
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < groupsLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none' }}
-                  >
-                    <span style={{ color: RANK_COLORS[entry.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
-                      {entry.rank}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{entry.name}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{entry.category} · {entry.memberCount} members</p>
-                    </div>
-                    <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{entry.avgScore}</span>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : filter === 'friends' && !hasFriends ? (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Add friends to see how you rank against them.</p>
-            </div>
-          ) : (filter === 'campus' || filter === 'alltime') && currentPersonLeaderboard.length < 3 ? (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 32, textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Be the first on the leaderboard. Start training.</p>
-            </div>
-          ) : (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: '4px 14px', marginBottom: 20 }}>
-              {currentPersonLeaderboard.map((entry, idx) => {
-                const isUser = profile && entry.userId === profile.id
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '12px 0',
-                      borderBottom: idx < currentPersonLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none',
-                      background: isUser ? '#0D2E5A' : 'transparent',
-                      borderRadius: isUser ? 10 : 0,
-                      margin: isUser ? '4px -4px' : 0,
-                      paddingLeft: isUser ? 8 : 0,
-                      paddingRight: isUser ? 8 : 0,
-                    }}
-                  >
-                    <span style={{ color: RANK_COLORS[entry.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
-                      {entry.rank}
-                    </span>
-                    <div
-                      style={{
-                        width: 32, height: 32, borderRadius: '50%',
-                        background: '#1A2A42',
-                        border: isUser ? '1px solid #4A9EFF' : 'none',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0,
-                      }}
-                    >
-                      {entry.initials}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{entry.name}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{entry.group}</p>
-                    </div>
-                    <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{entry.score}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
 
           {/* Activity Feed */}
           {activityFeed.length > 0 && (

@@ -10,9 +10,10 @@ import Auth from './pages/Auth'
 import Home from './pages/Home'
 import Workout from './pages/Workout'
 import Groups from './pages/Groups'
+import Compete from './pages/Compete'
 import Profile from './pages/Profile'
 
-const TAB_PATHS = new Set(['/home', '/workout', '/groups', '/profile'])
+const TAB_PATHS = new Set(['/home', '/workout', '/compete', '/profile'])
 
 function AppRoutes() {
   const [authed, setAuthed] = useState(false)
@@ -55,6 +56,7 @@ function AppRoutes() {
             <Route path="/home"    element={authed ? <Home />    : <Navigate to="/auth" replace />} />
             <Route path="/workout" element={authed ? <Workout /> : <Navigate to="/auth" replace />} />
             <Route path="/groups"  element={authed ? <Groups />  : <Navigate to="/auth" replace />} />
+            <Route path="/compete" element={authed ? <Compete /> : <Navigate to="/auth" replace />} />
             <Route path="/profile" element={authed ? <Profile /> : <Navigate to="/auth" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

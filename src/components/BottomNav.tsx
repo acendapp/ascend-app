@@ -38,24 +38,31 @@ const tabs = [
     ),
   },
   {
-    id: 'groups',
-    label: 'Groups',
-    path: '/groups',
+    id: 'compete',
+    label: 'Compete',
+    path: '/compete',
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <circle cx="9" cy="8" r="3" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" />
-        <circle cx="17" cy="9" r="2.5" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" />
         <path
-          d="M3 19c0-3.314 2.686-5 6-5s6 1.686 6 5"
+          d="M8 21h8M12 17v4M6 3h12"
           stroke={active ? '#4A9EFF' : '#5A7A9A'}
           strokeWidth="1.8"
           strokeLinecap="round"
+          strokeLinejoin="round"
         />
         <path
-          d="M17 14c2.5 0 4 1.2 4 3.5"
+          d="M6 3v4a6 6 0 0012 0V3"
           stroke={active ? '#4A9EFF' : '#5A7A9A'}
           strokeWidth="1.8"
           strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6 7H3v3a3 3 0 003 3M18 7h3v3a3 3 0 01-3 3"
+          stroke={active ? '#4A9EFF' : '#5A7A9A'}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
       </svg>
     ),

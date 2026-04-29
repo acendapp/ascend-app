@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -79,6 +80,7 @@ function AdminBadge() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Groups() {
+  const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('browse')
   const [userId, setUserId] = useState<string | null>(null)
   const [allGroups, setAllGroups] = useState<Group[]>([])
@@ -561,7 +563,15 @@ export default function Groups() {
     <div className="app-shell">
       <div className="app-content page-scroll">
         <div style={{ padding: '52px 20px 0' }}>
-          <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 20px' }}>Groups</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: 0 }}>Groups</h1>
+            <button
+              onClick={() => navigate('/compete')}
+              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: 0 }}
+            >
+              ← Compete
+            </button>
+          </div>
 
           {/* Tab toggle */}
           <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: '#0D1728', borderRadius: 10, padding: 4 }}>
