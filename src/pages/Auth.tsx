@@ -128,7 +128,7 @@ export default function Auth() {
       }
       console.log('[Auth] public.user_scores insert — OK')
 
-      navigate('/home')
+      navigate('/workout')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong.'
       setError(message)

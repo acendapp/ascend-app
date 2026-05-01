@@ -9,11 +9,15 @@ import Step3 from './pages/onboarding/Step3'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
 import Workout from './pages/Workout'
+import WorkoutTypeSelector from './pages/WorkoutTypeSelector'
+import CustomWorkout from './pages/CustomWorkout'
+import ClassWorkout from './pages/ClassWorkout'
 import Groups from './pages/Groups'
 import Compete from './pages/Compete'
 import Profile from './pages/Profile'
+import History from './pages/History'
 
-const TAB_PATHS = new Set(['/home', '/workout', '/compete', '/profile'])
+const TAB_PATHS = new Set(['/home', '/workout', '/groups', '/compete', '/profile'])
 
 function AppRoutes() {
   const [authed, setAuthed] = useState(false)
@@ -54,10 +58,14 @@ function AppRoutes() {
             <Route path="/onboarding/step3" element={<Step3 />} />
             <Route path="/auth" element={authed ? <Navigate to="/home" replace /> : <Auth />} />
             <Route path="/home"    element={authed ? <Home />    : <Navigate to="/auth" replace />} />
-            <Route path="/workout" element={authed ? <Workout /> : <Navigate to="/auth" replace />} />
+            <Route path="/workout" element={authed ? <WorkoutTypeSelector /> : <Navigate to="/auth" replace />} />
+            <Route path="/workout/ascend" element={authed ? <Workout /> : <Navigate to="/auth" replace />} />
+            <Route path="/workout/custom" element={authed ? <CustomWorkout /> : <Navigate to="/auth" replace />} />
+            <Route path="/workout/class" element={authed ? <ClassWorkout /> : <Navigate to="/auth" replace />} />
             <Route path="/groups"  element={authed ? <Groups />  : <Navigate to="/auth" replace />} />
             <Route path="/compete" element={authed ? <Compete /> : <Navigate to="/auth" replace />} />
             <Route path="/profile" element={authed ? <Profile /> : <Navigate to="/auth" replace />} />
+            <Route path="/history" element={authed ? <History /> : <Navigate to="/auth" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           {showNav && <BottomNav />}

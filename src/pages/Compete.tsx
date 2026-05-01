@@ -36,6 +36,7 @@ interface PersonRow {
   subtitle: string
   score: number
   userId: string
+  level: number
 }
 
 interface GroupRow {
@@ -69,6 +70,42 @@ function daysLeft(endDate: string) {
 }
 
 const RANK_COLORS: Record<number, string> = { 1: '#F5A623', 2: '#B0B8C4', 3: '#CD7F32' }
+
+function tierBadge(level: number): { label: string; bg: string; color: string } {
+  if (level >= 7) return { label: `Lv ${level}`, bg: '#2D1B4E', color: '#9B59B6' }
+  if (level >= 5) return { label: `Lv ${level}`, bg: '#2D2000', color: '#F5A623' }
+  if (level >= 3) return { label: `Lv ${level}`, bg: '#0D2040', color: '#4A9EFF' }
+  return { label: `Lv ${level}`, bg: '#1A2A42', color: '#5A7A9A' }
+}
+
+const LB_SNAP_KEY = 'ascend_lb_snap'
+function getStoredRanks(): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(LB_SNAP_KEY) ?? '{}') as Record<string, number> } catch { return {} }
+}
+function storeLeaderboardSnapshot(rows: PersonRow[]) {
+  try {
+    const snap: Record<string, number> = {}
+    for (const r of rows) snap[r.userId] = r.rank
+    localStorage.setItem(LB_SNAP_KEY, JSON.stringify(snap))
+  } catch {}
+}
+function daysUntilMonthEnd(): number {
+  const now = new Date()
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return Math.ceil((lastDay.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+interface LiveChallenge {
+  title: string
+  icon: string
+  userRank: number
+  totalParticipants: number
+  userValue: number
+  valueLabel: string
+  aboveName: string | null
+  aboveValue: number | null
+  daysLabel: string
+}
 
 function SectionHeader({ title, onAction }: { title: string; onAction?: () => void }) {
   return (
@@ -176,6 +213,8 @@ export default function Compete() {
   const [myGroupIds, setMyGroupIds] = useState<Set<string>>(new Set())
   const [campusLeaderboard, setCampusLeaderboard] = useState<PersonRow[]>([])
   const [pinnedRow, setPinnedRow] = useState<PersonRow | null>(null)
+  const [liveChallenges, setLiveChallenges] = useState<LiveChallenge[]>([])
+  const [rankChanges, setRankChanges] = useState<Record<string, number>>({})
 
   // ── Main data load ──────────────────────────────────────────────────────────
 
@@ -217,7 +256,7 @@ export default function Compete() {
       if (friendIds.length > 0) {
         const allIds = [user.id, ...friendIds]
         const [friendScores, friendProfiles] = await Promise.all([
-          supabase.from('user_scores').select('user_id, ascend_score').in('user_id', allIds),
+          supabase.from('user_scores').select('user_id, ascend_score, level').in('user_id', allIds).gt('ascend_score', 0),
           supabase.from('users').select('id, name, affiliation').in('id', allIds),
         ])
         if (friendScores.data && friendProfiles.data) {
@@ -234,16 +273,18 @@ export default function Compete() {
                 subtitle: (p as { affiliation?: string })?.affiliation ?? 'Penn',
                 score: s.ascend_score as number,
                 userId: s.user_id as string,
+                level: (s.level as number) ?? 1,
               }
             })
           setFriendsLeaderboard(rows)
         }
       }
 
-      // Campus leaderboard (top 10 + pin user if outside)
+      // Campus leaderboard (top 10 + pin user if outside) — exclude zero-score rows
       const { data: allScores } = await supabase
         .from('user_scores')
-        .select('user_id, ascend_score')
+        .select('user_id, ascend_score, level')
+        .gt('ascend_score', 0)
         .order('ascend_score', { ascending: false })
         .limit(15)
 
@@ -264,9 +305,19 @@ export default function Compete() {
               subtitle: (p as { affiliation?: string })?.affiliation ?? 'Penn',
               score: s.ascend_score as number,
               userId: s.user_id as string,
+              level: (s.level as number) ?? 1,
             }
           })
           setCampusLeaderboard(rows.slice(0, 10))
+          // Rank movement since last visit
+          const prevRanks = getStoredRanks()
+          storeLeaderboardSnapshot(rows)
+          const changes: Record<string, number> = {}
+          for (const r of rows) {
+            const prev = prevRanks[r.userId]
+            if (prev !== undefined && prev !== r.rank) changes[r.userId] = prev - r.rank
+          }
+          setRankChanges(changes)
           const inTop10 = rows.slice(0, 10).some(r => r.userId === user.id)
           if (!inTop10) {
             const inRows = rows.find(r => r.userId === user.id)
@@ -277,6 +328,7 @@ export default function Compete() {
               subtitle: profileRes.data?.affiliation ?? 'Penn',
               score: userScore,
               userId: user.id,
+              level: scoresRes.data?.level ?? 1,
             })
           }
         }
@@ -310,7 +362,9 @@ export default function Compete() {
           for (const [gid, gscores] of groupScoreMap.entries()) {
             const g = groupMap.get(gid)
             if (!g) continue
-            const avg = gscores.length > 0 ? Math.round(gscores.reduce((a, b) => a + b, 0) / gscores.length) : 0
+            const nonZero = gscores.filter(s => s > 0)
+            const avg = nonZero.length > 0 ? Math.round(nonZero.reduce((a, b) => a + b, 0) / nonZero.length) : 0
+            if (avg === 0) continue
             rows.push({
               rank: 0,
               groupId: gid,
@@ -325,6 +379,92 @@ export default function Compete() {
           setGroupsLeaderboard(rows.slice(0, 5))
         }
       } catch { /* groups non-critical */ }
+
+      // Live computed challenges (Monthly Grind + Volume King)
+      try {
+        const monthStart = new Date()
+        monthStart.setDate(1)
+        monthStart.setHours(0, 0, 0, 0)
+
+        const { data: mWorkouts } = await supabase
+          .from('workouts')
+          .select('id, user_id')
+          .eq('completed', true)
+          .gte('workout_date', monthStart.toISOString())
+
+        if (mWorkouts && mWorkouts.length > 0) {
+          const cntMap = new Map<string, number>()
+          const wMap = new Map<string, string>()
+          for (const w of mWorkouts) {
+            const uid = w.user_id as string
+            cntMap.set(uid, (cntMap.get(uid) ?? 0) + 1)
+            wMap.set(w.id as string, uid)
+          }
+
+          const sortedCnt = [...cntMap.entries()].sort((a, b) => b[1] - a[1])
+          const myGrindIdx = sortedCnt.findIndex(([id]) => id === user.id)
+          const myGrindRank = myGrindIdx >= 0 ? myGrindIdx + 1 : sortedCnt.length + 1
+          const myGrindCount = cntMap.get(user.id) ?? 0
+          const aboveCntEntry = myGrindIdx > 0 ? sortedCnt[myGrindIdx - 1] : null
+
+          let aboveGrindName: string | null = null
+          if (aboveCntEntry) {
+            const { data: p } = await supabase.from('users').select('name').eq('id', aboveCntEntry[0]).maybeSingle()
+            aboveGrindName = p ? shortName(p.name as string) : null
+          }
+
+          const newChallenges: LiveChallenge[] = [{
+            title: 'Monthly Grind',
+            icon: '🔥',
+            userRank: myGrindRank,
+            totalParticipants: sortedCnt.length,
+            userValue: myGrindCount,
+            valueLabel: `workout${myGrindCount !== 1 ? 's' : ''} this month`,
+            aboveName: aboveGrindName,
+            aboveValue: aboveCntEntry ? aboveCntEntry[1] : null,
+            daysLabel: `${daysUntilMonthEnd()}d left`,
+          }]
+
+          // Volume King: total lbs lifted this month
+          const wIds = mWorkouts.map(w => w.id as string)
+          const { data: volLogs } = await supabase
+            .from('exercise_logs').select('workout_id, weight, reps').in('workout_id', wIds)
+
+          if (volLogs && volLogs.length > 0) {
+            const volMap = new Map<string, number>()
+            for (const l of volLogs) {
+              const uid = wMap.get(l.workout_id as string)
+              if (!uid) continue
+              volMap.set(uid, (volMap.get(uid) ?? 0) + ((l.weight as number) ?? 0) * ((l.reps as number) ?? 0))
+            }
+            const sortedVol = [...volMap.entries()].sort((a, b) => b[1] - a[1])
+            const myVolIdx = sortedVol.findIndex(([id]) => id === user.id)
+            const myVolRank = myVolIdx >= 0 ? myVolIdx + 1 : sortedVol.length + 1
+            const myVol = volMap.get(user.id) ?? 0
+            const aboveVolEntry = myVolIdx > 0 ? sortedVol[myVolIdx - 1] : null
+
+            let aboveVolName: string | null = null
+            if (aboveVolEntry) {
+              const { data: p } = await supabase.from('users').select('name').eq('id', aboveVolEntry[0]).maybeSingle()
+              aboveVolName = p ? shortName(p.name as string) : null
+            }
+
+            newChallenges.push({
+              title: 'Volume King',
+              icon: '💪',
+              userRank: myVolRank,
+              totalParticipants: sortedVol.length,
+              userValue: Math.round(myVol),
+              valueLabel: 'lb volume this month',
+              aboveName: aboveVolName,
+              aboveValue: aboveVolEntry ? Math.round(aboveVolEntry[1]) : null,
+              daysLabel: `${daysUntilMonthEnd()}d left`,
+            })
+          }
+
+          setLiveChallenges(newChallenges)
+        }
+      } catch { /* live challenges non-critical */ }
 
     } catch (err) {
       console.error('[Compete] loadData error:', err)
@@ -411,7 +551,12 @@ export default function Compete() {
         challenge_id: challengeId,
         user_id: userId,
       })
-      if (!error) await loadChallenges(userId)
+      if (!error) {
+        await loadChallenges(userId)
+        // +10 social points for joining a challenge
+        const { data: sr } = await supabase.from('user_scores').select('social_score').eq('user_id', userId).maybeSingle()
+        await supabase.from('user_scores').update({ social_score: Math.min((sr?.social_score ?? 0) + 10, 100) }).eq('user_id', userId)
+      }
     } finally {
       setJoiningId(null)
     }
@@ -465,6 +610,14 @@ export default function Compete() {
             <p style={{ color: '#4A9EFF', fontSize: 13, margin: 0 }}>
               ↑ Keep climbing
             </p>
+            {myGroupIds.size > 0 && groupsLeaderboard.length > 0 && (() => {
+              const myGroup = groupsLeaderboard.find(g => myGroupIds.has(g.groupId))
+              return myGroup ? (
+                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '6px 0 0' }}>
+                  {myGroup.name} is ranked <span style={{ color: '#FFFFFF' }}>#{myGroup.rank}</span> among Penn groups
+                </p>
+              ) : null
+            })()}
           </div>
 
           {/* Challenges */}
@@ -540,6 +693,43 @@ export default function Compete() {
             </div>
           )}
 
+          {/* Campus Standings — always-live computed competitions */}
+          {liveChallenges.length > 0 && (
+            <>
+              <SectionHeader title="Campus Standings" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                {liveChallenges.map(lc => (
+                  <div key={lc.title} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div>
+                        <p style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>
+                          {lc.icon} {lc.title}
+                        </p>
+                        <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                          {lc.userValue.toLocaleString()} {lc.valueLabel}
+                        </p>
+                      </div>
+                      <span style={{ background: '#0D2E5A', color: '#4A9EFF', fontSize: 11, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
+                        {lc.daysLabel}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: '#4A9EFF', fontSize: 20, fontWeight: 700 }}>#{lc.userRank}</span>
+                      <span style={{ color: '#5A7A9A', fontSize: 11 }}>of {lc.totalParticipants}</span>
+                    </div>
+                    {lc.userRank === 1 ? (
+                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: '6px 0 0' }}>You're leading! 🏆</p>
+                    ) : lc.aboveName && lc.aboveValue !== null ? (
+                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: '6px 0 0' }}>
+                        {lc.aboveName} is {ordinal(lc.userRank - 1)} with {lc.aboveValue.toLocaleString()} {lc.valueLabel}.
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Friends leaderboard */}
           <SectionHeader title="Friends" />
           {!hasFriends ? (
@@ -571,7 +761,10 @@ export default function Compete() {
                       {row.initials}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                        {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                      </div>
                       <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                     </div>
                     <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.score}</span>
@@ -650,10 +843,20 @@ export default function Compete() {
                       {row.initials}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                        {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                      </div>
                       <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                     </div>
-                    <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.score}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.score}</span>
+                      {rankChanges[row.userId] !== undefined && (
+                        <span style={{ fontSize: 10, color: rankChanges[row.userId] > 0 ? '#3BF0A0' : '#FF6B6B' }}>
+                          {rankChanges[row.userId] > 0 ? `↑${rankChanges[row.userId]}` : `↓${Math.abs(rankChanges[row.userId])}`}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )
               })}
@@ -670,7 +873,10 @@ export default function Compete() {
                       {pinnedRow.initials}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{pinnedRow.name}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <p style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{pinnedRow.name}</p>
+                        {(() => { const t = tierBadge(pinnedRow.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                      </div>
                       <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{pinnedRow.subtitle}</p>
                     </div>
                     <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{pinnedRow.score}</span>

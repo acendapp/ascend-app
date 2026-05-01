@@ -5,10 +5,18 @@ import { supabase } from '../lib/supabase'
 import { generateWorkout, suggestSubstitution, parseReps } from '../lib/workout-generator'
 import type { GeneratedWorkout, ExerciseItem } from '../lib/workout-generator'
 import type { UserProfile } from '../types'
+import {
+  calculateAscendScore,
+  calculateConsistencyScore,
+  calculateStrengthScoreFromLogs,
+  calculateXPGain,
+  getLevelFromXP,
+} from '../lib/scoring'
+import { notificationPermission, requestPushPermission } from '../lib/notifications'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Phase = 'session-picker' | 'recovery' | 'loading' | 'workout' | 'error' | 'summary' | 'celebration'
+type Phase = 'session-picker' | 'recovery' | 'loading' | 'workout' | 'error' | 'summary' | 'pr-celebration' | 'celebration'
 
 interface SummaryData {
   sessionLabel: string
@@ -16,6 +24,9 @@ interface SummaryData {
   totalVolume: number
   newPRs: string[]
   scoreChange: number
+  xpGain: number
+  leveledUp: boolean
+  newLevel: number
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -158,6 +169,7 @@ function ExerciseCard({
   onCompleteSet,
   onSkipRest,
   onSwap,
+  onEditSet,
 }: {
   exercise: ExerciseItem
   exerciseKey: string
@@ -172,12 +184,15 @@ function ExerciseCard({
   onCompleteSet: (setIdx: number, weight: number | null) => void
   onSkipRest: () => void
   onSwap: () => void
+  onEditSet: (setIdx: number, weight: number) => void
 }) {
   const done = completedSets >= exercise.sets
   const isResting = activeRestKey === exerciseKey
 
   const [pendingSetIdx, setPendingSetIdx] = useState<number | null>(null)
   const [pendingWeight, setPendingWeight] = useState('')
+  const [editingSetIdx, setEditingSetIdx] = useState<number | null>(null)
+  const [editWeight, setEditWeight] = useState('')
   const [showRpeTooltip, setShowRpeTooltip] = useState(false)
   const rpeRef = useRef<HTMLDivElement>(null)
 
@@ -203,6 +218,8 @@ function ExerciseCard({
       onCompleteSet(i, null)
       return
     }
+    setEditingSetIdx(null)
+    setEditWeight('')
     const prefill = getWeightForKey(exerciseKey, i, savedWeights, exercise.suggested_weight)
     setPendingWeight(prefill > 0 ? String(prefill) : '')
     setPendingSetIdx(i)
@@ -214,6 +231,22 @@ function ExerciseCard({
     onCompleteSet(pendingSetIdx, isNaN(w) || w <= 0 ? null : w)
     setPendingSetIdx(null)
     setPendingWeight('')
+  }
+
+  function openEdit(i: number) {
+    setPendingSetIdx(null)
+    setPendingWeight('')
+    const w = savedWeights[`${exerciseKey}_${i}`] ?? exercise.suggested_weight
+    setEditWeight(w > 0 ? String(w) : '')
+    setEditingSetIdx(i)
+  }
+
+  function confirmEdit() {
+    if (editingSetIdx === null) return
+    const w = parseFloat(editWeight)
+    if (!isNaN(w) && w > 0) onEditSet(editingSetIdx, w)
+    setEditingSetIdx(null)
+    setEditWeight('')
   }
 
   return (
@@ -288,38 +321,51 @@ function ExerciseCard({
 
       {/* Set dots + weight input — disabled in preview */}
       <div style={{ opacity: isPreview ? 0.4 : 1, pointerEvents: isPreview ? 'none' : undefined }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: pendingSetIdx !== null || isResting ? 8 : 0 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: pendingSetIdx !== null || editingSetIdx !== null || isResting ? 8 : 0 }}>
         {Array.from({ length: exercise.sets }, (_, i) => {
           const isNext = i === completedSets
           const isDone = i < completedSets
           return (
-            <button
-              key={i}
-              onClick={isNext && !done ? () => handleSetTap(i) : undefined}
-              disabled={!isNext || done}
-              style={{
-                width: 30, height: 30, borderRadius: '50%',
-                background: isDone ? '#4A9EFF' : isNext ? '#0D2E5A' : 'transparent',
-                border: `2px solid ${isDone ? '#4A9EFF' : isNext ? '#4A9EFF' : '#1A2A42'}`,
-                color: isDone ? '#FFF' : isNext ? '#4A9EFF' : '#5A7A9A',
-                fontSize: 11, fontWeight: 700,
-                cursor: isNext && !done ? 'pointer' : 'default',
-                transition: 'all 0.15s',
-              }}
-            >
-              {isDone ? '✓' : i + 1}
-            </button>
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <button
+                onClick={isNext && !done ? () => handleSetTap(i) : undefined}
+                disabled={!isNext || done}
+                style={{
+                  width: 30, height: 30, borderRadius: '50%',
+                  background: isDone ? '#4A9EFF' : isNext ? '#0D2E5A' : 'transparent',
+                  border: `2px solid ${isDone ? '#4A9EFF' : isNext ? '#4A9EFF' : '#1A2A42'}`,
+                  color: isDone ? '#FFF' : isNext ? '#4A9EFF' : '#5A7A9A',
+                  fontSize: 11, fontWeight: 700,
+                  cursor: isNext && !done ? 'pointer' : 'default',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {isDone ? '✓' : i + 1}
+              </button>
+              {isDone && !isBodyweight && (
+                <button
+                  onClick={e => { e.stopPropagation(); openEdit(i) }}
+                  title="Edit weight"
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
           )
         })}
-        <span style={{ color: '#5A7A9A', fontSize: 11, marginLeft: 4 }}>
+        <span style={{ color: '#5A7A9A', fontSize: 11, marginLeft: 4, marginTop: 8 }}>
           {completedSets}/{exercise.sets} sets
         </span>
-        <span style={{ color: '#5A7A9A', fontSize: 10, marginLeft: 4 }}>
+        <span style={{ color: '#5A7A9A', fontSize: 10, marginLeft: 4, marginTop: 8 }}>
           · {Math.round(exercise.rest_seconds / 60)}m rest
         </span>
       </div>
 
-      {/* Inline weight input */}
+      {/* Inline weight input — new set */}
       {pendingSetIdx !== null && !isBodyweight && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: '1px solid #1A2A42' }}>
           <input
@@ -355,6 +401,49 @@ function ExerciseCard({
           </button>
           <button
             onClick={() => { setPendingSetIdx(null); setPendingWeight('') }}
+            style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 11, cursor: 'pointer', padding: 0 }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Inline weight input — edit done set */}
+      {editingSetIdx !== null && !isBodyweight && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: '1px solid #1A2A42' }}>
+          <span style={{ color: '#5A7A9A', fontSize: 11, flexShrink: 0 }}>Set {editingSetIdx + 1}:</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={editWeight}
+            onChange={e => setEditWeight(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && confirmEdit()}
+            autoFocus
+            style={{
+              width: 80,
+              background: '#0A1F3A',
+              border: '1px solid #4A9EFF',
+              borderRadius: 8,
+              color: '#FFFFFF',
+              fontSize: 16,
+              fontWeight: 700,
+              padding: '6px 10px',
+              outline: 'none',
+            }}
+          />
+          <span style={{ color: '#5A7A9A', fontSize: 12 }}>lb</span>
+          <button
+            onClick={confirmEdit}
+            style={{
+              background: '#4A9EFF', border: 'none', borderRadius: 8,
+              color: '#FFFFFF', fontSize: 13, fontWeight: 700,
+              padding: '6px 14px', cursor: 'pointer',
+            }}
+          >
+            Save
+          </button>
+          <button
+            onClick={() => { setEditingSetIdx(null); setEditWeight('') }}
             style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 11, cursor: 'pointer', padding: 0 }}
           >
             Cancel
@@ -418,6 +507,7 @@ export default function Workout() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [finisherExpanded, setFinisherExpanded] = useState(true)
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
+  const [notifPermState, setNotifPermState] = useState<NotificationPermission | 'unsupported'>(() => notificationPermission())
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const workoutTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -522,8 +612,14 @@ export default function Workout() {
     }
   }
 
-  async function handleGenerate() {
+  function handleEditSet(key: string, setIdx: number, weight: number) {
+    setSetWeights(prev => ({ ...prev, [`${key}_${setIdx}`]: weight }))
+  }
+
+  async function handleGenerate(scoreOverride?: number) {
     if (!profile) return
+    const score = scoreOverride ?? recoveryScore
+    if (scoreOverride !== undefined) setRecoveryScore(scoreOverride)
     setPhase('loading')
     setLoadingMsgIdx(0)
     try {
@@ -532,7 +628,7 @@ export default function Workout() {
         goal: profile.goal,
         experience_level: profile.experience_level,
         equipment: profile.equipment,
-        recovery_score: recoveryScore,
+        recovery_score: score,
         firstSessionType: firstSessionType ?? undefined,
       })
       setWorkout(result)
@@ -639,13 +735,93 @@ export default function Workout() {
       }
     }
 
+    // Recalculate and persist all scores, XP, level, and streak
+    let xpGain = 50
+    let leveledUp = false
+    let newLevel = 1
+    try {
+      const DEFAULT_BODYWEIGHT_KG = 80
+
+      const { data: allWorkoutIds } = await supabase
+        .from('workouts').select('id').eq('user_id', user.id).eq('completed', true)
+      const wids = (allWorkoutIds ?? []).map(w => w.id as string)
+      let strengthScore = 0
+      if (wids.length > 0) {
+        const { data: allLogs } = await supabase
+          .from('exercise_logs').select('exercise_name, weight').in('workout_id', wids).gt('weight', 0)
+        if (allLogs && allLogs.length > 0) {
+          const bestMap = new Map<string, number>()
+          for (const l of allLogs) {
+            const cur = bestMap.get(l.exercise_name as string) ?? 0
+            if ((l.weight as number) > cur) bestMap.set(l.exercise_name as string, l.weight as number)
+          }
+          strengthScore = calculateStrengthScoreFromLogs(
+            Array.from(bestMap.values()).map(w => ({ weight: w })),
+            DEFAULT_BODYWEIGHT_KG
+          )
+        }
+      }
+
+      const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      const { count: count30 } = await supabase
+        .from('workouts').select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id).eq('completed', true).gte('workout_date', thirtyAgo)
+      const consistencyScore = calculateConsistencyScore(count30 ?? 0)
+
+      const { data: curScores } = await supabase
+        .from('user_scores').select('social_score, streak_days, xp, level').eq('user_id', user.id).maybeSingle()
+      const socialScore = curScores?.social_score ?? 0
+      const currentXP = curScores?.xp ?? 0
+      const currentLevel = curScores?.level ?? 1
+
+      // Streak with 2-day buffer — miss up to 2 days before losing your streak
+      const todayStr = new Date().toISOString().split('T')[0]
+      const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+      const twoDaysAgoStr = new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0]
+      const { data: prevWorkout } = await supabase
+        .from('workouts').select('workout_date').eq('user_id', user.id).eq('completed', true)
+        .neq('id', workoutRecord.id).order('workout_date', { ascending: false }).limit(1).maybeSingle()
+      let newStreakDays = 1
+      if (prevWorkout) {
+        const prevDate = (prevWorkout.workout_date as string).split('T')[0]
+        if (prevDate === todayStr || prevDate === yesterdayStr || prevDate === twoDaysAgoStr) {
+          newStreakDays = (curScores?.streak_days ?? 0) + 1
+        }
+      }
+
+      const ascendScore = calculateAscendScore(strengthScore, consistencyScore, socialScore, newStreakDays)
+
+      // XP and level
+      const isFirstWorkout = wids.length <= 1
+      xpGain = calculateXPGain(exercisesCompleted, newPRs.length, isFirstWorkout)
+      const newXP = currentXP + xpGain
+      newLevel = getLevelFromXP(newXP)
+      leveledUp = newLevel > currentLevel
+
+      await supabase.from('user_scores').update({
+        strength_score: strengthScore,
+        consistency_score: consistencyScore,
+        ascend_score: ascendScore,
+        xp: newXP,
+        level: newLevel,
+        streak_days: newStreakDays,
+      }).eq('user_id', user.id)
+    } catch (scoreErr) {
+      console.error('Score update error:', scoreErr)
+    }
+
     setSummaryData({
       sessionLabel: workout.session_label,
       exercisesCompleted,
       totalVolume: Math.round(totalVolume),
       newPRs,
       scoreChange: 5 + newPRs.length * 3,
+      xpGain,
+      leveledUp,
+      newLevel,
     })
+    localStorage.setItem('ascend_home_badge', '1')
+    window.dispatchEvent(new CustomEvent('ascend-badge-update'))
     setPhase('summary')
   }
 
@@ -662,7 +838,13 @@ export default function Workout() {
     return (
       <div className="app-shell">
         <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-          <div style={{ flex: 1, overflow: 'auto', padding: '64px 24px 16px' }}>
+          <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 16px' }}>
+            <button
+              onClick={() => navigate('/workout')}
+              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+            >
+              ← Back
+            </button>
             <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Welcome to Ascend
             </p>
@@ -729,72 +911,52 @@ export default function Workout() {
   // ── Recovery screen ───────────────────────────────────────────────────────
 
   if (phase === 'recovery') {
+    const recoveryOptions = [
+      { score: 3, emoji: '😴', label: 'Rough', sub: 'Lighter load · Focus on form' },
+      { score: 5, emoji: '💪', label: 'Decent', sub: 'Standard training today' },
+      { score: 8, emoji: '🔥', label: 'Feeling great', sub: 'Extra sets · Push harder' },
+    ]
     return (
       <div className="app-shell">
         <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-          <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 16px' }}>
+          <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 24px' }}>
+            <button
+              onClick={() => navigate('/workout')}
+              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+            >
+              ← Back
+            </button>
             <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
-              Before we build your workout
+              Quick check
             </p>
             <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
-              How are you feeling today?
+              How are you feeling?
             </h1>
             <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 36px' }}>
-              Your program adapts in real time based on your answer.
+              Your workout adapts in real time.
             </p>
-
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <div style={{ fontSize: 48, marginBottom: 4 }}>{getRecoveryEmoji(recoveryScore)}</div>
-              <div style={{ color: '#4A9EFF', fontSize: 52, fontWeight: 700, lineHeight: 1 }}>{recoveryScore}</div>
-              <div style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 600, marginTop: 4 }}>{getRecoveryLabel(recoveryScore)}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {recoveryOptions.map(opt => (
+                <button
+                  key={opt.score}
+                  onClick={() => handleGenerate(opt.score)}
+                  disabled={!profile}
+                  style={{
+                    background: '#0D1728', border: '1px solid #1A2A42',
+                    borderRadius: 16, padding: '18px 20px',
+                    display: 'flex', alignItems: 'center', gap: 16,
+                    cursor: 'pointer', textAlign: 'left', width: '100%',
+                    transition: 'border-color 0.15s',
+                  }}
+                >
+                  <span style={{ fontSize: 32, lineHeight: 1 }}>{opt.emoji}</span>
+                  <div>
+                    <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: '0 0 2px' }}>{opt.label}</p>
+                    <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{opt.sub}</p>
+                  </div>
+                </button>
+              ))}
             </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <input
-                type="range"
-                min={1}
-                max={10}
-                value={recoveryScore}
-                onChange={e => setRecoveryScore(parseInt(e.target.value))}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                <span style={{ color: '#5A7A9A', fontSize: 10 }}>1 — Pretty rough</span>
-                <span style={{ color: '#5A7A9A', fontSize: 10 }}>10 — Feeling great</span>
-              </div>
-            </div>
-
-            <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: '14px 16px', marginTop: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4A9EFF', flexShrink: 0, marginTop: 4 }} />
-                <p style={{ color: '#7AAAD4', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-                  {getRestLabel(recoveryScore)}
-                </p>
-              </div>
-              {recoveryScore <= 3 && (
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '8px 0 0 18px' }}>
-                  Sets reduced by 40% · Weights reduced by 20% · Mobility warm-up added
-                </p>
-              )}
-              {recoveryScore >= 7 && (
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '8px 0 0 18px' }}>
-                  +1 set on compound movements · Weights increased by 5%
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div style={{ padding: '12px 24px 88px' }}>
-            <button
-              onClick={handleGenerate}
-              disabled={!profile}
-              style={{
-                width: '100%', background: '#4A9EFF', color: '#FFFFFF',
-                fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
-                border: 'none', cursor: 'pointer',
-              }}
-            >
-              Generate My Workout →
-            </button>
           </div>
         </div>
       </div>
@@ -843,6 +1005,65 @@ export default function Workout() {
             Try again
           </button>
         </div>
+      </div>
+    )
+  }
+
+  // ── PR Celebration screen ─────────────────────────────────────────────────
+
+  if (phase === 'pr-celebration' && summaryData) {
+    return (
+      <div style={{
+        minHeight: '100vh', background: '#080E1C',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '0 32px', gap: 0,
+      }}>
+        <div style={{ animation: 'prBounce 0.7s cubic-bezier(0.175,0.885,0.32,1.275) forwards', fontSize: 72, marginBottom: 16 }}>
+          🏆
+        </div>
+        <p style={{ color: '#F5A623', fontSize: 13, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
+          New Personal Record{summaryData.newPRs.length > 1 ? 's' : ''}
+        </p>
+        <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 28px', textAlign: 'center' }}>
+          You're stronger than ever.
+        </p>
+        <div style={{ width: '100%', marginBottom: 32 }}>
+          {summaryData.newPRs.map(pr => (
+            <div key={pr} style={{ background: '#0A1F3A', border: '1px solid #4A9EFF', borderRadius: 12, padding: '14px 18px', marginBottom: 8, textAlign: 'center' }}>
+              <span style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700 }}>{pr}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+          {typeof navigator !== 'undefined' && typeof (navigator as { share?: unknown }).share === 'function' && (
+            <button
+              onClick={async () => {
+                try {
+                  await (navigator as unknown as { share: (o: object) => Promise<void> }).share({
+                    title: 'New PR — Ascend',
+                    text: `Just hit a new personal record in ${summaryData.newPRs.join(' & ')} at Penn! 💪`,
+                  })
+                } catch { /* cancelled */ }
+              }}
+              style={{ background: '#1A2A42', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Share Your PR 📤
+            </button>
+          )}
+          <button
+            onClick={() => setPhase('celebration')}
+            style={{ background: '#4A9EFF', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Continue →
+          </button>
+        </div>
+        <style>{`
+          @keyframes prBounce {
+            from { transform: scale(0) rotate(-20deg); opacity: 0; }
+            to   { transform: scale(1) rotate(0deg);  opacity: 1; }
+          }
+        `}</style>
       </div>
     )
   }
@@ -907,6 +1128,17 @@ export default function Workout() {
               <p style={{ color: '#4A9EFF', fontSize: 32, fontWeight: 700, margin: 0 }}>+{summaryData.scoreChange} pts</p>
             </div>
 
+            {/* XP gain + level-up */}
+            <div style={{ width: '100%', background: '#0D1728', border: `1px solid ${summaryData.leveledUp ? '#4A9EFF' : '#1A2A42'}`, borderRadius: 14, padding: 16, marginBottom: 14, textAlign: 'center' }}>
+              {summaryData.leveledUp ? (
+                <>
+                  <p style={{ color: '#F5A623', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>Level Up! 🎉</p>
+                  <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Level {summaryData.newLevel}</p>
+                </>
+              ) : null}
+              <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>+{summaryData.xpGain} XP earned</p>
+            </div>
+
             {summaryData.newPRs.length > 0 && (
               <div style={{ width: '100%', marginBottom: 14 }}>
                 <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 8px' }}>🏆 New Personal Records</p>
@@ -920,8 +1152,29 @@ export default function Workout() {
           </div>
 
           <div style={{ padding: '12px 24px 88px' }}>
+            {/* Notification opt-in — shown once, at the highest motivation moment */}
+            {notifPermState === 'default' && (
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+                <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>
+                  Never miss a workout
+                </p>
+                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 12px' }}>
+                  Get a nudge when your next session is ready and when friends train.
+                </p>
+                <button
+                  onClick={async () => {
+                    if (!profile) return
+                    await requestPushPermission(profile.id)
+                    setNotifPermState(notificationPermission())
+                  }}
+                  style={{ background: '#4A9EFF', border: 'none', borderRadius: 10, padding: '8px 18px', color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Enable notifications →
+                </button>
+              </div>
+            )}
             <button
-              onClick={() => setPhase('celebration')}
+              onClick={() => setPhase(summaryData.newPRs.length > 0 ? 'pr-celebration' : 'celebration')}
               style={{
                 width: '100%', background: '#4A9EFF', color: '#FFFFFF',
                 fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
@@ -1033,6 +1286,7 @@ export default function Workout() {
                 onCompleteSet={(setIdx, weight) => handleCompleteSet(key, setIdx, weight, ex.sets)}
                 onSkipRest={() => { if (timerRef.current) clearInterval(timerRef.current); setActiveRest(null) }}
                 onSwap={() => handleSwap(key, ex)}
+                onEditSet={(setIdx, weight) => handleEditSet(key, setIdx, weight)}
               />
             )
           })}
@@ -1071,6 +1325,7 @@ export default function Workout() {
                     onCompleteSet={(setIdx, weight) => handleCompleteSet(key, setIdx, weight, ex.sets)}
                     onSkipRest={() => { if (timerRef.current) clearInterval(timerRef.current); setActiveRest(null) }}
                     onSwap={() => handleSwap(key, ex)}
+                    onEditSet={(setIdx, weight) => handleEditSet(key, setIdx, weight)}
                   />
                 )
               })}

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import StreakDots from '../components/StreakDots'
 import { supabase } from '../lib/supabase'
-import { calculateAscendScore, calculateConsistencyScore } from '../lib/scoring'
+import { calculateConsistencyScore, getLevelName, getXPProgress } from '../lib/scoring'
 import type { UserProfile, UserScores, ActivityItem } from '../types'
 
 
@@ -31,6 +31,26 @@ function initials(name: string) {
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 }
 
+interface GymUser { id: string; name: string; isFriend: boolean }
+
+const RANK_SNAP_KEY = 'ascend_rank_snap'
+const SCORE_SNAP_KEY = 'ascend_score_snap'
+function getRankDelta(userId: string, currentRank: number): number | null {
+  try {
+    const snap = JSON.parse(localStorage.getItem(RANK_SNAP_KEY) ?? '{}') as Record<string, number>
+    const prev = snap[userId]
+    if (prev === undefined || prev === currentRank) return null
+    return prev - currentRank
+  } catch { return null }
+}
+function storeRankSnapshot(userId: string, rank: number) {
+  try {
+    const snap = JSON.parse(localStorage.getItem(RANK_SNAP_KEY) ?? '{}') as Record<string, number>
+    snap[userId] = rank
+    localStorage.setItem(RANK_SNAP_KEY, JSON.stringify(snap))
+  } catch {}
+}
+
 export default function Home() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -42,6 +62,7 @@ export default function Home() {
 
   const [weekDays, setWeekDays] = useState<boolean[]>(new Array(7).fill(false))
   const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0)
+  const [workoutsLast30Days, setWorkoutsLast30Days] = useState(0)
 
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
   const [isCheckedIn, setIsCheckedIn] = useState(false)
@@ -52,6 +73,13 @@ export default function Home() {
   const [hasAnyWorkout, setHasAnyWorkout] = useState(false)
   const [campusRank, setCampusRank] = useState(0)
   const [bestChallenge, setBestChallenge] = useState<string | null>(null)
+  const [liveAtGym, setLiveAtGym] = useState<GymUser[]>([])
+  const [campusActivity, setCampusActivity] = useState<ActivityItem[]>([])
+  const [rankDelta, setRankDelta] = useState<number | null>(null)
+  const [myFriendIds, setMyFriendIds] = useState<string[]>([])
+  const [ascendScoreDelta, setAscendScoreDelta] = useState<number | null>(null)
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [displayedScore, setDisplayedScore] = useState(0)
 
   const loadData = useCallback(async () => {
     try {
@@ -90,14 +118,14 @@ export default function Home() {
       .limit(1)
     setWorkoutCompletedToday((todayWorkouts?.length ?? 0) > 0)
 
-    // Streak: workouts in last 7 days
-    const sevenAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    // Workouts in last 30 days (consistency) and last 7 days (streak dots)
+    const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const { data: recentWorkouts } = await supabase
       .from('workouts')
       .select('workout_date')
       .eq('user_id', user.id)
       .eq('completed', true)
-      .gte('workout_date', sevenAgo)
+      .gte('workout_date', thirtyAgo)
 
     if (recentWorkouts) {
       const today = new Date()
@@ -107,13 +135,13 @@ export default function Home() {
         return recentWorkouts.some(w => isSameDay(new Date(w.workout_date), day))
       })
       setWeekDays(filled)
+      setWorkoutsLast30Days(recentWorkouts.length)
 
-      // Count workouts since Monday for consistency score
+      // Count workouts since Monday for "perfect week" display
       const monday = new Date()
       monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
       monday.setHours(0, 0, 0, 0)
-      const count = recentWorkouts.filter(w => new Date(w.workout_date) >= monday).length
-      setWorkoutsThisWeek(count)
+      setWorkoutsThisWeek(recentWorkouts.filter(w => new Date(w.workout_date) >= monday).length)
     }
 
     // Friends
@@ -126,6 +154,7 @@ export default function Home() {
     const friendIds = (friendships ?? []).map(f =>
       f.requester_id === user.id ? f.recipient_id : f.requester_id
     )
+    setMyFriendIds(friendIds)
     if (friendIds.length > 0) {
       // Activity feed: recent friend workouts
       const { data: friendWorkouts } = await supabase
@@ -181,6 +210,33 @@ export default function Home() {
       }
     }
 
+    // Campus activity fallback: shown when user has no friends yet
+    if (friendIds.length === 0) {
+      const { data: campusWorkouts } = await supabase
+        .from('workouts')
+        .select('id, user_id, workout_date, workout_type')
+        .eq('completed', true)
+        .order('workout_date', { ascending: false })
+        .limit(6)
+      if (campusWorkouts && campusWorkouts.length > 0) {
+        const campusUids = [...new Set(campusWorkouts.map(w => w.user_id as string))]
+        const { data: campusProfiles } = await supabase
+          .from('users').select('id, name').in('id', campusUids)
+        const cpMap = new Map((campusProfiles ?? []).map(p => [p.id as string, p.name as string]))
+        setCampusActivity(campusWorkouts.map(w => ({
+          id: w.id as string,
+          userId: w.user_id as string,
+          userName: cpMap.get(w.user_id as string) ?? 'Penn Athlete',
+          initials: initials(cpMap.get(w.user_id as string) ?? 'Penn Athlete'),
+          description: `Completed a ${(w.workout_type as string) ?? 'workout'}`,
+          time: timeAgo(w.workout_date as string),
+          workoutId: w.id as string,
+          kudosCount: 0,
+          userGaveKudos: false,
+        })))
+      }
+    }
+
     // Total workout count (for empty state detection)
     const { count: workoutCount } = await supabase
       .from('workouts')
@@ -189,12 +245,41 @@ export default function Home() {
       .eq('completed', true)
     setHasAnyWorkout((workoutCount ?? 0) > 0)
 
-    // Campus rank for Compete teaser
-    const { count: higherCount } = await supabase
-      .from('user_scores')
-      .select('user_id', { count: 'exact', head: true })
-      .gt('ascend_score', scoresRes.data?.ascend_score ?? 0)
-    setCampusRank((higherCount ?? 0) + 1)
+    // Campus rank + total users (parallel)
+    const [higherRes, totalRes] = await Promise.all([
+      supabase.from('user_scores').select('user_id', { count: 'exact', head: true }).gt('ascend_score', scoresRes.data?.ascend_score ?? 0),
+      supabase.from('user_scores').select('user_id', { count: 'exact', head: true }).gt('ascend_score', 0),
+    ])
+    const currentRank = (higherRes.count ?? 0) + 1
+    setCampusRank(currentRank)
+    setRankDelta(getRankDelta(user.id, currentRank))
+    storeRankSnapshot(user.id, currentRank)
+    setTotalUsers(totalRes.count ?? 0)
+
+    // Score delta since last visit
+    const currentScore = scoresRes.data?.ascend_score ?? 0
+    try {
+      const prevStr = localStorage.getItem(`${SCORE_SNAP_KEY}_${user.id}`)
+      if (prevStr !== null) {
+        const prev = parseInt(prevStr)
+        if (!isNaN(prev) && currentScore > prev) setAscendScoreDelta(currentScore - prev)
+      }
+      localStorage.setItem(`${SCORE_SNAP_KEY}_${user.id}`, String(currentScore))
+    } catch {}
+
+    // Live gym presence (people checked in within the last 2h)
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    const { data: gymUsersData } = await supabase
+      .from('users')
+      .select('id, name')
+      .gte('gym_checkin_at', twoHoursAgo)
+      .neq('id', user.id)
+      .limit(8)
+    setLiveAtGym((gymUsersData ?? []).map(u => ({
+      id: u.id as string,
+      name: u.name as string,
+      isFriend: friendIds.includes(u.id as string),
+    })))
 
     // Best active challenge for teaser (graceful fail if tables not yet migrated)
     try {
@@ -224,6 +309,51 @@ export default function Home() {
 
   useEffect(() => { loadData() }, [loadData, location.key])
 
+  // Count-up animation for Ascend Score
+  useEffect(() => {
+    const target = scores?.ascend_score ?? 0
+    if (!target) { setDisplayedScore(0); return }
+    let frame: number
+    const start = Date.now()
+    const duration = 800
+    function tick() {
+      const p = Math.min((Date.now() - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setDisplayedScore(Math.round(target * eased))
+      if (p < 1) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [scores?.ascend_score])
+
+  // Clear home badge when visiting
+  useEffect(() => {
+    localStorage.removeItem('ascend_home_badge')
+    window.dispatchEvent(new CustomEvent('ascend-badge-update'))
+  }, [location.key])
+
+  // Realtime: notify when a friend checks in to the gym
+  useEffect(() => {
+    if (myFriendIds.length === 0) return
+    const channel = supabase
+      .channel('friend-gym-checkins')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users' }, (payload) => {
+        const updated = payload.new as { id: string; name: string; gym_checkin_at: string | null }
+        if (!myFriendIds.includes(updated.id)) return
+        const ci = updated.gym_checkin_at ? new Date(updated.gym_checkin_at).getTime() : 0
+        if (Date.now() - ci > 2 * 60 * 60 * 1000) return
+        setLiveAtGym(prev => {
+          if (prev.some(u => u.id === updated.id)) return prev
+          return [{ id: updated.id, name: updated.name, isFriend: true }, ...prev]
+        })
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification('Ascend', { body: `${updated.name.split(' ')[0]} just checked into the gym!`, icon: '/vite.svg' })
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [myFriendIds])
+
   // Reset the "completed today" flag at midnight
   useEffect(() => {
     if (!workoutCompletedToday) return
@@ -242,7 +372,24 @@ export default function Home() {
       .from('users')
       .update({ gym_checkin_at: new Date().toISOString() })
       .eq('id', profile.id)
-    if (!error) setIsCheckedIn(true)
+    if (!error) {
+      setIsCheckedIn(true)
+      // +1 social point for checking in, capped at 100
+      const { data: scoreRow } = await supabase
+        .from('user_scores').select('social_score').eq('user_id', profile.id).maybeSingle()
+      const newSocial = Math.min((scoreRow?.social_score ?? 0) + 3, 100)
+      await supabase.from('user_scores').update({ social_score: newSocial }).eq('user_id', profile.id)
+      setScores(prev => prev ? { ...prev, social_score: newSocial } : prev)
+      // Refresh live gym presence to include self
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      const { data: gymUsersData } = await supabase
+        .from('users').select('id, name').gte('gym_checkin_at', twoHoursAgo).neq('id', profile.id).limit(8)
+      setLiveAtGym((gymUsersData ?? []).map(u => ({
+        id: u.id as string,
+        name: u.name as string,
+        isFriend: myFriendIds.includes(u.id as string),
+      })))
+    }
     setCheckinLoading(false)
   }
 
@@ -258,6 +405,11 @@ export default function Home() {
       setActivityFeed(prev => prev.map(a =>
         a.id === item.id ? { ...a, kudosCount: a.kudosCount + 1, userGaveKudos: true } : a
       ))
+      // +5 social points for the recipient, capped at 100
+      const { data: scoreRow } = await supabase
+        .from('user_scores').select('social_score').eq('user_id', item.userId).maybeSingle()
+      const newSocial = Math.min((scoreRow?.social_score ?? 0) + 5, 100)
+      await supabase.from('user_scores').update({ social_score: newSocial }).eq('user_id', item.userId)
     }
   }
 
@@ -271,12 +423,48 @@ export default function Home() {
     )
   }
 
+  // New user activation screen — shown until first workout is completed
+  if (!hasAnyWorkout) {
+    return (
+      <div className="app-shell">
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '0 24px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 14px' }}>
+              Welcome to Ascend
+            </p>
+            <h1 style={{ color: '#FFFFFF', fontSize: 30, fontWeight: 700, margin: '0 0 14px', lineHeight: 1.15 }}>
+              Your first workout<br />unlocks everything.
+            </h1>
+            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 40px', lineHeight: 1.65 }}>
+              Your Ascend Score, your campus rank, your history — none of it exists until you train. Every person on the leaderboard started right here.
+            </p>
+            <button
+              onClick={() => navigate('/workout')}
+              style={{
+                width: '100%', background: '#4A9EFF', color: '#FFFFFF',
+                fontSize: 18, fontWeight: 700, borderRadius: 16, padding: '20px',
+                border: 'none', cursor: 'pointer', marginBottom: 14,
+              }}
+            >
+              Start My First Workout →
+            </button>
+            {campusActivity.length > 0 && (
+              <p style={{ color: '#5A7A9A', fontSize: 12, textAlign: 'center', margin: 0 }}>
+                {campusActivity.length} Penn students trained recently. You're next.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const firstName = profile ? profile.name.split(' ')[0] : 'Athlete'
   const strengthScore = scores?.strength_score ?? 0
-  const consistencyScore = calculateConsistencyScore(workoutsThisWeek)
+  const consistencyScore = calculateConsistencyScore(workoutsLast30Days)
   const isPerfectWeek = workoutsThisWeek >= 4
   const socialScore = scores?.social_score ?? 0
-  const ascendScore = calculateAscendScore(strengthScore, consistencyScore, socialScore)
+  const ascendScore = scores?.ascend_score ?? 0
   const streakDays = scores?.streak_days ?? 0
 
   return (
@@ -318,9 +506,25 @@ export default function Home() {
           {/* Greeting */}
           <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 2px' }}>{getGreeting()}</p>
           <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 4px' }}>{firstName}</h1>
-          <p style={{ color: '#4A9EFF', fontSize: 13, margin: '0 0 16px' }}>
-            Day {streakDays} of your program · Keep pushing.
+          <p style={{ color: '#4A9EFF', fontSize: 13, margin: '0 0 10px', fontWeight: 600 }}>
+            Level {scores?.level ?? 1} · {getLevelName(scores?.level ?? 1)}
+            {streakDays > 0 && <span style={{ color: '#5A7A9A', fontWeight: 400 }}> · {streakDays}d streak</span>}
           </p>
+          {(() => {
+            const xp = scores?.xp ?? 0
+            const level = scores?.level ?? 1
+            const { current, needed, fraction } = getXPProgress(xp, level)
+            return (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ background: '#1A2A42', borderRadius: 4, height: 4, overflow: 'hidden' }}>
+                  <div style={{ background: '#4A9EFF', height: '100%', width: `${fraction * 100}%`, borderRadius: 4, transition: 'width 0.6s ease' }} />
+                </div>
+                <p style={{ color: '#5A7A9A', fontSize: 10, margin: '4px 0 0', textAlign: 'right' }}>
+                  {current} / {needed} XP · Level {level + 1} next
+                </p>
+              </div>
+            )
+          })()}
 
           {/* Streak dots */}
           <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
@@ -328,50 +532,58 @@ export default function Home() {
             <StreakDots days={weekDays} />
           </div>
 
-          {/* Gym check-in */}
-          {isCheckedIn ? (
-            <div
-              style={{
-                background: '#0A1F3A',
-                border: '1px solid #1E3D6E',
-                borderRadius: 12,
-                padding: '10px 16px',
-                marginBottom: 14,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4A9EFF' }} />
-              <span style={{ color: '#7AAAD4', fontSize: 13 }}>
-                {firstName} is at the gym right now 💪
-              </span>
+          {/* Gym presence widget */}
+          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px 16px', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: liveAtGym.length > 0 ? 10 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: liveAtGym.length > 0 ? '#3BF0A0' : '#5A7A9A', flexShrink: 0 }} />
+                <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600 }}>
+                  {(() => {
+                    if (liveAtGym.length === 0) return 'Gym is quiet right now'
+                    const friends = liveAtGym.filter(u => u.isFriend)
+                    if (friends.length > 0) {
+                      const first = friends[0].name.split(' ')[0]
+                      const others = liveAtGym.length - 1
+                      return others === 0
+                        ? `${first} is at the gym now 👊`
+                        : `${first} and ${others} other${others > 1 ? 's' : ''} are at the gym`
+                    }
+                    return `${liveAtGym.length} ${liveAtGym.length === 1 ? 'person' : 'people'} at the gym now`
+                  })()}
+                </span>
+              </div>
+              {isCheckedIn ? (
+                <span style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 600 }}>You're here 💪</span>
+              ) : (
+                <button
+                  onClick={handleGymCheckin}
+                  disabled={checkinLoading}
+                  style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  {checkinLoading ? '…' : 'Check in →'}
+                </button>
+              )}
             </div>
-          ) : (
-            <button
-              onClick={handleGymCheckin}
-              disabled={checkinLoading}
-              style={{
-                width: '100%',
-                background: '#0D1728',
-                border: '1px solid #1A2A42',
-                borderRadius: 12,
-                padding: '12px 16px',
-                color: '#4A9EFF',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-                textAlign: 'left',
-                marginBottom: 14,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <span>Heading to the gym →</span>
-              <span style={{ color: '#5A7A9A', fontSize: 11 }}>Visible to friends for 2h</span>
-            </button>
-          )}
+            {liveAtGym.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {liveAtGym.slice(0, 5).map(u => (
+                  <span key={u.id} style={{
+                    background: u.isFriend ? '#0D2E5A' : '#1A2A42',
+                    border: u.isFriend ? '1px solid #4A9EFF' : 'none',
+                    color: u.isFriend ? '#4A9EFF' : '#7A8A9A',
+                    fontSize: 11,
+                    borderRadius: 20,
+                    padding: '3px 10px',
+                  }}>
+                    {u.name.split(' ')[0]}
+                  </span>
+                ))}
+                {liveAtGym.length > 5 && (
+                  <span style={{ color: '#5A7A9A', fontSize: 11, alignSelf: 'center' }}>+{liveAtGym.length - 5} more</span>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Score grid */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
@@ -395,15 +607,32 @@ export default function Home() {
           {/* Ascend Score */}
           <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 16, padding: 16, marginBottom: 14 }}>
             <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Ascend Score</p>
-            <p style={{ color: '#4A9EFF', fontSize: 36, fontWeight: 700, margin: '0 0 4px' }}>{hasAnyWorkout ? ascendScore : '—'}</p>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
+              <p style={{ color: '#4A9EFF', fontSize: 36, fontWeight: 700, margin: 0 }}>{hasAnyWorkout ? displayedScore : '—'}</p>
+              {hasAnyWorkout && ascendScoreDelta !== null && ascendScoreDelta > 0 && (
+                <span style={{ color: '#3BF0A0', fontSize: 13, fontWeight: 600 }}>+{ascendScoreDelta} since last session</span>
+              )}
+            </div>
             {hasAnyWorkout ? (
               <>
                 <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 10px' }}>
-                  Ranked <span style={{ color: '#FFFFFF' }}>#12</span> on campus ·{' '}
-                  <span style={{ color: '#4A9EFF' }}>↑ 3 spots</span> this week
+                  Ranked <span style={{ color: '#FFFFFF' }}>#{campusRank > 0 ? campusRank : '—'}</span> on campus
+                  {rankDelta !== null && rankDelta !== 0 && (
+                    <> · <span style={{ color: rankDelta > 0 ? '#4A9EFF' : '#FF6B6B' }}>
+                      {rankDelta > 0 ? `↑ ${rankDelta}` : `↓ ${Math.abs(rankDelta)}`} spots
+                    </span></>
+                  )}
                 </p>
                 <div style={{ display: 'inline-block', background: '#0D2E5A', color: '#4A9EFF', fontSize: 10, borderRadius: 6, padding: '2px 8px' }}>
-                  Top 20 · Penn Campus
+                  {(() => {
+                    if (!totalUsers || campusRank <= 0) return 'Penn Campus'
+                    const pct = Math.ceil((campusRank / totalUsers) * 100)
+                    if (pct <= 5) return 'Top 5% · Penn Campus'
+                    if (pct <= 10) return 'Top 10% · Penn Campus'
+                    if (pct <= 15) return 'Top 15% · Penn Campus'
+                    if (pct <= 25) return 'Top 25% · Penn Campus'
+                    return 'Penn Campus'
+                  })()}
                 </div>
               </>
             ) : (
@@ -413,7 +642,7 @@ export default function Home() {
 
           {/* View history */}
           <button
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate('/history')}
             style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: '0 0 14px', display: 'block' }}
           >
             View history →
@@ -421,7 +650,7 @@ export default function Home() {
 
           {/* CTA */}
           <button
-            onClick={() => navigate('/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
+            onClick={() => navigate(workoutCompletedToday ? '/workout/ascend' : '/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
             style={{
               width: '100%',
               background: workoutCompletedToday ? '#1A2A42' : '#4A9EFF',
@@ -516,6 +745,47 @@ export default function Home() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </>
+          )}
+
+          {/* Campus activity fallback for users without friends */}
+          {activityFeed.length === 0 && campusActivity.length > 0 && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700 }}>Happening at Penn</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                {campusActivity.map(item => (
+                  <div
+                    key={item.id}
+                    style={{
+                      background: '#0D1728',
+                      border: '1px solid #1A2A42',
+                      borderRadius: 14,
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                    }}
+                  >
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: '#1A2A42',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#5A7A9A', fontSize: 12, fontWeight: 700, flexShrink: 0,
+                    }}>
+                      {item.initials}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{item.userName}</p>
+                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{item.description} · {item.time}</p>
+                    </div>
+                  </div>
+                ))}
+                <p style={{ color: '#5A7A9A', fontSize: 11, margin: '4px 0 0', textAlign: 'center' }}>
+                  Add friends on Profile to see their activity here
+                </p>
               </div>
             </>
           )}

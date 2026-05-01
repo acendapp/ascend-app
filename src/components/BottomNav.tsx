@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const tabs = [
@@ -68,6 +69,19 @@ const tabs = [
     ),
   },
   {
+    id: 'groups',
+    label: 'Groups',
+    path: '/groups',
+    icon: (active: boolean) => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <circle cx="9" cy="7" r="3" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" />
+        <circle cx="17" cy="8" r="2.5" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" />
+        <path d="M3 20c0-3 2.686-5 6-5s6 2 6 5" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M17 15c1.8 0 4 1.2 4 4" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     id: 'profile',
     label: 'Profile',
     path: '/profile',
@@ -88,6 +102,13 @@ const tabs = [
 export default function BottomNav() {
   const navigate = useNavigate()
   const location = useLocation()
+
+  const [homeBadge, setHomeBadge] = useState(() => !!localStorage.getItem('ascend_home_badge'))
+  useEffect(() => {
+    const handler = () => setHomeBadge(!!localStorage.getItem('ascend_home_badge'))
+    window.addEventListener('ascend-badge-update', handler)
+    return () => window.removeEventListener('ascend-badge-update', handler)
+  }, [])
 
   return (
     <div
@@ -125,6 +146,14 @@ export default function BottomNav() {
             }}
           >
             {tab.icon(active)}
+            {tab.id === 'home' && homeBadge && (
+              <div style={{
+                position: 'absolute', top: 6, right: '50%',
+                transform: 'translateX(calc(50% + 9px))',
+                width: 7, height: 7, borderRadius: '50%',
+                background: '#FF4444', border: '1px solid #080E1C',
+              }} />
+            )}
             <span style={{ color: active ? '#4A9EFF' : '#5A7A9A', fontSize: 10, fontWeight: active ? 600 : 400 }}>
               {tab.label}
             </span>

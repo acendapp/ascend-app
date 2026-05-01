@@ -7,7 +7,7 @@ import {
   displayGoal, displayExperience, displayEquipment,
   GOAL_OPTIONS, EXPERIENCE_OPTIONS, EQUIPMENT_OPTIONS, SCHOOL_YEAR_OPTIONS,
 } from '../lib/display'
-import { calculateAscendScore, calculateConsistencyScore } from '../lib/scoring'
+import { calculateConsistencyScore } from '../lib/scoring'
 import type { UserProfile, UserScores, FriendshipWithProfile, FriendProfile } from '../types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -124,7 +124,9 @@ export default function Profile() {
   const [prs, setPrs] = useState<{ exercise_name: string; weight: number }[]>([])
   const [totalWorkouts, setTotalWorkouts] = useState(0)
   const [totalVolume, setTotalVolume] = useState(0)
-  const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0)
+  const [workoutsLast30Days, setWorkoutsLast30Days] = useState(0)
+
+  const [campusRank, setCampusRank] = useState(0)
 
   interface ProfileGroup { group_id: string; role: 'admin' | 'member'; name: string }
   const [myProfileGroups, setMyProfileGroups] = useState<ProfileGroup[]>([])
@@ -136,6 +138,7 @@ export default function Profile() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<FriendProfile[]>([])
   const [sentIds, setSentIds] = useState<Set<string>>(new Set())
+  const [groupSuggestions, setGroupSuggestions] = useState<FriendProfile[]>([])
 
   const loadFriends = useCallback(async (userId: string) => {
     const { data: rows } = await supabase
@@ -185,17 +188,14 @@ export default function Profile() {
 
         console.log('[Profile] session user id:', user.id, '| email:', user.email)
 
-        const sevenAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-        const monday = new Date()
-        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
-        monday.setHours(0, 0, 0, 0)
+        const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
         const [profileRes, scoresRes, allPRsRes, workoutsRes, recentWorkoutsRes] = await Promise.all([
           supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
           supabase.from('user_scores').select('*').eq('user_id', user.id).maybeSingle(),
           supabase.from('personal_records').select('exercise_name, weight').eq('user_id', user.id).order('weight', { ascending: false }),
           supabase.from('workouts').select('id', { count: 'exact' }).eq('user_id', user.id).eq('completed', true),
-          supabase.from('workouts').select('id, workout_date').eq('user_id', user.id).eq('completed', true).gte('workout_date', sevenAgo),
+          supabase.from('workouts').select('id, workout_date').eq('user_id', user.id).eq('completed', true).gte('workout_date', thirtyAgo),
         ])
 
         console.log('[Profile] users query result — data:', profileRes.data, '| error:', profileRes.error)
@@ -219,6 +219,13 @@ export default function Profile() {
         if (scoresRes.data) setScores(scoresRes.data)
         setTotalWorkouts(workoutsRes.count ?? (workoutsRes.data?.length ?? 0))
 
+        // Campus rank
+        const { count: higherCount } = await supabase
+          .from('user_scores')
+          .select('user_id', { count: 'exact', head: true })
+          .gt('ascend_score', scoresRes.data?.ascend_score ?? 0)
+        setCampusRank((higherCount ?? 0) + 1)
+
         // Top 5 PRs (best per exercise)
         const prMap = new Map<string, number>()
         for (const pr of allPRsRes.data ?? []) {
@@ -231,7 +238,7 @@ export default function Profile() {
           .map(([exercise_name, weight]) => ({ exercise_name, weight }))
         setPrs(top5)
 
-        // Streak
+        // Streak dots and 30-day consistency count
         const today = new Date()
         if (recentWorkoutsRes.data) {
           const filled = Array.from({ length: 7 }, (_, i) => {
@@ -240,8 +247,7 @@ export default function Profile() {
             return recentWorkoutsRes.data!.some(w => isSameDay(new Date(w.workout_date), d))
           })
           setWeekDays(filled)
-          const weekCount = recentWorkoutsRes.data.filter(w => new Date(w.workout_date) >= monday).length
-          setWorkoutsThisWeek(weekCount)
+          setWorkoutsLast30Days(recentWorkoutsRes.data.length)
         }
 
         // Total volume
@@ -279,6 +285,34 @@ export default function Profile() {
         } catch {
           // groups section is non-critical
         }
+
+        // Group-based friend suggestions
+        try {
+          const { data: myGroups } = await supabase
+            .from('group_members').select('group_id').eq('user_id', user.id).eq('status', 'approved')
+          if (myGroups && myGroups.length > 0) {
+            const gids = myGroups.map(m => m.group_id as string)
+            const { data: groupmates } = await supabase
+              .from('group_members').select('user_id').in('group_id', gids).eq('status', 'approved').neq('user_id', user.id)
+            const gmIds = [...new Set((groupmates ?? []).map(m => m.user_id as string))]
+            if (gmIds.length > 0) {
+              const { data: gmProfiles } = await supabase
+                .from('users').select('id, name, username, avatar_url, affiliation').in('id', gmIds).limit(10)
+              if (gmProfiles) {
+                const { data: existingFriendships } = await supabase
+                  .from('friendships').select('requester_id, recipient_id')
+                  .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
+                const connectedIds = new Set([
+                  user.id,
+                  ...(existingFriendships ?? []).map(f =>
+                    f.requester_id === user.id ? f.recipient_id as string : f.requester_id as string
+                  ),
+                ])
+                setGroupSuggestions((gmProfiles as FriendProfile[]).filter(p => !connectedIds.has(p.id)).slice(0, 5))
+              }
+            }
+          }
+        } catch { /* group suggestions non-critical */ }
       } catch (err) {
         console.error('Profile page load error:', err)
         setLoadError(true)
@@ -294,7 +328,8 @@ export default function Profile() {
     if (searchQuery.length < 2) { setSearchResults([]); return }
     const t = setTimeout(async () => {
       const excluded = new Set([...friends.map(f => f.friend.id), ...pendingReceived.map(f => f.friend.id), ...sentIds, profile?.id ?? ''])
-      const { data } = await supabase.from('users').select('id, name, username, avatar_url, affiliation').ilike('username', `%${searchQuery}%`).limit(6)
+      const { data } = await supabase.from('users').select('id, name, username, avatar_url, affiliation')
+        .or(`username.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%`).limit(8)
       setSearchResults(((data as FriendProfile[]) ?? []).filter(u => !excluded.has(u.id)))
     }, 300)
     return () => clearTimeout(t)
@@ -331,7 +366,20 @@ export default function Profile() {
 
   async function acceptFriend(friendshipId: string) {
     await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId)
-    if (profile) await loadFriends(profile.id)
+    // +5 social points for both users when a friend request is accepted
+    if (profile) {
+      const row = pendingReceived.find(r => r.id === friendshipId)
+      const otherId = row?.friend.id
+      const [mySR, theirSR] = await Promise.all([
+        supabase.from('user_scores').select('social_score').eq('user_id', profile.id).maybeSingle(),
+        otherId ? supabase.from('user_scores').select('social_score').eq('user_id', otherId).maybeSingle() : Promise.resolve({ data: null }),
+      ])
+      await Promise.all([
+        supabase.from('user_scores').update({ social_score: Math.min((mySR.data?.social_score ?? 0) + 5, 100) }).eq('user_id', profile.id),
+        otherId ? supabase.from('user_scores').update({ social_score: Math.min(((theirSR as { data: { social_score: number } | null }).data?.social_score ?? 0) + 5, 100) }).eq('user_id', otherId) : Promise.resolve(),
+      ])
+      await loadFriends(profile.id)
+    }
   }
 
   async function declineFriend(friendshipId: string) {
@@ -380,9 +428,9 @@ export default function Profile() {
   }
 
   const strengthScore = scores?.strength_score ?? 0
-  const consistencyScore = calculateConsistencyScore(workoutsThisWeek)
+  const consistencyScore = calculateConsistencyScore(workoutsLast30Days)
   const socialScore = scores?.social_score ?? 0
-  const ascendScore = calculateAscendScore(strengthScore, consistencyScore, socialScore)
+  const ascendScore = scores?.ascend_score ?? 0
   const weeksActive = Math.max(1, Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1)
   const avatarIni = initials(profile.name)
 
@@ -431,9 +479,13 @@ export default function Profile() {
           {/* ── Campus rank ── */}
           <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
             <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>Campus Rank</p>
-            <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>Ranked #12 at Penn</p>
+            <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>
+              Ranked #{campusRank > 0 ? campusRank : '—'} at Penn
+            </p>
             <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
-              <span style={{ color: '#4A9EFF' }}>↑ 3 spots</span> this week
+              {campusRank > 0
+                ? `Top ${campusRank <= 10 ? '10' : campusRank <= 25 ? '25' : '50'} · Penn Campus`
+                : 'Complete a workout to get ranked'}
             </p>
           </div>
 
@@ -512,6 +564,33 @@ export default function Profile() {
             <p style={{ color: '#5A7A9A', fontSize: 13, marginBottom: 14 }}>Search below to add friends.</p>
           )}
 
+          {/* Group-based friend suggestions */}
+          {groupSuggestions.length > 0 && (
+            <>
+              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>People in your groups</p>
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '4px 14px', marginBottom: 12 }}>
+                {groupSuggestions.map((u, i) => (
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < groupSuggestions.length - 1 ? '1px solid #1A2A42' : 'none' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      {initials(u.name)}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{u.name}</p>
+                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{u.username}</p>
+                    </div>
+                    <button
+                      onClick={() => sendFriendRequest(u.id)}
+                      disabled={sentIds.has(u.id)}
+                      style={{ background: sentIds.has(u.id) ? 'transparent' : '#4A9EFF', border: sentIds.has(u.id) ? '1px solid #1A2A42' : 'none', borderRadius: 8, padding: '5px 12px', color: sentIds.has(u.id) ? '#5A7A9A' : '#FFF', fontSize: 12, fontWeight: 700, cursor: sentIds.has(u.id) ? 'default' : 'pointer' }}
+                    >
+                      {sentIds.has(u.id) ? 'Sent' : 'Add'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Friend search */}
           <input
             value={searchQuery}
@@ -582,7 +661,6 @@ export default function Profile() {
           <EditableField label="Experience Level" value={profile.experience_level ?? ''} display={displayExperience(profile.experience_level)} options={EXPERIENCE_OPTIONS} onSave={v => updateField('experience_level', v)} />
           <EditableField label="Equipment" value={profile.equipment ?? ''} display={displayEquipment(profile.equipment)} options={EQUIPMENT_OPTIONS} onSave={v => updateField('equipment', v)} />
           <EditableField label="School Year" value={profile.school_year ?? ''} options={SCHOOL_YEAR_OPTIONS} onSave={v => updateField('school_year', v)} />
-          <EditableField label="Affiliation (frat, club, team…)" value={profile.affiliation ?? ''} onSave={v => updateField('affiliation', v)} />
 
           {/* Sign out */}
           <button
