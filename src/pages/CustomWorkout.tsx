@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { calculateXPGain, getLevelFromXP } from '../lib/scoring'
+import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs } from '../lib/scoring'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -65,6 +65,7 @@ export default function CustomWorkout() {
   const [pendingWeight, setPendingWeight] = useState('')
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [finishing, setFinishing] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -153,6 +154,14 @@ export default function CustomWorkout() {
     setPendingExIdx(null)
     setPendingWeight('')
     setPhase('workout')
+  }
+
+  async function deleteTemplate(templateId: string) {
+    if (!userId) return
+    await supabase.from('template_exercises').delete().eq('template_id', templateId)
+    await supabase.from('workout_templates').delete().eq('id', templateId)
+    setTemplates(prev => prev.filter(t => t.id !== templateId))
+    setConfirmDeleteId(null)
   }
 
   function openBuilder(template?: Template) {
@@ -303,7 +312,7 @@ export default function CustomWorkout() {
         .eq('id', activeTemplate.id)
 
       const { data: curScores } = await supabase
-        .from('user_scores').select('xp, level, streak_days').eq('user_id', userId).maybeSingle()
+        .from('user_scores').select('xp, level, streak_days, strength_score').eq('user_id', userId).maybeSingle()
 
       const xp = calculateXPGain(exercisesCompleted, 0, false)
       const newXP = (curScores?.xp ?? 0) + xp
@@ -320,7 +329,21 @@ export default function CustomWorkout() {
         ? (curScores?.streak_days ?? 0) + 1
         : 1
 
-      await supabase.from('user_scores').update({ xp: newXP, level: newLevel, streak_days: newStreak }).eq('user_id', userId)
+      const scoreUpdates: Record<string, number> = { xp: newXP, level: newLevel, streak_days: newStreak }
+      const weightLogs: { weight: number }[] = []
+      for (let i = 0; i < activeTemplate.exercises.length; i++) {
+        const sets = completedSets[i] ?? 0
+        for (let s = 0; s < sets; s++) {
+          const w = setWeights[`${i}_${s}`] ?? 0
+          if (w > 0) weightLogs.push({ weight: w })
+        }
+      }
+      if (weightLogs.length > 0) {
+        const newStrength = calculateStrengthScoreFromLogs(weightLogs, 75)
+        if (newStrength > (curScores?.strength_score ?? 0)) scoreUpdates.strength_score = newStrength
+      }
+
+      await supabase.from('user_scores').update(scoreUpdates).eq('user_id', userId)
 
       localStorage.setItem('ascend_home_badge', '1')
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))
@@ -413,18 +436,43 @@ export default function CustomWorkout() {
                             : ''}
                         </p>
                       </div>
-                      <button
-                        onClick={() => openBuilder(t)}
-                        style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 8, color: '#5A7A9A', fontSize: 12, cursor: 'pointer', padding: '6px 12px', flexShrink: 0 }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => startWorkout(t)}
-                        style={{ background: '#3BF0A0', border: 'none', borderRadius: 10, padding: '8px 18px', color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
-                      >
-                        Start →
-                      </button>
+                      {confirmDeleteId === t.id ? (
+                        <>
+                          <button
+                            onClick={() => deleteTemplate(t.id)}
+                            style={{ background: '#2D0A0A', border: '1px solid #FF6B6B', borderRadius: 8, color: '#FF6B6B', fontSize: 12, cursor: 'pointer', padding: '6px 12px', flexShrink: 0 }}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 8, color: '#5A7A9A', fontSize: 12, cursor: 'pointer', padding: '6px 12px', flexShrink: 0 }}
+                          >
+                            Keep
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => openBuilder(t)}
+                            style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 8, color: '#5A7A9A', fontSize: 12, cursor: 'pointer', padding: '6px 12px', flexShrink: 0 }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => startWorkout(t)}
+                            style={{ background: '#3BF0A0', border: 'none', borderRadius: 10, padding: '8px 18px', color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+                          >
+                            Start →
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(t.id)}
+                            style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 18, cursor: 'pointer', padding: '2px 6px', flexShrink: 0, lineHeight: 1 }}
+                          >
+                            ×
+                          </button>
+                        </>
+                      )}
                     </div>
 
                     {t.exercises.length > 0 && (

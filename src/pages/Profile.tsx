@@ -107,6 +107,148 @@ function ScoreCard({ label, value, unit, accent }: { label: string; value: numbe
   )
 }
 
+// ── Crop Modal ───────────────────────────────────────────────────────────────
+
+const CROP_SIZE = 260
+
+interface CropModalProps {
+  src: string
+  onDone: (blob: Blob) => void
+  onCancel: () => void
+}
+
+function CropModal({ src, onDone, onCancel }: CropModalProps) {
+  const [zoom, setZoom] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const [imgDims, setImgDims] = useState<{ coverW: number; coverH: number } | null>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const dragRef = useRef<{ startX: number; startY: number; offX: number; offY: number } | null>(null)
+  const pinchRef = useRef<number | null>(null)
+
+  function onImgLoad() {
+    const img = imgRef.current
+    if (!img) return
+    const s = Math.max(CROP_SIZE / img.naturalWidth, CROP_SIZE / img.naturalHeight)
+    setImgDims({ coverW: img.naturalWidth * s, coverH: img.naturalHeight * s })
+  }
+
+  function dragStart(x: number, y: number) {
+    dragRef.current = { startX: x, startY: y, offX: offset.x, offY: offset.y }
+  }
+  function dragMove(x: number, y: number) {
+    if (!dragRef.current) return
+    setOffset({
+      x: dragRef.current.offX + (x - dragRef.current.startX),
+      y: dragRef.current.offY + (y - dragRef.current.startY),
+    })
+  }
+  function dragEnd() { dragRef.current = null }
+
+  function onTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 1) {
+      dragStart(e.touches[0].clientX, e.touches[0].clientY)
+    } else if (e.touches.length === 2) {
+      dragRef.current = null
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      pinchRef.current = Math.sqrt(dx * dx + dy * dy)
+    }
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    e.preventDefault()
+    if (e.touches.length === 1) {
+      dragMove(e.touches[0].clientX, e.touches[0].clientY)
+    } else if (e.touches.length === 2 && pinchRef.current !== null) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      setZoom(prev => Math.max(0.5, Math.min(4, prev * (dist / pinchRef.current!))))
+      pinchRef.current = dist
+    }
+  }
+  function onTouchEnd() { dragEnd(); pinchRef.current = null }
+
+  function cropAndReturn() {
+    const img = imgRef.current
+    const canvas = canvasRef.current
+    if (!img || !canvas || !imgDims) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    canvas.width = CROP_SIZE
+    canvas.height = CROP_SIZE
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2, 0, Math.PI * 2)
+    ctx.clip()
+    const dw = imgDims.coverW * zoom
+    const dh = imgDims.coverH * zoom
+    ctx.drawImage(img, CROP_SIZE / 2 + offset.x - dw / 2, CROP_SIZE / 2 + offset.y - dh / 2, dw, dh)
+    ctx.restore()
+    canvas.toBlob(blob => { if (blob) onDone(blob) }, 'image/jpeg', 0.9)
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24,
+    }}>
+      <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: '0 0 20px' }}>Move & Scale</p>
+      <div
+        style={{
+          width: CROP_SIZE, height: CROP_SIZE, borderRadius: '50%',
+          overflow: 'hidden', border: '2px solid #4A9EFF',
+          position: 'relative', flexShrink: 0, cursor: 'grab', touchAction: 'none',
+        }}
+        onMouseDown={e => { e.preventDefault(); dragStart(e.clientX, e.clientY) }}
+        onMouseMove={e => dragMove(e.clientX, e.clientY)}
+        onMouseUp={dragEnd}
+        onMouseLeave={dragEnd}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <img
+          ref={imgRef}
+          src={src}
+          onLoad={onImgLoad}
+          draggable={false}
+          alt=""
+          style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px)) scale(${zoom})`,
+            transformOrigin: 'center center',
+            ...(imgDims
+              ? { width: imgDims.coverW, height: imgDims.coverH }
+              : { minWidth: '100%', minHeight: '100%', width: 'auto', height: 'auto' }),
+            maxWidth: 'none', pointerEvents: 'none', userSelect: 'none', display: 'block',
+          }}
+        />
+      </div>
+      <div style={{ width: CROP_SIZE, marginTop: 16, marginBottom: 4 }}>
+        <input
+          type="range" min={50} max={300} step={1}
+          value={Math.round(zoom * 100)}
+          onChange={e => setZoom(parseInt(e.target.value) / 100)}
+          style={{ width: '100%', accentColor: '#4A9EFF' }}
+        />
+        <p style={{ color: '#5A7A9A', fontSize: 11, textAlign: 'center', margin: '4px 0 16px' }}>
+          Pinch or drag to adjust · slide to zoom
+        </p>
+      </div>
+      <div style={{ display: 'flex', gap: 10, width: CROP_SIZE }}>
+        <button onClick={onCancel} style={{ flex: 1, background: 'transparent', border: '1px solid #2A3A52', borderRadius: 12, padding: '12px', color: '#5A7A9A', fontSize: 14, cursor: 'pointer' }}>
+          Cancel
+        </button>
+        <button onClick={cropAndReturn} disabled={!imgDims} style={{ flex: 2, background: '#4A9EFF', border: 'none', borderRadius: 12, padding: '12px', color: '#FFFFFF', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          Use Photo
+        </button>
+      </div>
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Profile() {
@@ -119,6 +261,8 @@ export default function Profile() {
   const [loadError, setLoadError] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
+  const cropUrlRef = useRef<string | null>(null)
 
   const [weekDays, setWeekDays] = useState<boolean[]>(new Array(7).fill(false))
   const [prs, setPrs] = useState<{ exercise_name: string; weight: number }[]>([])
@@ -338,15 +482,30 @@ export default function Profile() {
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !profile) return
+    if (cropUrlRef.current) URL.revokeObjectURL(cropUrlRef.current)
+    const url = URL.createObjectURL(file)
+    cropUrlRef.current = url
+    setCropSrc(url)
+    e.target.value = ''
+  }
+
+  async function handleCropDone(blob: Blob) {
+    if (!profile) return
+    setCropSrc(null)
     setAvatarUploading(true)
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const path = `${profile.id}/avatar.${ext}`
-    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    const path = `${profile.id}/avatar.jpg`
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
     if (upErr) { console.error('Avatar upload error:', upErr); setAvatarUploading(false); return }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
     await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', profile.id)
     setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : prev)
+    if (cropUrlRef.current) { URL.revokeObjectURL(cropUrlRef.current); cropUrlRef.current = null }
     setAvatarUploading(false)
+  }
+
+  function handleCropCancel() {
+    setCropSrc(null)
+    if (cropUrlRef.current) { URL.revokeObjectURL(cropUrlRef.current); cropUrlRef.current = null }
   }
 
   async function updateField(field: string, value: string) {
@@ -435,6 +594,7 @@ export default function Profile() {
 
   return (
     <div className="app-shell">
+      {cropSrc && <CropModal src={cropSrc} onDone={handleCropDone} onCancel={handleCropCancel} />}
       <div className="app-content page-scroll">
         <div style={{ padding: '48px 20px 0' }}>
 
@@ -546,7 +706,7 @@ export default function Profile() {
           {friendCards.length > 0 ? (
             <div className="friend-scroll" style={{ marginBottom: 14 }}>
               {friendCards.map(fc => (
-                <div key={fc.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                <div key={fc.id} onClick={() => navigate(`/profile/${fc.id}`)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0, cursor: 'pointer' }}>
                   <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#1A2A42', border: '2px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {fc.avatar_url
                       ? <img src={fc.avatar_url} alt={fc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -640,8 +800,15 @@ export default function Profile() {
             <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
               {friends.map((item, i) => (
                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < friends.length - 1 ? '1px solid #1A2A42' : 'none' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: '1.5px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials(item.friend.name)}</div>
-                  <div style={{ flex: 1 }}>
+                  <div
+                    onClick={() => navigate(`/profile/${item.friend.id}`)}
+                    style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: '1.5px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}
+                  >
+                    {item.friend.avatar_url
+                      ? <img src={item.friend.avatar_url} alt={item.friend.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : initials(item.friend.name)}
+                  </div>
+                  <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/profile/${item.friend.id}`)}>
                     <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{item.friend.name}</p>
                     <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{item.friend.username}</p>
                   </div>

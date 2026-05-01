@@ -16,6 +16,7 @@ import Groups from './pages/Groups'
 import Compete from './pages/Compete'
 import Profile from './pages/Profile'
 import History from './pages/History'
+import FriendProfile from './pages/FriendProfile'
 
 const TAB_PATHS = new Set(['/home', '/workout', '/groups', '/compete', '/profile'])
 
@@ -66,6 +67,7 @@ function AppRoutes() {
             <Route path="/compete" element={authed ? <Compete /> : <Navigate to="/auth" replace />} />
             <Route path="/profile" element={authed ? <Profile /> : <Navigate to="/auth" replace />} />
             <Route path="/history" element={authed ? <History /> : <Navigate to="/auth" replace />} />
+            <Route path="/profile/:userId" element={authed ? <FriendProfile /> : <Navigate to="/auth" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           {showNav && <BottomNav />}

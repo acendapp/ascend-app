@@ -374,13 +374,32 @@ export default function Home() {
       .eq('id', profile.id)
     if (!error) {
       setIsCheckedIn(true)
-      // +1 social point for checking in, capped at 100
       const { data: scoreRow } = await supabase
         .from('user_scores').select('social_score').eq('user_id', profile.id).maybeSingle()
       const newSocial = Math.min((scoreRow?.social_score ?? 0) + 3, 100)
       await supabase.from('user_scores').update({ social_score: newSocial }).eq('user_id', profile.id)
       setScores(prev => prev ? { ...prev, social_score: newSocial } : prev)
-      // Refresh live gym presence to include self
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      const { data: gymUsersData } = await supabase
+        .from('users').select('id, name').gte('gym_checkin_at', twoHoursAgo).neq('id', profile.id).limit(8)
+      setLiveAtGym((gymUsersData ?? []).map(u => ({
+        id: u.id as string,
+        name: u.name as string,
+        isFriend: myFriendIds.includes(u.id as string),
+      })))
+    }
+    setCheckinLoading(false)
+  }
+
+  async function handleGymCheckout() {
+    if (checkinLoading || !profile) return
+    setCheckinLoading(true)
+    const { error } = await supabase
+      .from('users')
+      .update({ gym_checkin_at: null })
+      .eq('id', profile.id)
+    if (!error) {
+      setIsCheckedIn(false)
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
       const { data: gymUsersData } = await supabase
         .from('users').select('id, name').gte('gym_checkin_at', twoHoursAgo).neq('id', profile.id).limit(8)
@@ -551,7 +570,16 @@ export default function Home() {
                 </span>
               </div>
               {isCheckedIn ? (
-                <span style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 600 }}>You're here 💪</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 600 }}>You're here 💪</span>
+                  <button
+                    onClick={handleGymCheckout}
+                    disabled={checkinLoading}
+                    style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 6, color: '#5A7A9A', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '2px 8px' }}
+                  >
+                    {checkinLoading ? '…' : 'Leave'}
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={handleGymCheckin}
@@ -589,7 +617,7 @@ export default function Home() {
               <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Strength Score</p>
               <p style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{hasAnyWorkout ? strengthScore : '—'}</p>
               <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
-                {hasAnyWorkout ? 'Top 35% at Penn' : 'Complete your first workout to unlock'}
+                {hasAnyWorkout ? 'Based on your training weights' : 'Complete your first workout to unlock'}
               </p>
             </div>
 
@@ -699,6 +727,7 @@ export default function Home() {
                 {activityFeed.map(item => (
                   <div
                     key={item.id}
+                    onClick={() => navigate(`/profile/${item.userId}`)}
                     style={{
                       background: '#0D1728',
                       border: '1px solid #1A2A42',
@@ -707,6 +736,7 @@ export default function Home() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,
+                      cursor: 'pointer',
                     }}
                   >
                     <div style={{
@@ -722,7 +752,7 @@ export default function Home() {
                       <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{item.description} · {item.time}</p>
                     </div>
                     <button
-                      onClick={() => handleKudos(item)}
+                      onClick={e => { e.stopPropagation(); handleKudos(item) }}
                       disabled={item.userGaveKudos}
                       style={{
                         background: item.userGaveKudos ? '#0D2E5A' : 'transparent',
@@ -757,6 +787,7 @@ export default function Home() {
                 {campusActivity.map(item => (
                   <div
                     key={item.id}
+                    onClick={() => navigate(`/profile/${item.userId}`)}
                     style={{
                       background: '#0D1728',
                       border: '1px solid #1A2A42',
@@ -765,6 +796,7 @@ export default function Home() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,
+                      cursor: 'pointer',
                     }}
                   >
                     <div style={{
