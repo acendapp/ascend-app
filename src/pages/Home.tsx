@@ -463,8 +463,6 @@ export default function Home() {
   const strengthScore = scores?.strength_score ?? 0
   const consistencyScore = calculateConsistencyScore(workoutsLast30Days)
   const isPerfectWeek = workoutsThisWeek >= 4
-  const socialScore = scores?.social_score ?? 0
-  const ascendScore = scores?.ascend_score ?? 0
   const streakDays = scores?.streak_days ?? 0
 
   return (

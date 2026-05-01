@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import type { UserProfile, UserScores } from '../types'
+import type { UserScores } from '../types'
 
 // ── Local types ───────────────────────────────────────────────────────────────
 
@@ -198,7 +198,6 @@ export default function Compete() {
   const navigate = useNavigate()
 
   const [userId, setUserId] = useState<string | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [scores, setScores] = useState<UserScores | null>(null)
   const [campusRank, setCampusRank] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -228,7 +227,6 @@ export default function Compete() {
         supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
         supabase.from('user_scores').select('*').eq('user_id', user.id).maybeSingle(),
       ])
-      if (profileRes.data) setProfile(profileRes.data)
       if (scoresRes.data) setScores(scoresRes.data)
 
       const userScore = scoresRes.data?.ascend_score ?? 0

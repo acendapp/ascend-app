@@ -429,7 +429,6 @@ export default function Profile() {
 
   const strengthScore = scores?.strength_score ?? 0
   const consistencyScore = calculateConsistencyScore(workoutsLast30Days)
-  const socialScore = scores?.social_score ?? 0
   const ascendScore = scores?.ascend_score ?? 0
   const weeksActive = Math.max(1, Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1)
   const avatarIni = initials(profile.name)

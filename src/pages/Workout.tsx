@@ -48,23 +48,6 @@ const BODYWEIGHT_TERMS = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getRestLabel(score: number): string {
-  if (score <= 3) return "Today's session: Deload — lighter weights, focus on form"
-  if (score >= 7) return "Today's session: Performance day — push your limits"
-  return "Today's session: Standard training"
-}
-
-function getRecoveryEmoji(score: number): string {
-  if (score <= 3) return '😴'
-  if (score >= 7) return '🔥'
-  return '💪'
-}
-
-function getRecoveryLabel(score: number): string {
-  if (score <= 3) return 'Pretty rough'
-  if (score <= 6) return 'Decent'
-  return 'Feeling great'
-}
 
 function getGoalRestSeconds(goal: string | null): number {
   switch (goal) {
