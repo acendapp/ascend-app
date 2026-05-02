@@ -31,9 +31,10 @@ export default function Step1() {
   return (
     <OnboardingShell
       step={1}
-      eyebrow="STEP 1 OF 3"
+      eyebrow="STEP 1 OF 4"
       headline="What's the goal?"
       subheadline="We build your program around this. You can change it anytime."
+      showPrivacy
       onContinue={handleContinue}
       continueDisabled={!selected}
       onBack={handleSkip}

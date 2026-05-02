@@ -26,9 +26,10 @@ export default function Step2() {
   return (
     <OnboardingShell
       step={2}
-      eyebrow="STEP 2 OF 3"
+      eyebrow="STEP 2 OF 4"
       headline="How long have you been lifting?"
       subheadline="There's no wrong answer — your program adapts as you improve."
+      showPrivacy
       onContinue={handleContinue}
       continueDisabled={!selected}
       onBack={() => navigate('/onboarding/step1')}
