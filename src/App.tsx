@@ -6,6 +6,7 @@ import BottomNav from './components/BottomNav'
 import Step1 from './pages/onboarding/Step1'
 import Step2 from './pages/onboarding/Step2'
 import Step3 from './pages/onboarding/Step3'
+import Step4 from './pages/onboarding/Step4'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
 import Workout from './pages/Workout'
@@ -57,6 +58,7 @@ function AppRoutes() {
             <Route path="/onboarding/step1" element={<Step1 />} />
             <Route path="/onboarding/step2" element={<Step2 />} />
             <Route path="/onboarding/step3" element={<Step3 />} />
+            <Route path="/onboarding/step4" element={<Step4 />} />
             <Route path="/auth" element={authed ? <Navigate to="/home" replace /> : <Auth />} />
             <Route path="/home"    element={authed ? <Home />    : <Navigate to="/auth" replace />} />
             <Route path="/workout" element={authed ? <WorkoutTypeSelector /> : <Navigate to="/auth" replace />} />

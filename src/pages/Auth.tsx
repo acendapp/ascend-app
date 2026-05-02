@@ -128,7 +128,9 @@ export default function Auth() {
       }
       console.log('[Auth] public.user_scores insert — OK')
 
-      navigate('/workout')
+      // If user came straight to auth (skipped onboarding), send them there now
+      const hasOnboarding = goal && experience_level && equipment
+      navigate(hasOnboarding ? '/workout' : '/onboarding/step1')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong.'
       setError(message)

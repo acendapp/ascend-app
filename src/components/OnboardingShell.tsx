@@ -1,8 +1,10 @@
 interface OnboardingShellProps {
-  step: 1 | 2 | 3
+  step: number
+  totalSteps?: number
   eyebrow: string
   headline: string
   subheadline: string
+  showPrivacy?: boolean
   children: React.ReactNode
   onContinue: () => void
   continueLabel?: string
@@ -14,9 +16,11 @@ interface OnboardingShellProps {
 
 export default function OnboardingShell({
   step,
+  totalSteps = 4,
   eyebrow,
   headline,
   subheadline,
+  showPrivacy = false,
   children,
   onContinue,
   continueLabel = 'Continue',
@@ -30,7 +34,7 @@ export default function OnboardingShell({
       <div className="app-content onboarding-scroll">
         {/* Progress pills */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
-          {[1, 2, 3].map(i => (
+          {Array.from({ length: totalSteps }, (_, i) => i + 1).map(i => (
             <div
               key={i}
               style={{
@@ -55,9 +59,16 @@ export default function OnboardingShell({
         </h1>
 
         {/* Subheadline */}
-        <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 28px', lineHeight: 1.5 }}>
+        <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 12px', lineHeight: 1.5 }}>
           {subheadline}
         </p>
+
+        {showPrivacy && (
+          <p style={{ color: '#3A5A3A', background: '#0A1F0A', border: '1px solid #1A3A1A', borderRadius: 8, fontSize: 11, padding: '6px 10px', margin: '0 0 20px', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span>🔒</span>
+            <span style={{ color: '#5A9A5A' }}>Private — only used to personalize your plan</span>
+          </p>
+        )}
 
         {/* Option cards */}
         {children}
