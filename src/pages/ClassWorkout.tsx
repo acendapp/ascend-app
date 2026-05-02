@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { calculateXPGain, getLevelFromXP } from '../lib/scoring'
 
@@ -28,6 +28,8 @@ type Phase = 'log' | 'summary'
 
 export default function ClassWorkout() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const isPreview = !!(location.state as { preview?: boolean } | null)?.preview
 
   const [phase, setPhase] = useState<Phase>('log')
   const [selectedClass, setSelectedClass] = useState('')
@@ -138,11 +140,17 @@ export default function ClassWorkout() {
             ← Back
           </button>
 
+          {isPreview && (
+            <div style={{ background: '#0D2E5A', border: '1px solid #1E3D6E', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14 }}>👁️</span>
+              <p style={{ color: '#4A9EFF', fontSize: 12, fontWeight: 600, margin: 0 }}>Preview mode — come back tomorrow to log</p>
+            </div>
+          )}
           <p style={{ color: '#F5A623', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 6px' }}>
             Class Workout
           </p>
           <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 24px' }}>
-            What class did you take?
+            {isPreview ? 'Plan your class for tomorrow' : 'What class did you take?'}
           </h1>
 
           {/* Class type grid */}
@@ -251,20 +259,29 @@ export default function ClassWorkout() {
         </div>
 
         <div style={{ padding: '12px 24px 88px' }}>
-          <button
-            onClick={handleLog}
-            disabled={!canLog || saving}
-            style={{
-              width: '100%',
-              background: canLog ? '#F5A623' : '#1A2A42',
-              color: canLog ? '#000000' : '#5A7A9A',
-              fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
-              border: 'none', cursor: canLog ? 'pointer' : 'not-allowed',
-              transition: 'background 0.2s',
-            }}
-          >
-            {saving ? 'Logging…' : 'Log Class ✓'}
-          </button>
+          {isPreview ? (
+            <button
+              onClick={() => navigate('/home')}
+              style={{ width: '100%', background: '#1A2A42', color: '#5A7A9A', fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: '1px solid #1E3D6E', cursor: 'pointer' }}
+            >
+              See you tomorrow 💪
+            </button>
+          ) : (
+            <button
+              onClick={handleLog}
+              disabled={!canLog || saving}
+              style={{
+                width: '100%',
+                background: canLog ? '#F5A623' : '#1A2A42',
+                color: canLog ? '#000000' : '#5A7A9A',
+                fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
+                border: 'none', cursor: canLog ? 'pointer' : 'not-allowed',
+                transition: 'background 0.2s',
+              }}
+            >
+              {saving ? 'Logging…' : 'Log Class ✓'}
+            </button>
+          )}
         </div>
       </div>
     </div>

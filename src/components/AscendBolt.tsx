@@ -17,11 +17,6 @@ const AscendBolt: React.FC<AscendBoltProps> = ({ size = 120 }) => {
         points="58,0 30,65 50,65 22,140 90,55 66,55 95,0"
         fill="#4A9EFF"
       />
-      <polygon
-        points="58,0 42,40 58,40 48,65 50,65 72,10"
-        fill="#8DCFFF"
-        opacity="0.35"
-      />
     </svg>
   );
 };

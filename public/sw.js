@@ -3,8 +3,8 @@ self.addEventListener('push', (event) => {
   const title = data.title ?? 'Ascend'
   const options = {
     body: data.body ?? 'Your workout is ready.',
-    icon: '/vite.svg',
-    badge: '/vite.svg',
+    icon: '/ascend-icon.svg',
+    badge: '/ascend-icon.svg',
     data: { url: data.url ?? '/workout' },
     vibrate: [100, 50, 100],
   }
