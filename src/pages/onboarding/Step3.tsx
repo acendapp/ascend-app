@@ -18,18 +18,19 @@ export default function Step3() {
   function handleContinue() {
     if (selected) {
       localStorage.setItem('onboarding_equipment', selected)
-      navigate('/auth')
+      navigate('/onboarding/step4')
     }
   }
 
   return (
     <OnboardingShell
       step={3}
-      eyebrow="STEP 3 OF 3"
+      eyebrow="STEP 3 OF 4"
       headline="Where do you train?"
       subheadline="We'll build your workouts around what you actually have access to."
+      showPrivacy
       onContinue={handleContinue}
-      continueLabel="Build My Program →"
+      continueLabel="Continue →"
       continueDisabled={!selected}
       onBack={() => navigate('/onboarding/step2')}
       backLabel="Back"
