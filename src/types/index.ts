@@ -86,4 +86,5 @@ export interface ActivityItem {
   workoutId: string
   kudosCount: number
   userGaveKudos: boolean
+  gymVerified?: boolean
 }

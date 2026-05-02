@@ -46,6 +46,7 @@ export default function CustomWorkout() {
   const navigate = useNavigate()
   const location = useLocation()
   const directTemplateId = (location.state as { templateId?: string } | null)?.templateId ?? null
+  const isPreview = !!(location.state as { preview?: boolean } | null)?.preview
 
   const [phase, setPhase] = useState<Phase>('loading')
   const [userId, setUserId] = useState<string | null>(null)
@@ -637,6 +638,12 @@ export default function CustomWorkout() {
 
           <div style={{ padding: '52px 20px 0' }}>
 
+            {isPreview && (
+              <div style={{ background: '#0D2E5A', border: '1px solid #1E3D6E', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14 }}>👁️</span>
+                <p style={{ color: '#4A9EFF', fontSize: 12, fontWeight: 600, margin: 0 }}>Preview mode — come back tomorrow to log</p>
+              </div>
+            )}
             <p style={{ color: '#3BF0A0', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>
               Custom Workout
             </p>
@@ -733,20 +740,29 @@ export default function CustomWorkout() {
               })}
             </div>
 
-            <button
-              onClick={handleFinish}
-              disabled={!anyDone || finishing}
-              style={{
-                width: '100%',
-                background: anyDone ? '#3BF0A0' : '#1A2A42',
-                color: anyDone ? '#000000' : '#5A7A9A',
-                fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
-                border: 'none', cursor: anyDone ? 'pointer' : 'not-allowed',
-                marginBottom: 8, transition: 'background 0.2s',
-              }}
-            >
-              {finishing ? 'Saving…' : 'Finish Workout ✓'}
-            </button>
+            {isPreview ? (
+              <button
+                onClick={() => navigate('/home')}
+                style={{ width: '100%', background: '#1A2A42', color: '#5A7A9A', fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: '1px solid #1E3D6E', cursor: 'pointer', marginBottom: 8 }}
+              >
+                See you tomorrow 💪
+              </button>
+            ) : (
+              <button
+                onClick={handleFinish}
+                disabled={!anyDone || finishing}
+                style={{
+                  width: '100%',
+                  background: anyDone ? '#3BF0A0' : '#1A2A42',
+                  color: anyDone ? '#000000' : '#5A7A9A',
+                  fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
+                  border: 'none', cursor: anyDone ? 'pointer' : 'not-allowed',
+                  marginBottom: 8, transition: 'background 0.2s',
+                }}
+              >
+                {finishing ? 'Saving…' : 'Finish Workout ✓'}
+              </button>
+            )}
 
           </div>
         </div>

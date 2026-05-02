@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 interface RecentTemplate {
@@ -40,6 +40,8 @@ const WORKOUT_TYPES = [
 
 export default function WorkoutTypeSelector() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const isPreview = !!(location.state as { preview?: boolean } | null)?.preview
   const [lastType, setLastType] = useState<string | null>(null)
   const [recentTemplates, setRecentTemplates] = useState<RecentTemplate[]>([])
   const [ready, setReady] = useState(false)
@@ -80,8 +82,8 @@ export default function WorkoutTypeSelector() {
   }, [navigate])
 
   function selectType(typeId: string, path: string) {
-    localStorage.setItem(LAST_TYPE_KEY, typeId)
-    navigate(path)
+    if (!isPreview) localStorage.setItem(LAST_TYPE_KEY, typeId)
+    navigate(path, isPreview ? { state: { preview: true } } : {})
   }
 
   function quickStart(templateId: string) {
@@ -94,11 +96,17 @@ export default function WorkoutTypeSelector() {
       <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 32px' }}>
 
+          {isPreview && (
+            <div style={{ background: '#0D2E5A', border: '1px solid #1E3D6E', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14 }}>👁️</span>
+              <p style={{ color: '#4A9EFF', fontSize: 12, fontWeight: 600, margin: 0 }}>Preview mode — plan tomorrow's workout</p>
+            </div>
+          )}
           <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
-            Ready to train?
+            {isPreview ? "Tomorrow's session" : 'Ready to train?'}
           </p>
           <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 28px', lineHeight: 1.2 }}>
-            What kind of workout?
+            {isPreview ? 'Plan your workout type' : 'What kind of workout?'}
           </h1>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -141,8 +149,8 @@ export default function WorkoutTypeSelector() {
             })}
           </div>
 
-          {/* Quick-repeat section for saved custom templates */}
-          {ready && recentTemplates.length > 0 && (
+          {/* Quick-repeat section for saved custom templates — hidden in preview */}
+          {ready && recentTemplates.length > 0 && !isPreview && (
             <div style={{ marginTop: 28 }}>
               <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>
                 Quick Repeat
