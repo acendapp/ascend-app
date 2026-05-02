@@ -253,7 +253,13 @@ export default function Auth() {
         <p style={{ color: '#5A7A9A', fontSize: 14, textAlign: 'center', marginTop: 20 }}>
           {mode === 'signup' ? 'Already have an account? ' : "Don't have an account? "}
           <button
-            onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setSignupStep(1); setError(null); setEmailError(null) }}
+            onClick={() => {
+              if (mode === 'signup') {
+                setMode('signin'); setSignupStep(1); setError(null); setEmailError(null)
+              } else {
+                navigate('/onboarding/step1')
+              }
+            }}
             style={{ color: '#4A9EFF', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0 }}
           >
             {mode === 'signup' ? 'Sign in' : 'Sign up'}
