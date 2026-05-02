@@ -71,6 +71,7 @@ export default function Home() {
 
   const [showPRBanner, setShowPRBanner] = useState(newPRs.length > 0)
   const [hasAnyWorkout, setHasAnyWorkout] = useState(false)
+  const [workoutsCompleted, setWorkoutsCompleted] = useState(0)
   const [campusRank, setCampusRank] = useState(0)
   const [bestChallenge, setBestChallenge] = useState<string | null>(null)
   const [liveAtGym, setLiveAtGym] = useState<GymUser[]>([])
@@ -159,7 +160,7 @@ export default function Home() {
       // Activity feed: recent friend workouts
       const { data: friendWorkouts } = await supabase
         .from('workouts')
-        .select('id, user_id, workout_date, workout_type')
+        .select('id, user_id, workout_date, workout_type, gym_verified')
         .in('user_id', friendIds)
         .eq('completed', true)
         .order('workout_date', { ascending: false })
@@ -204,6 +205,7 @@ export default function Home() {
             workoutId: w.id,
             kudosCount: ki.count,
             userGaveKudos: ki.userGave,
+            gymVerified: (w as { gym_verified?: boolean }).gym_verified ?? false,
           }
         })
         setActivityFeed(feed)
@@ -243,7 +245,9 @@ export default function Home() {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('completed', true)
-    setHasAnyWorkout((workoutCount ?? 0) > 0)
+    const wc = workoutCount ?? 0
+    setHasAnyWorkout(wc > 0)
+    setWorkoutsCompleted(wc)
 
     // Campus rank + total users (parallel)
     const [higherRes, totalRes] = await Promise.all([
@@ -639,7 +643,13 @@ export default function Home() {
                 <span style={{ color: '#3BF0A0', fontSize: 13, fontWeight: 600 }}>+{ascendScoreDelta} since last session</span>
               )}
             </div>
-            {hasAnyWorkout ? (
+            {!hasAnyWorkout ? (
+              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Complete your first workout to unlock</p>
+            ) : workoutsCompleted < 3 ? (
+              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
+                🔒 Campus rank unlocks after {3 - workoutsCompleted} more workout{3 - workoutsCompleted !== 1 ? 's' : ''}
+              </p>
+            ) : (
               <>
                 <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 10px' }}>
                   Ranked <span style={{ color: '#FFFFFF' }}>#{campusRank > 0 ? campusRank : '—'}</span> on campus
@@ -661,8 +671,6 @@ export default function Home() {
                   })()}
                 </div>
               </>
-            ) : (
-              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Complete your first workout to unlock</p>
             )}
           </div>
 
@@ -676,7 +684,7 @@ export default function Home() {
 
           {/* CTA */}
           <button
-            onClick={() => navigate(workoutCompletedToday ? '/workout/ascend' : '/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
+            onClick={() => navigate('/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
             style={{
               width: '100%',
               background: workoutCompletedToday ? '#1A2A42' : '#4A9EFF',
@@ -703,8 +711,8 @@ export default function Home() {
               marginBottom: 20,
             }}
           >
-            <p style={{ color: '#4A9EFF', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>
-              Campus Rank #{campusRank > 0 ? campusRank : '—'}
+            <p style={{ color: workoutsCompleted < 3 ? '#5A7A9A' : '#4A9EFF', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>
+              {workoutsCompleted < 3 ? `🔒 Rank unlocks after ${3 - workoutsCompleted} more workout${3 - workoutsCompleted !== 1 ? 's' : ''}` : `Campus Rank #${campusRank > 0 ? campusRank : '—'}`}
             </p>
             {bestChallenge && (
               <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 12px' }}>{bestChallenge}</p>
@@ -749,7 +757,10 @@ export default function Home() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{item.userName}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{item.description} · {item.time}</p>
+                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                        {item.description} · {item.time}
+                        {item.gymVerified && <span style={{ color: '#3BF0A0', marginLeft: 6, fontSize: 11, fontWeight: 600 }}>📍 Verified</span>}
+                      </p>
                     </div>
                     <button
                       onClick={e => { e.stopPropagation(); handleKudos(item) }}

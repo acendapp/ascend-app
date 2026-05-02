@@ -37,6 +37,8 @@ interface PersonRow {
   score: number
   userId: string
   level: number
+  avatarUrl: string | null
+  isPlaceholder?: boolean
 }
 
 interface GroupRow {
@@ -46,6 +48,7 @@ interface GroupRow {
   category: string
   memberCount: number
   avgScore: number
+  isPlaceholder?: boolean
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -76,6 +79,36 @@ function tierBadge(level: number): { label: string; bg: string; color: string } 
   if (level >= 5) return { label: `Lv ${level}`, bg: '#2D2000', color: '#F5A623' }
   if (level >= 3) return { label: `Lv ${level}`, bg: '#0D2040', color: '#4A9EFF' }
   return { label: `Lv ${level}`, bg: '#1A2A42', color: '#5A7A9A' }
+}
+
+function AvatarCircle({ avatarUrl, ini, highlight }: { avatarUrl: string | null; ini: string; highlight: boolean }) {
+  return (
+    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: highlight ? '1px solid #4A9EFF' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
+      {avatarUrl
+        ? <img src={avatarUrl} alt={ini} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : ini}
+    </div>
+  )
+}
+
+function placeholderPerson(rank: number): PersonRow {
+  return { rank, initials: 'BT', name: 'Beta Tester', subtitle: 'Penn', score: 0, userId: `__placeholder_${rank}`, level: 1, avatarUrl: null, isPlaceholder: true }
+}
+
+function placeholderGroup(rank: number): GroupRow {
+  return { rank, groupId: `__placeholder_${rank}`, name: 'Beta Test Group', category: 'Fitness', memberCount: 0, avgScore: 0, isPlaceholder: true }
+}
+
+function topThreePeople(rows: PersonRow[]): PersonRow[] {
+  const result = rows.slice(0, 3)
+  while (result.length < 3) result.push(placeholderPerson(result.length + 1))
+  return result
+}
+
+function topThreeGroups(rows: GroupRow[]): GroupRow[] {
+  const result = rows.slice(0, 3)
+  while (result.length < 3) result.push(placeholderGroup(result.length + 1))
+  return result
 }
 
 const LB_SNAP_KEY = 'ascend_lb_snap'
@@ -111,12 +144,40 @@ function SectionHeader({ title, onAction }: { title: string; onAction?: () => vo
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
       <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700 }}>{title}</span>
-      <button
-        onClick={onAction}
-        style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, cursor: 'pointer', padding: 0 }}
-      >
-        See all →
-      </button>
+      {onAction && (
+        <button
+          onClick={onAction}
+          style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, cursor: 'pointer', padding: 0 }}
+        >
+          See all →
+        </button>
+      )}
+    </div>
+  )
+}
+
+function LockedCard({ hint }: { hint: string }) {
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, #0D1728 0%, #0A1F3A 100%)',
+      border: '1px solid #1E3D6E',
+      borderRadius: 14,
+      padding: '28px 20px',
+      marginBottom: 20,
+      textAlign: 'center',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      <div style={{ position: 'absolute', top: -24, left: '50%', transform: 'translateX(-50%)', width: 80, height: 80, borderRadius: '50%', background: 'rgba(74,158,255,0.07)', filter: 'blur(18px)', pointerEvents: 'none' }} />
+      <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#0A1F3A', border: '1px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 18, position: 'relative' }}>
+        🔒
+      </div>
+      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 5px', position: 'relative' }}>
+        Unlocks after 3 workouts
+      </p>
+      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0, lineHeight: 1.5, position: 'relative' }}>
+        {hint}
+      </p>
     </div>
   )
 }
@@ -206,6 +267,7 @@ export default function Compete() {
   const [challengeLoading, setChallengeLoading] = useState(true)
   const [joiningId, setJoiningId] = useState<string | null>(null)
 
+  const [userWorkoutsCompleted, setUserWorkoutsCompleted] = useState(0)
   const [friendsLeaderboard, setFriendsLeaderboard] = useState<PersonRow[]>([])
   const [hasFriends, setHasFriends] = useState(false)
   const [groupsLeaderboard, setGroupsLeaderboard] = useState<GroupRow[]>([])
@@ -214,6 +276,7 @@ export default function Compete() {
   const [pinnedRow, setPinnedRow] = useState<PersonRow | null>(null)
   const [liveChallenges, setLiveChallenges] = useState<LiveChallenge[]>([])
   const [rankChanges, setRankChanges] = useState<Record<string, number>>({})
+  const [showFullModal, setShowFullModal] = useState<'friends' | 'campus' | 'groups' | null>(null)
 
   // ── Main data load ──────────────────────────────────────────────────────────
 
@@ -239,6 +302,14 @@ export default function Compete() {
       const myRank = (higherCount ?? 0) + 1
       setCampusRank(myRank)
 
+      // Leaderboard eligibility gate — require 3 completed workouts
+      const { count: wCount } = await supabase
+        .from('workouts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('completed', true)
+      setUserWorkoutsCompleted(wCount ?? 0)
+
       // Friends
       const { data: friendships } = await supabase
         .from('friendships')
@@ -255,13 +326,12 @@ export default function Compete() {
         const allIds = [user.id, ...friendIds]
         const [friendScores, friendProfiles] = await Promise.all([
           supabase.from('user_scores').select('user_id, ascend_score, level').in('user_id', allIds).gt('ascend_score', 0),
-          supabase.from('users').select('id, name, affiliation').in('id', allIds),
+          supabase.from('users').select('id, name, affiliation, avatar_url').in('id', allIds),
         ])
         if (friendScores.data && friendProfiles.data) {
           const profileMap = new Map(friendProfiles.data.map(p => [p.id, p]))
           const rows: PersonRow[] = friendScores.data
             .sort((a, b) => (b.ascend_score as number) - (a.ascend_score as number))
-            .slice(0, 5)
             .map((s, i) => {
               const p = profileMap.get(s.user_id as string)
               return {
@@ -272,6 +342,7 @@ export default function Compete() {
                 score: s.ascend_score as number,
                 userId: s.user_id as string,
                 level: (s.level as number) ?? 1,
+                avatarUrl: (p as { avatar_url?: string | null })?.avatar_url ?? null,
               }
             })
           setFriendsLeaderboard(rows)
@@ -290,7 +361,7 @@ export default function Compete() {
         const allIds = allScores.map(s => s.user_id as string)
         const { data: allProfiles } = await supabase
           .from('users')
-          .select('id, name, affiliation')
+          .select('id, name, affiliation, avatar_url')
           .in('id', allIds)
         if (allProfiles) {
           const profileMap = new Map(allProfiles.map(p => [p.id, p]))
@@ -304,9 +375,10 @@ export default function Compete() {
               score: s.ascend_score as number,
               userId: s.user_id as string,
               level: (s.level as number) ?? 1,
+              avatarUrl: (p as { avatar_url?: string | null })?.avatar_url ?? null,
             }
           })
-          setCampusLeaderboard(rows.slice(0, 10))
+          setCampusLeaderboard(rows)
           // Rank movement since last visit
           const prevRanks = getStoredRanks()
           storeLeaderboardSnapshot(rows)
@@ -316,7 +388,7 @@ export default function Compete() {
             if (prev !== undefined && prev !== r.rank) changes[r.userId] = prev - r.rank
           }
           setRankChanges(changes)
-          const inTop10 = rows.slice(0, 10).some(r => r.userId === user.id)
+          const inTop10 = rows.some(r => r.userId === user.id)
           if (!inTop10) {
             const inRows = rows.find(r => r.userId === user.id)
             setPinnedRow(inRows ?? {
@@ -327,6 +399,7 @@ export default function Compete() {
               score: userScore,
               userId: user.id,
               level: scoresRes.data?.level ?? 1,
+              avatarUrl: profileRes.data?.avatar_url ?? null,
             })
           }
         }
@@ -374,7 +447,7 @@ export default function Compete() {
           }
           rows.sort((a, b) => b.avgScore - a.avgScore)
           rows.forEach((r, i) => { r.rank = i + 1 })
-          setGroupsLeaderboard(rows.slice(0, 5))
+          setGroupsLeaderboard(rows)
         }
       } catch { /* groups non-critical */ }
 
@@ -594,20 +667,42 @@ export default function Compete() {
             </button>
           </div>
 
+          {/* 3-workout gate banner */}
+          {userWorkoutsCompleted < 3 && (
+            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>Unlock the leaderboard</p>
+                <span style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700 }}>{userWorkoutsCompleted}/3</span>
+              </div>
+              <div style={{ background: '#1A2A42', borderRadius: 4, height: 4, overflow: 'hidden', marginBottom: 8 }}>
+                <div style={{ background: '#4A9EFF', height: '100%', width: `${(userWorkoutsCompleted / 3) * 100}%`, borderRadius: 4, transition: 'width 0.4s ease' }} />
+              </div>
+              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
+                Complete {3 - userWorkoutsCompleted} more workout{3 - userWorkoutsCompleted !== 1 ? 's' : ''} to appear on the leaderboard and join challenges.
+              </p>
+            </div>
+          )}
+
           {/* Personal rank card */}
           <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: 16, marginBottom: 20 }}>
             <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
               YOUR RANK
             </p>
-            <p style={{ color: '#4A9EFF', fontSize: 36, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
-              #{campusRank > 0 ? campusRank : '—'}
-            </p>
+            {userWorkoutsCompleted < 3 ? (
+              <p style={{ color: '#5A7A9A', fontSize: 22, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
+                Locked until 3 workouts
+              </p>
+            ) : (
+              <p style={{ color: '#4A9EFF', fontSize: 36, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
+                #{campusRank > 0 ? campusRank : '—'}
+              </p>
+            )}
             <p style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 600, margin: '0 0 6px' }}>
               Ascend Score: {ascendScore}
             </p>
-            <p style={{ color: '#4A9EFF', fontSize: 13, margin: 0 }}>
-              ↑ Keep climbing
-            </p>
+            {userWorkoutsCompleted >= 3 && (
+              <p style={{ color: '#4A9EFF', fontSize: 13, margin: 0 }}>↑ Keep climbing</p>
+            )}
             {myGroupIds.size > 0 && groupsLeaderboard.length > 0 && (() => {
               const myGroup = groupsLeaderboard.find(g => myGroupIds.has(g.groupId))
               return myGroup ? (
@@ -621,7 +716,9 @@ export default function Compete() {
           {/* Challenges */}
           <SectionHeader title="Challenges" />
 
-          {challengeLoading ? (
+          {userWorkoutsCompleted < 3 ? (
+            <LockedCard hint="Monthly competitions with real prizes on the line" />
+          ) : challengeLoading ? (
             <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
               <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Loading challenges…</p>
             </div>
@@ -679,11 +776,12 @@ export default function Compete() {
                       {cc.totalParticipants} participant{cc.totalParticipants !== 1 ? 's' : ''}
                     </span>
                     <button
-                      onClick={() => handleJoin(cc.challenge.id)}
-                      disabled={joiningId === cc.challenge.id}
-                      style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                      onClick={() => userWorkoutsCompleted >= 3 && handleJoin(cc.challenge.id)}
+                      disabled={joiningId === cc.challenge.id || userWorkoutsCompleted < 3}
+                      style={{ background: 'none', border: 'none', color: userWorkoutsCompleted < 3 ? '#5A7A9A' : '#4A9EFF', fontSize: 13, fontWeight: 600, cursor: userWorkoutsCompleted < 3 ? 'not-allowed' : 'pointer', padding: 0 }}
+                      title={userWorkoutsCompleted < 3 ? 'Complete 3 workouts to join challenges' : undefined}
                     >
-                      {joiningId === cc.challenge.id ? 'Joining…' : 'Join →'}
+                      {joiningId === cc.challenge.id ? 'Joining…' : userWorkoutsCompleted < 3 ? 'Locked 🔒' : 'Join →'}
                     </button>
                   </div>
                 </div>
@@ -692,7 +790,7 @@ export default function Compete() {
           )}
 
           {/* Campus Standings — always-live computed competitions */}
-          {liveChallenges.length > 0 && (
+          {liveChallenges.length > 0 && userWorkoutsCompleted >= 3 && (
             <>
               <SectionHeader title="Campus Standings" />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
@@ -728,23 +826,26 @@ export default function Compete() {
             </>
           )}
 
-          {/* Friends leaderboard */}
-          <SectionHeader title="Friends" />
-          {!hasFriends ? (
+          {/* Friends leaderboard — top 3 snapshot */}
+          <SectionHeader title="Friends" onAction={userWorkoutsCompleted >= 3 && hasFriends ? () => setShowFullModal('friends') : undefined} />
+          {userWorkoutsCompleted < 3 ? (
+            <LockedCard hint="See how you stack up against your friends" />
+          ) : !hasFriends ? (
             <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
               <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Add friends on your profile to compete</p>
             </div>
           ) : (
             <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
-              {friendsLeaderboard.map((row, idx) => {
-                const isUser = row.userId === userId
+              {topThreePeople(friendsLeaderboard).map((row, idx) => {
+                const isUser = !row.isPlaceholder && row.userId === userId
                 return (
                   <div
-                    key={idx}
+                    key={row.userId}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '12px 0',
-                      borderBottom: idx < friendsLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none',
+                      borderBottom: idx < 2 ? '1px solid #1A2A42' : 'none',
+                      opacity: row.isPlaceholder ? 0.35 : 1,
                       background: isUser ? '#0D2E5A' : 'transparent',
                       borderRadius: isUser ? 8 : 0,
                       margin: isUser ? '2px -4px' : 0,
@@ -755,137 +856,221 @@ export default function Compete() {
                     <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
                       {row.rank}
                     </span>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: isUser ? '1px solid #4A9EFF' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                      {row.initials}
-                    </div>
+                    <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                         <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                        {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                        {!row.isPlaceholder && (() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                       </div>
                       <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                     </div>
-                    <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.score}</span>
+                    <span style={{ color: row.isPlaceholder ? '#5A7A9A' : '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
                   </div>
                 )
               })}
             </div>
           )}
 
-          {/* Groups leaderboard */}
-          <SectionHeader title="Groups" onAction={() => navigate('/groups')} />
-          {groupsLeaderboard.length === 0 ? (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>No groups on the leaderboard yet.</p>
-            </div>
+          {/* Groups leaderboard — top 3 snapshot */}
+          <SectionHeader title="Groups" onAction={userWorkoutsCompleted >= 3 ? () => setShowFullModal('groups') : undefined} />
+          {userWorkoutsCompleted < 3 ? (
+            <LockedCard hint="See which Penn group reigns supreme" />
           ) : (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
-              {groupsLeaderboard.map((row, idx) => {
-                const isMyGroup = myGroupIds.has(row.groupId)
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '12px 0',
-                      borderBottom: idx < groupsLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none',
-                      background: isMyGroup ? '#0D2E5A' : 'transparent',
-                      borderRadius: isMyGroup ? 8 : 0,
-                      margin: isMyGroup ? '2px -4px' : 0,
-                      paddingLeft: isMyGroup ? 8 : 0,
-                      paddingRight: isMyGroup ? 8 : 0,
-                    }}
-                  >
-                    <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
-                      {row.rank}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.category} · {row.memberCount} members</p>
-                    </div>
-                    <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.avgScore}</span>
+          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
+            {topThreeGroups(groupsLeaderboard).map((row, idx) => {
+              const isMyGroup = !row.isPlaceholder && myGroupIds.has(row.groupId)
+              return (
+                <div
+                  key={row.groupId}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 0',
+                    borderBottom: idx < 2 ? '1px solid #1A2A42' : 'none',
+                    opacity: row.isPlaceholder ? 0.35 : 1,
+                    background: isMyGroup ? '#0D2E5A' : 'transparent',
+                    borderRadius: isMyGroup ? 8 : 0,
+                    margin: isMyGroup ? '2px -4px' : 0,
+                    paddingLeft: isMyGroup ? 8 : 0,
+                    paddingRight: isMyGroup ? 8 : 0,
+                  }}
+                >
+                  <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
+                    {row.rank}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
+                      {row.isPlaceholder ? 'Placeholder' : `${row.category} · ${row.memberCount} members`}
+                    </p>
                   </div>
-                )
-              })}
-            </div>
+                  <span style={{ color: row.isPlaceholder ? '#5A7A9A' : '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.avgScore}</span>
+                </div>
+              )
+            })}
+          </div>
           )}
 
-          {/* Campus leaderboard */}
-          <SectionHeader title="Campus" />
-          {campusLeaderboard.length < 3 ? (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 32, textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Be the first on the leaderboard. Start training.</p>
-            </div>
+          {/* Campus leaderboard — top 3 snapshot */}
+          <SectionHeader title="Campus" onAction={userWorkoutsCompleted >= 3 ? () => setShowFullModal('campus') : undefined} />
+          {userWorkoutsCompleted < 3 ? (
+            <LockedCard hint="See where you rank among all Penn students" />
           ) : (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
-              {campusLeaderboard.map((row, idx) => {
-                const isUser = row.userId === userId
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '12px 0',
-                      borderBottom: idx < campusLeaderboard.length - 1 || pinnedRow ? '1px solid #1A2A42' : 'none',
-                      background: isUser ? '#0D2E5A' : 'transparent',
-                      borderRadius: isUser ? 8 : 0,
-                      margin: isUser ? '2px -4px' : 0,
-                      paddingLeft: isUser ? 8 : 0,
-                      paddingRight: isUser ? 8 : 0,
-                    }}
-                  >
-                    <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
-                      {row.rank}
-                    </span>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: isUser ? '1px solid #4A9EFF' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                      {row.initials}
+          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
+            {topThreePeople(campusLeaderboard).map((row, idx) => {
+              const isUser = !row.isPlaceholder && row.userId === userId
+              return (
+                <div
+                  key={row.userId}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 0',
+                    borderBottom: idx < 2 ? '1px solid #1A2A42' : 'none',
+                    opacity: row.isPlaceholder ? 0.35 : 1,
+                    background: isUser ? '#0D2E5A' : 'transparent',
+                    borderRadius: isUser ? 8 : 0,
+                    margin: isUser ? '2px -4px' : 0,
+                    paddingLeft: isUser ? 8 : 0,
+                    paddingRight: isUser ? 8 : 0,
+                  }}
+                >
+                  <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
+                    {row.rank}
+                  </span>
+                  <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                      {!row.isPlaceholder && (() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                        {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
-                      </div>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                      <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.score}</span>
-                      {rankChanges[row.userId] !== undefined && (
-                        <span style={{ fontSize: 10, color: rankChanges[row.userId] > 0 ? '#3BF0A0' : '#FF6B6B' }}>
-                          {rankChanges[row.userId] > 0 ? `↑${rankChanges[row.userId]}` : `↓${Math.abs(rankChanges[row.userId])}`}
-                        </span>
-                      )}
-                    </div>
+                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                   </div>
-                )
-              })}
-
-              {/* Pinned row when user is outside top 10 */}
-              {pinnedRow && !campusLeaderboard.some(r => r.userId === userId) && (
-                <>
-                  <div style={{ padding: '6px 0', textAlign: 'center', color: '#5A7A9A', fontSize: 11 }}>· · ·</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 8px', background: '#0D2E5A', borderRadius: 8, margin: '2px -4px' }}>
-                    <span style={{ color: '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
-                      {pinnedRow.rank}
-                    </span>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: '1px solid #4A9EFF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                      {pinnedRow.initials}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <p style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{pinnedRow.name}</p>
-                        {(() => { const t = tierBadge(pinnedRow.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
-                      </div>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{pinnedRow.subtitle}</p>
-                    </div>
-                    <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{pinnedRow.score}</span>
-                  </div>
-                </>
-              )}
-            </div>
+                  <span style={{ color: row.isPlaceholder ? '#5A7A9A' : '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
+                </div>
+              )
+            })}
+          </div>
           )}
 
         </div>
       </div>
+
+      {/* Full leaderboard modal */}
+      {showFullModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#080E1C', display: 'flex', flexDirection: 'column' }}>
+          {/* Header */}
+          <div style={{ padding: '52px 20px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1A2A42', flexShrink: 0 }}>
+            <h2 style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 700, margin: 0 }}>
+              {showFullModal === 'friends' ? 'Friends' : showFullModal === 'campus' ? 'Campus' : 'Groups'} Leaderboard
+            </h2>
+            <button
+              onClick={() => setShowFullModal(null)}
+              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+            >
+              Done
+            </button>
+          </div>
+
+          {/* List */}
+          <div style={{ flex: 1, overflow: 'auto', padding: '8px 20px 100px' }}>
+
+            {/* Friends full list */}
+            {showFullModal === 'friends' && (
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginTop: 12 }}>
+                {friendsLeaderboard.length === 0 ? (
+                  <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>No friends with scores yet.</p>
+                ) : friendsLeaderboard.map((row, idx) => {
+                  const isUser = row.userId === userId
+                  return (
+                    <div key={row.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < friendsLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none', background: isUser ? '#0D2E5A' : 'transparent', borderRadius: isUser ? 8 : 0, margin: isUser ? '2px -4px' : 0, paddingLeft: isUser ? 8 : 0, paddingRight: isUser ? 8 : 0 }}>
+                      <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
+                      <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                          {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                        </div>
+                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
+                      </div>
+                      <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.score}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Groups full list */}
+            {showFullModal === 'groups' && (
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginTop: 12 }}>
+                {groupsLeaderboard.length === 0 ? (
+                  <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>No groups on the leaderboard yet.</p>
+                ) : groupsLeaderboard.map((row, idx) => {
+                  const isMyGroup = myGroupIds.has(row.groupId)
+                  return (
+                    <div key={row.groupId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < groupsLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none', background: isMyGroup ? '#0D2E5A' : 'transparent', borderRadius: isMyGroup ? 8 : 0, margin: isMyGroup ? '2px -4px' : 0, paddingLeft: isMyGroup ? 8 : 0, paddingRight: isMyGroup ? 8 : 0 }}>
+                      <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.category} · {row.memberCount} members</p>
+                      </div>
+                      <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.avgScore}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Campus full list */}
+            {showFullModal === 'campus' && (
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginTop: 12 }}>
+                {campusLeaderboard.length === 0 ? (
+                  <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>No users on the leaderboard yet.</p>
+                ) : campusLeaderboard.map((row, idx) => {
+                  const isUser = row.userId === userId
+                  return (
+                    <div key={row.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < campusLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none', background: isUser ? '#0D2E5A' : 'transparent', borderRadius: isUser ? 8 : 0, margin: isUser ? '2px -4px' : 0, paddingLeft: isUser ? 8 : 0, paddingRight: isUser ? 8 : 0 }}>
+                      <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
+                      <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                          {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                        </div>
+                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                        <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.score}</span>
+                        {rankChanges[row.userId] !== undefined && (
+                          <span style={{ fontSize: 10, color: rankChanges[row.userId] > 0 ? '#3BF0A0' : '#FF6B6B' }}>
+                            {rankChanges[row.userId] > 0 ? `↑${rankChanges[row.userId]}` : `↓${Math.abs(rankChanges[row.userId])}`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+                {/* Pinned row for users outside the fetched top 15 */}
+                {pinnedRow && !campusLeaderboard.some(r => r.userId === userId) && (
+                  <>
+                    <div style={{ padding: '6px 0', textAlign: 'center', color: '#5A7A9A', fontSize: 11 }}>· · ·</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 8px', background: '#0D2E5A', borderRadius: 8, margin: '2px -4px' }}>
+                      <span style={{ color: '#5A7A9A', fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{pinnedRow.rank}</span>
+                      <AvatarCircle avatarUrl={pinnedRow.avatarUrl} ini={pinnedRow.initials} highlight={true} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <p style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{pinnedRow.name}</p>
+                          {(() => { const t = tierBadge(pinnedRow.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                        </div>
+                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{pinnedRow.subtitle}</p>
+                      </div>
+                      <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{pinnedRow.score}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

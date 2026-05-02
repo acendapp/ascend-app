@@ -46,6 +46,39 @@ const BODYWEIGHT_TERMS = [
   'burpee', 'inverted row', 'ring row',
 ]
 
+// ── Session persistence ───────────────────────────────────────────────────────
+
+const SESSION_KEY = 'ascend_active_workout'
+const SESSION_TTL = 2 * 60 * 60 * 1000 // 2 hours
+
+interface WorkoutSession {
+  startEpoch: number
+  workout: GeneratedWorkout
+  completedSets: Record<string, number>
+  setWeights: Record<string, number>
+  warmupChecked: boolean[]
+  finisherExpanded: boolean
+  recoveryScore: number
+}
+
+function loadSession(): WorkoutSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    const s = JSON.parse(raw) as WorkoutSession
+    if (Date.now() - s.startEpoch > SESSION_TTL) { localStorage.removeItem(SESSION_KEY); return null }
+    return s
+  } catch { return null }
+}
+
+function saveSession(s: WorkoutSession) {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)) } catch {}
+}
+
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY) } catch {}
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -177,6 +210,7 @@ function ExerciseCard({
   const [editingSetIdx, setEditingSetIdx] = useState<number | null>(null)
   const [editWeight, setEditWeight] = useState('')
   const [showRpeTooltip, setShowRpeTooltip] = useState(false)
+  const [plausibilityWeight, setPlausibilityWeight] = useState<number | null>(null)
   const rpeRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -208,12 +242,18 @@ function ExerciseCard({
     setPendingSetIdx(i)
   }
 
-  function confirmWeight() {
+  function confirmWeight(force = false) {
     if (pendingSetIdx === null) return
     const w = parseFloat(pendingWeight)
-    onCompleteSet(pendingSetIdx, isNaN(w) || w <= 0 ? null : w)
+    const weight = isNaN(w) || w <= 0 ? null : w
+    if (!force && weight !== null && !isBodyweight && exercise.suggested_weight > 20 && weight > exercise.suggested_weight * 2.5) {
+      setPlausibilityWeight(weight)
+      return
+    }
+    onCompleteSet(pendingSetIdx, weight)
     setPendingSetIdx(null)
     setPendingWeight('')
+    setPlausibilityWeight(null)
   }
 
   function openEdit(i: number) {
@@ -373,7 +413,7 @@ function ExerciseCard({
           />
           <span style={{ color: '#5A7A9A', fontSize: 12 }}>lb</span>
           <button
-            onClick={confirmWeight}
+            onClick={() => confirmWeight()}
             style={{
               background: '#4A9EFF', border: 'none', borderRadius: 8,
               color: '#FFFFFF', fontSize: 13, fontWeight: 700,
@@ -383,11 +423,35 @@ function ExerciseCard({
             Done
           </button>
           <button
-            onClick={() => { setPendingSetIdx(null); setPendingWeight('') }}
+            onClick={() => { setPendingSetIdx(null); setPendingWeight(''); setPlausibilityWeight(null) }}
             style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 11, cursor: 'pointer', padding: 0 }}
           >
             Cancel
           </button>
+        </div>
+      )}
+
+      {/* Plausibility warning */}
+      {plausibilityWeight !== null && (
+        <div style={{ background: '#1C1000', border: '1px solid #F5A623', borderRadius: 10, padding: '12px 14px', margin: '6px 0' }}>
+          <p style={{ color: '#F5A623', fontSize: 12, fontWeight: 700, margin: '0 0 3px' }}>⚠️ Unusually high weight</p>
+          <p style={{ color: '#A07030', fontSize: 11, margin: '0 0 10px', lineHeight: 1.4 }}>
+            {plausibilityWeight} lbs is much higher than your typical {exercise.suggested_weight} lbs for this exercise. Double-check before logging.
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => confirmWeight(true)}
+              style={{ flex: 1, background: '#F5A623', border: 'none', borderRadius: 8, padding: '7px', color: '#0A0500', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Log anyway
+            </button>
+            <button
+              onClick={() => setPlausibilityWeight(null)}
+              style={{ flex: 1, background: 'transparent', border: '1px solid #1A2A42', borderRadius: 8, padding: '7px', color: '#5A7A9A', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -473,28 +537,36 @@ export default function Workout() {
   const [firstSessionType, setFirstSessionType] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>(() => {
     if (isPreview) return 'loading'
+    if (loadSession()) return 'workout'
     return localStorage.getItem('ascend_first_session_done') ? 'recovery' : 'session-picker'
   })
-  const [recoveryScore, setRecoveryScore] = useState(5)
-  const [workout, setWorkout] = useState<GeneratedWorkout | null>(null)
+  const [recoveryScore, setRecoveryScore] = useState(() => loadSession()?.recoveryScore ?? 5)
+  const [workout, setWorkout] = useState<GeneratedWorkout | null>(() => loadSession()?.workout ?? null)
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0)
   const [errorMsg, setErrorMsg] = useState('')
 
-  const [warmupChecked, setWarmupChecked] = useState<boolean[]>([])
-  const [completedSets, setCompletedSets] = useState<Record<string, number>>({})
-  const [setWeights, setSetWeights] = useState<Record<string, number>>({})
+  const [warmupChecked, setWarmupChecked] = useState<boolean[]>(() => loadSession()?.warmupChecked ?? [])
+  const [completedSets, setCompletedSets] = useState<Record<string, number>>(() => loadSession()?.completedSets ?? {})
+  const [setWeights, setSetWeights] = useState<Record<string, number>>(() => loadSession()?.setWeights ?? {})
   const [activeRest, setActiveRest] = useState<{ key: string; timeLeft: number; total: number } | null>(null)
   const [swappingKey, setSwappingKey] = useState<string | null>(null)
   const [sessionPRs, setSessionPRs] = useState<string[]>([])
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [finisherExpanded, setFinisherExpanded] = useState(true)
+  const [finisherExpanded, setFinisherExpanded] = useState(() => loadSession()?.finisherExpanded ?? true)
+  const [showTwoHourModal, setShowTwoHourModal] = useState(false)
+  const [currentWorkoutId, setCurrentWorkoutId] = useState<string | null>(null)
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null)
+  const [showMethodIntro, setShowMethodIntro] = useState(() =>
+    !isPreview && !loadSession() && !localStorage.getItem('ascend_method_intro_seen')
+  )
+  const [introSlide, setIntroSlide] = useState(0)
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
   const [notifPermState, setNotifPermState] = useState<NotificationPermission | 'unsupported'>(() => notificationPermission())
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const workoutTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const startTimeRef = useRef<number>(0)
+  const startTimeRef = useRef<number>(loadSession()?.startEpoch ?? 0)
   const previewStarted = useRef(false)
 
   // Load profile
@@ -533,18 +605,42 @@ export default function Workout() {
     return () => clearInterval(id)
   }, [phase])
 
-  // Workout elapsed timer — starts when phase becomes 'workout'
+  // Workout elapsed timer — starts when phase becomes 'workout', restored across app exits
   useEffect(() => {
     if (phase !== 'workout') {
       if (workoutTimerRef.current) { clearInterval(workoutTimerRef.current); workoutTimerRef.current = null }
       return
     }
-    setElapsedSeconds(0)
-    workoutTimerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000)
+    if (!startTimeRef.current) startTimeRef.current = Date.now()
+    setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000))
+    workoutTimerRef.current = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000))
+    }, 1000)
     return () => {
       if (workoutTimerRef.current) { clearInterval(workoutTimerRef.current); workoutTimerRef.current = null }
     }
   }, [phase])
+
+  // Show 2-hour modal when timer reaches 2 hours
+  useEffect(() => {
+    if (phase === 'workout' && elapsedSeconds >= 7200 && !showTwoHourModal) {
+      setShowTwoHourModal(true)
+    }
+  }, [phase, elapsedSeconds, showTwoHourModal])
+
+  // Persist workout session to localStorage on every meaningful state change
+  useEffect(() => {
+    if (phase !== 'workout' || !workout || !startTimeRef.current) return
+    saveSession({
+      startEpoch: startTimeRef.current,
+      workout,
+      completedSets,
+      setWeights,
+      warmupChecked,
+      finisherExpanded,
+      recoveryScore,
+    })
+  }, [phase, workout, completedSets, setWeights, warmupChecked, finisherExpanded, recoveryScore])
 
   // Cleanup on unmount
   useEffect(() => () => {
@@ -614,13 +710,15 @@ export default function Workout() {
         recovery_score: score,
         firstSessionType: firstSessionType ?? undefined,
       })
+      clearSession()
+      startTimeRef.current = Date.now()
       setWorkout(result)
       setWarmupChecked(new Array(result.warmup.length).fill(false))
       setCompletedSets({})
       setSetWeights({})
       setSessionPRs([])
       setFinisherExpanded(true)
-      startTimeRef.current = Date.now()
+      setShowTwoHourModal(false)
       setPhase('workout')
     } catch (err) {
       console.error('Workout generation error:', err)
@@ -660,12 +758,17 @@ export default function Workout() {
     if (!user) return
 
     const duration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 60000))
+    const isGymVerified = profile?.gym_checkin_at
+      ? new Date(profile.gym_checkin_at).getTime() > Date.now() - 2 * 60 * 60 * 1000
+      : false
 
     const { data: workoutRecord, error: wErr } = await supabase
       .from('workouts')
-      .insert({ user_id: user.id, workout_date: new Date().toISOString(), workout_type: workout.session_label, duration, completed: true })
+      .insert({ user_id: user.id, workout_date: new Date().toISOString(), workout_type: workout.session_label, duration, completed: true, gym_verified: isGymVerified })
       .select()
       .single()
+    if (workoutRecord) setCurrentWorkoutId(workoutRecord.id as string)
+    setFeedbackRating(null)
 
     if (wErr || !workoutRecord) { console.error('Workout save error:', wErr); navigate('/home'); return }
 
@@ -781,14 +884,20 @@ export default function Workout() {
       newLevel = getLevelFromXP(newXP)
       leveledUp = newLevel > currentLevel
 
-      await supabase.from('user_scores').update({
+      await supabase.from('user_scores').upsert({
+        user_id: user.id,
         strength_score: strengthScore,
         consistency_score: consistencyScore,
         ascend_score: ascendScore,
         xp: newXP,
         level: newLevel,
         streak_days: newStreakDays,
-      }).eq('user_id', user.id)
+      }, { onConflict: 'user_id' })
+
+      // Track workout count for leaderboard eligibility gate (requires schema migration)
+      try {
+        await supabase.from('user_scores').update({ workouts_completed: wids.length }).eq('user_id', user.id)
+      } catch { /* column not yet added */ }
     } catch (scoreErr) {
       console.error('Score update error:', scoreErr)
     }
@@ -803,12 +912,99 @@ export default function Workout() {
       leveledUp,
       newLevel,
     })
+    clearSession()
     localStorage.setItem('ascend_home_badge', '1')
     window.dispatchEvent(new CustomEvent('ascend-badge-update'))
     setPhase('summary')
   }
 
   const anySetsDone = Object.values(completedSets).some(v => v > 0)
+
+  async function handleFeedback(rating: number) {
+    setFeedbackRating(rating)
+    if (!currentWorkoutId) return
+    try {
+      await supabase.from('workouts').update({ feedback_rating: rating }).eq('id', currentWorkoutId)
+    } catch { /* column may not exist yet */ }
+  }
+
+  // ── Ascend Method intro ───────────────────────────────────────────────────
+
+  const METHOD_SLIDES = [
+    {
+      icon: '⚡',
+      title: 'AI-personalized, every session',
+      body: 'The Ascend Method generates a unique program based on your history, recovery, and goals — not a generic plan everyone gets.',
+    },
+    {
+      icon: '🎯',
+      title: 'Train at the right intensity',
+      body: 'Each set has an RPE target (Rate of Perceived Exertion). This keeps you out of junk volume and ensures you\'re actually making progress.',
+    },
+    {
+      icon: '📈',
+      title: 'Built to get you stronger',
+      body: 'Weights are calibrated from your logged lifts and pushed progressively. The more you train, the smarter it gets.',
+    },
+  ]
+
+  if (showMethodIntro) {
+    const slide = METHOD_SLIDES[introSlide]
+    const isLast = introSlide === METHOD_SLIDES.length - 1
+    return (
+      <div className="app-shell">
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 32px' }}>
+            <button
+              onClick={() => navigate('/workout')}
+              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 32px', alignSelf: 'flex-start', display: 'block' }}
+            >
+              ← Back
+            </button>
+            <span style={{ fontSize: 56, display: 'block', marginBottom: 24 }}>{slide.icon}</span>
+            <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+              The Ascend Method
+            </p>
+            <h2 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 14px', lineHeight: 1.25 }}>
+              {slide.title}
+            </h2>
+            <p style={{ color: '#5A7A9A', fontSize: 15, margin: '0 0 40px', lineHeight: 1.65 }}>
+              {slide.body}
+            </p>
+            {/* Dots */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
+              {METHOD_SLIDES.map((_, i) => (
+                <div key={i} style={{ width: i === introSlide ? 20 : 6, height: 6, borderRadius: 3, background: i === introSlide ? '#4A9EFF' : '#1A2A42', transition: 'all 0.2s' }} />
+              ))}
+            </div>
+          </div>
+          <div style={{ padding: '12px 32px 88px', display: 'flex', gap: 12 }}>
+            {introSlide > 0 && (
+              <button
+                onClick={() => setIntroSlide(i => i - 1)}
+                style={{ flex: 1, background: '#1A2A42', color: '#FFFFFF', fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: 'pointer' }}
+              >
+                ← Back
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (isLast) {
+                  localStorage.setItem('ascend_method_intro_seen', '1')
+                  setShowMethodIntro(false)
+                } else {
+                  setIntroSlide(i => i + 1)
+                }
+              }}
+              style={{ flex: 2, background: '#4A9EFF', color: '#FFFFFF', fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: 'pointer' }}
+            >
+              {isLast ? 'Start Training →' : 'Next →'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // ── Session picker screen ─────────────────────────────────────────────────
 
@@ -1135,6 +1331,32 @@ export default function Workout() {
           </div>
 
           <div style={{ padding: '12px 24px 88px' }}>
+            {/* Workout feedback */}
+            {feedbackRating === null ? (
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+                <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 12px', textAlign: 'center' }}>How was today's workout?</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {([
+                    { rating: 1, emoji: '😴', label: 'Too easy' },
+                    { rating: 2, emoji: '💪', label: 'Just right' },
+                    { rating: 3, emoji: '🔥', label: 'Too hard' },
+                  ] as { rating: number; emoji: string; label: string }[]).map(opt => (
+                    <button
+                      key={opt.rating}
+                      onClick={() => handleFeedback(opt.rating)}
+                      style={{ flex: 1, background: '#1A2A42', border: 'none', borderRadius: 10, padding: '12px 4px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}
+                    >
+                      <span style={{ fontSize: 24 }}>{opt.emoji}</span>
+                      <span style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 600 }}>{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 16px', marginBottom: 12, textAlign: 'center' }}>
+                <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>Thanks for the feedback — we'll adjust your next session.</p>
+              </div>
+            )}
             {/* Notification opt-in — shown once, at the highest motivation moment */}
             {notifPermState === 'default' && (
               <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
@@ -1346,6 +1568,38 @@ export default function Workout() {
 
         </div>
       </div>
+
+      {/* 2-hour forgotten-workout modal */}
+      {showTwoHourModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(8,14,28,0.92)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '0 24px',
+        }}>
+          <div style={{ background: '#0D1728', border: '1px solid #1E3D6E', borderRadius: 20, padding: 28, width: '100%', maxWidth: 360, textAlign: 'center' }}>
+            <p style={{ fontSize: 40, margin: '0 0 12px' }}>⏱️</p>
+            <h2 style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>Still training?</h2>
+            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 24px', lineHeight: 1.5 }}>
+              You've been in this workout for 2 hours. Did you forget to tap Finish Workout?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={() => setShowTwoHourModal(false)}
+                style={{ background: '#4A9EFF', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Still going — dismiss
+              </button>
+              <button
+                onClick={() => { setShowTwoHourModal(false); handleFinish() }}
+                style={{ background: '#1A2A42', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Finish Workout & Log Progress
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -638,14 +638,25 @@ export default function Profile() {
           {/* ── Campus rank ── */}
           <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
             <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>Campus Rank</p>
-            <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>
-              Ranked #{campusRank > 0 ? campusRank : '—'} at Penn
-            </p>
-            <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
-              {campusRank > 0
-                ? `Top ${campusRank <= 10 ? '10' : campusRank <= 25 ? '25' : '50'} · Penn Campus`
-                : 'Complete a workout to get ranked'}
-            </p>
+            {totalWorkouts < 3 ? (
+              <>
+                <p style={{ color: '#5A7A9A', fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>🔒 Locked</p>
+                <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                  Complete {3 - totalWorkouts} more workout{3 - totalWorkouts !== 1 ? 's' : ''} to unlock your rank
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>
+                  Ranked #{campusRank > 0 ? campusRank : '—'} at Penn
+                </p>
+                <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                  {campusRank > 0
+                    ? `Top ${campusRank <= 10 ? '10' : campusRank <= 25 ? '25' : '50'} · Penn Campus`
+                    : 'Complete a workout to get ranked'}
+                </p>
+              </>
+            )}
           </div>
 
           {/* ── Streak ── */}
