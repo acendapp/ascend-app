@@ -159,8 +159,8 @@ export default function Auth() {
   }
 
   return (
-    <div className="app-shell">
-      <div className="app-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 24px' }}>
+    <div className="app-shell" style={{ background: '#080E1C' }}>
+      <div className="app-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 24px', background: '#080E1C' }}>
         {/* Wordmark */}
         <p style={{ color: '#4A9EFF', fontSize: 24, fontWeight: 700, letterSpacing: 4, textAlign: 'center', margin: '0 0 32px' }}>
           ASCEND

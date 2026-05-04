@@ -94,7 +94,6 @@ export default function Home() {
 
     let profileData = profileRes.data
     if (!profileData && user.email) {
-      // Fallback: look up by email in case the row id doesn't match auth uid
       const { data: byEmail } = await supabase
         .from('users').select('*').eq('email', user.email).maybeSingle()
       profileData = byEmail
@@ -107,7 +106,6 @@ export default function Home() {
     }
     if (scoresRes.data) setScores(scoresRes.data)
 
-    // One-per-day check
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
     const { data: todayWorkouts } = await supabase
@@ -119,7 +117,6 @@ export default function Home() {
       .limit(1)
     setWorkoutCompletedToday((todayWorkouts?.length ?? 0) > 0)
 
-    // Workouts in last 30 days (consistency) and last 7 days (streak dots)
     const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const { data: recentWorkouts } = await supabase
       .from('workouts')
@@ -138,14 +135,12 @@ export default function Home() {
       setWeekDays(filled)
       setWorkoutsLast30Days(recentWorkouts.length)
 
-      // Count workouts since Monday for "perfect week" display
       const monday = new Date()
       monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
       monday.setHours(0, 0, 0, 0)
       setWorkoutsThisWeek(recentWorkouts.filter(w => new Date(w.workout_date) >= monday).length)
     }
 
-    // Friends
     const { data: friendships } = await supabase
       .from('friendships')
       .select('requester_id, recipient_id')
@@ -157,7 +152,6 @@ export default function Home() {
     )
     setMyFriendIds(friendIds)
     if (friendIds.length > 0) {
-      // Activity feed: recent friend workouts
       const { data: friendWorkouts } = await supabase
         .from('workouts')
         .select('id, user_id, workout_date, workout_type, gym_verified')
@@ -175,7 +169,6 @@ export default function Home() {
 
         const fpMap = new Map((fps ?? []).map(p => [p.id, p]))
 
-        // Kudos counts per workout
         const workoutIds = friendWorkouts.map(w => w.id)
         const { data: kudosRows } = await supabase
           .from('kudos')
@@ -212,7 +205,6 @@ export default function Home() {
       }
     }
 
-    // Campus activity fallback: shown when user has no friends yet
     if (friendIds.length === 0) {
       const { data: campusWorkouts } = await supabase
         .from('workouts')
@@ -239,7 +231,6 @@ export default function Home() {
       }
     }
 
-    // Total workout count (for empty state detection)
     const { count: workoutCount } = await supabase
       .from('workouts')
       .select('id', { count: 'exact', head: true })
@@ -249,7 +240,6 @@ export default function Home() {
     setHasAnyWorkout(wc > 0)
     setWorkoutsCompleted(wc)
 
-    // Campus rank + total users (parallel)
     const [higherRes, totalRes] = await Promise.all([
       supabase.from('user_scores').select('user_id', { count: 'exact', head: true }).gt('ascend_score', scoresRes.data?.ascend_score ?? 0),
       supabase.from('user_scores').select('user_id', { count: 'exact', head: true }).gt('ascend_score', 0),
@@ -260,7 +250,6 @@ export default function Home() {
     storeRankSnapshot(user.id, currentRank)
     setTotalUsers(totalRes.count ?? 0)
 
-    // Score delta since last visit
     const currentScore = scoresRes.data?.ascend_score ?? 0
     try {
       const prevStr = localStorage.getItem(`${SCORE_SNAP_KEY}_${user.id}`)
@@ -271,7 +260,6 @@ export default function Home() {
       localStorage.setItem(`${SCORE_SNAP_KEY}_${user.id}`, String(currentScore))
     } catch {}
 
-    // Live gym presence (people checked in within the last 2h)
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
     const { data: gymUsersData } = await supabase
       .from('users')
@@ -285,7 +273,6 @@ export default function Home() {
       isFriend: friendIds.includes(u.id as string),
     })))
 
-    // Best active challenge for teaser (graceful fail if tables not yet migrated)
     try {
       const now = new Date().toISOString()
       const { data: myParticipations } = await supabase
@@ -330,13 +317,11 @@ export default function Home() {
     return () => cancelAnimationFrame(frame)
   }, [scores?.ascend_score])
 
-  // Clear home badge when visiting
   useEffect(() => {
     localStorage.removeItem('ascend_home_badge')
     window.dispatchEvent(new CustomEvent('ascend-badge-update'))
   }, [location.key])
 
-  // Realtime: notify when a friend checks in to the gym
   useEffect(() => {
     if (myFriendIds.length === 0) return
     const channel = supabase
@@ -358,7 +343,6 @@ export default function Home() {
     return () => { supabase.removeChannel(channel) }
   }, [myFriendIds])
 
-  // Reset the "completed today" flag at midnight
   useEffect(() => {
     if (!workoutCompletedToday) return
     const now = new Date()
@@ -428,7 +412,6 @@ export default function Home() {
       setActivityFeed(prev => prev.map(a =>
         a.id === item.id ? { ...a, kudosCount: a.kudosCount + 1, userGaveKudos: true } : a
       ))
-      // +5 social points for the recipient, capped at 100
       const { data: scoreRow } = await supabase
         .from('user_scores').select('social_score').eq('user_id', item.userId).maybeSingle()
       const newSocial = Math.min((scoreRow?.social_score ?? 0) + 5, 100)
@@ -440,40 +423,40 @@ export default function Home() {
     return (
       <div className="app-shell">
         <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-          <div style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</div>
+          <div style={{ color: '#9CA3AF', fontSize: 14, fontWeight: 500 }}>Loading…</div>
         </div>
       </div>
     )
   }
 
-  // New user activation screen — shown until first workout is completed
   if (!hasAnyWorkout) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '0 24px' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 14px' }}>
-              Welcome to Ascend
-            </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 30, fontWeight: 700, margin: '0 0 14px', lineHeight: 1.15 }}>
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+          <div style={{ background: '#FFFFFF', padding: '56px 20px 24px', borderBottom: '1px solid #E5E7EB' }}>
+            <p style={{ color: '#9CA3AF', fontSize: 13, fontWeight: 500, margin: '0 0 6px' }}>Welcome to Ascend</p>
+            <h1 style={{ color: '#111827', fontSize: 28, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>
               Your first workout<br />unlocks everything.
             </h1>
-            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 40px', lineHeight: 1.65 }}>
-              Your Ascend Score, your campus rank, your history — none of it exists until you train. Every person on the leaderboard started right here.
+          </div>
+          <div style={{ padding: '24px 20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <p style={{ color: '#6B7280', fontSize: 15, margin: '0 0 32px', lineHeight: 1.7 }}>
+              Your Ascend Score, campus rank, and workout history — all of it starts with your first session. Every top-ranked student at Penn started right here.
             </p>
             <button
               onClick={() => navigate('/workout')}
               style={{
-                width: '100%', background: '#4A9EFF', color: '#FFFFFF',
-                fontSize: 18, fontWeight: 700, borderRadius: 16, padding: '20px',
+                width: '100%', background: '#FF5C00', color: '#FFFFFF',
+                fontSize: 17, fontWeight: 700, borderRadius: 16, padding: '20px',
                 border: 'none', cursor: 'pointer', marginBottom: 14,
+                boxShadow: '0 4px 16px rgba(255,92,0,0.35)',
               }}
             >
               Start My First Workout →
             </button>
             {campusActivity.length > 0 && (
-              <p style={{ color: '#5A7A9A', fontSize: 12, textAlign: 'center', margin: 0 }}>
-                {campusActivity.length} Penn students trained recently. You're next.
+              <p style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center', margin: 0 }}>
+                {campusActivity.length} Penn students have trained recently.
               </p>
             )}
           </div>
@@ -487,78 +470,216 @@ export default function Home() {
   const consistencyScore = calculateConsistencyScore(workoutsLast30Days)
   const isPerfectWeek = workoutsThisWeek >= 4
   const streakDays = scores?.streak_days ?? 0
+  const xp = scores?.xp ?? 0
+  const level = scores?.level ?? 1
+  const { current, needed, fraction } = getXPProgress(xp, level)
+
+  const cardStyle: React.CSSProperties = {
+    background: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+  }
 
   return (
     <div className="app-shell">
       <div className="app-content page-scroll">
-        <div style={{ padding: '48px 20px 0' }}>
 
-          {/* PR Banner */}
-          {showPRBanner && newPRs.length > 0 && (
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #0D2E5A, #0A1F3A)',
-                border: '1px solid #4A9EFF',
-                borderRadius: 14,
-                padding: '14px 16px',
-                marginBottom: 16,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                <p style={{ color: '#4A9EFF', fontSize: 12, fontWeight: 700, margin: '0 0 2px' }}>
-                  🏆 New Personal Record{newPRs.length > 1 ? 's' : ''}!
-                </p>
-                <p style={{ color: '#FFFFFF', fontSize: 13, margin: 0 }}>
-                  {newPRs.slice(0, 2).join(', ')}{newPRs.length > 2 ? ` +${newPRs.length - 2} more` : ''}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowPRBanner(false)}
-                style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 18, cursor: 'pointer', padding: 0 }}
-              >
-                ×
-              </button>
+        {/* PR Banner */}
+        {showPRBanner && newPRs.length > 0 && (
+          <div style={{
+            background: 'rgba(255,92,0,0.08)',
+            borderBottom: '1px solid rgba(255,92,0,0.2)',
+            padding: '14px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <div>
+              <p style={{ color: '#FF5C00', fontSize: 12, fontWeight: 700, margin: '0 0 2px' }}>
+                🏆 New PR{newPRs.length > 1 ? 's' : ''}!
+              </p>
+              <p style={{ color: '#111827', fontSize: 13, margin: 0, fontWeight: 500 }}>
+                {newPRs.slice(0, 2).join(', ')}{newPRs.length > 2 ? ` +${newPRs.length - 2} more` : ''}
+              </p>
             </div>
-          )}
+            <button
+              onClick={() => setShowPRBanner(false)}
+              style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+            >
+              ×
+            </button>
+          </div>
+        )}
 
-          {/* Greeting */}
-          <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 2px' }}>{getGreeting()}</p>
-          <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 4px' }}>{firstName}</h1>
-          <p style={{ color: '#4A9EFF', fontSize: 13, margin: '0 0 10px', fontWeight: 600 }}>
-            Level {scores?.level ?? 1} · {getLevelName(scores?.level ?? 1)}
-            {streakDays > 0 && <span style={{ color: '#5A7A9A', fontWeight: 400 }}> · {streakDays}d streak</span>}
+        {/* Header */}
+        <div style={{ background: '#FFFFFF', padding: '52px 20px 20px', borderBottom: '1px solid #E5E7EB' }}>
+          <p style={{ color: '#6B7280', fontSize: 13, fontWeight: 500, margin: '0 0 3px' }}>{getGreeting()}</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <h1 style={{ color: '#111827', fontSize: 26, fontWeight: 800, margin: 0 }}>{firstName}</h1>
+            <div style={{ background: 'rgba(255,92,0,0.1)', borderRadius: 20, padding: '5px 12px' }}>
+              <span style={{ color: '#FF5C00', fontSize: 12, fontWeight: 700 }}>
+                Lv {level} · {getLevelName(level)}
+              </span>
+            </div>
+          </div>
+          <div style={{ background: '#F5F5F7', borderRadius: 4, height: 5, overflow: 'hidden' }}>
+            <div style={{ background: '#FF5C00', height: '100%', width: `${fraction * 100}%`, borderRadius: 4, transition: 'width 0.6s ease' }} />
+          </div>
+          <p style={{ color: '#9CA3AF', fontSize: 11, margin: '5px 0 0', textAlign: 'right', fontWeight: 500 }}>
+            {current} / {needed} XP · Level {level + 1} next
           </p>
-          {(() => {
-            const xp = scores?.xp ?? 0
-            const level = scores?.level ?? 1
-            const { current, needed, fraction } = getXPProgress(xp, level)
-            return (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ background: '#1A2A42', borderRadius: 4, height: 4, overflow: 'hidden' }}>
-                  <div style={{ background: '#4A9EFF', height: '100%', width: `${fraction * 100}%`, borderRadius: 4, transition: 'width 0.6s ease' }} />
+          {streakDays > 0 && (
+            <p style={{ color: '#FF5C00', fontSize: 12, fontWeight: 600, margin: '8px 0 0' }}>
+              🔥 {streakDays}-day streak
+            </p>
+          )}
+        </div>
+
+        {/* Page content */}
+        <div style={{ padding: '16px 16px 0' }}>
+
+          {/* Primary CTA */}
+          <button
+            onClick={() => navigate('/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
+            style={{
+              width: '100%',
+              background: workoutCompletedToday ? '#FFFFFF' : '#FF5C00',
+              color: workoutCompletedToday ? '#6B7280' : '#FFFFFF',
+              border: workoutCompletedToday ? '1.5px solid #E5E7EB' : 'none',
+              fontSize: 16,
+              fontWeight: 700,
+              borderRadius: 16,
+              padding: '18px',
+              cursor: 'pointer',
+              marginBottom: 12,
+              boxShadow: workoutCompletedToday ? 'none' : '0 4px 14px rgba(255,92,0,0.3)',
+              transition: 'all 0.2s',
+            }}
+          >
+            {workoutCompletedToday ? 'Workout done · Preview tomorrow →' : "Generate Today's Workout →"}
+          </button>
+
+          {/* Score / Rank / Streak row */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+            {/* Ascend Score — big */}
+            <div style={{ ...cardStyle, flex: 2, marginBottom: 0, padding: '16px' }}>
+              <p style={{ color: '#9CA3AF', fontSize: 11, fontWeight: 600, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Score</p>
+              <p style={{ color: '#111827', fontSize: 32, fontWeight: 800, margin: '0 0 4px', lineHeight: 1 }}>{displayedScore}</p>
+              {ascendScoreDelta !== null && ascendScoreDelta > 0 && (
+                <p style={{ color: '#16A34A', fontSize: 12, fontWeight: 600, margin: '0 0 4px' }}>+{ascendScoreDelta} this session</p>
+              )}
+              {workoutsCompleted >= 3 && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(255,92,0,0.08)', borderRadius: 20, padding: '3px 8px' }}>
+                  <span style={{ color: '#FF5C00', fontSize: 11, fontWeight: 700 }}>
+                    {(() => {
+                      if (!totalUsers || campusRank <= 0) return 'Penn Campus'
+                      const pct = Math.ceil((campusRank / totalUsers) * 100)
+                      if (pct <= 5) return 'Top 5%'
+                      if (pct <= 10) return 'Top 10%'
+                      if (pct <= 15) return 'Top 15%'
+                      if (pct <= 25) return 'Top 25%'
+                      return 'Penn Campus'
+                    })()}
+                  </span>
                 </div>
-                <p style={{ color: '#5A7A9A', fontSize: 10, margin: '4px 0 0', textAlign: 'right' }}>
-                  {current} / {needed} XP · Level {level + 1} next
+              )}
+            </div>
+
+            {/* Rank + Streak stacked */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ ...cardStyle, marginBottom: 0, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <p style={{ color: '#9CA3AF', fontSize: 10, fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Rank</p>
+                {workoutsCompleted < 3 ? (
+                  <>
+                    <p style={{ color: '#9CA3AF', fontSize: 20, fontWeight: 800, margin: 0, lineHeight: 1 }}>🔒</p>
+                    <p style={{ color: '#9CA3AF', fontSize: 9, margin: '3px 0 0', lineHeight: 1.3 }}>
+                      {3 - workoutsCompleted} more workout{3 - workoutsCompleted !== 1 ? 's' : ''}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ color: '#FF5C00', fontSize: 22, fontWeight: 800, margin: 0, lineHeight: 1 }}>
+                      #{campusRank > 0 ? campusRank : '—'}
+                    </p>
+                    {rankDelta !== null && rankDelta !== 0 && (
+                      <p style={{ color: rankDelta > 0 ? '#16A34A' : '#DC2626', fontSize: 10, fontWeight: 600, margin: '2px 0 0' }}>
+                        {rankDelta > 0 ? `↑${rankDelta}` : `↓${Math.abs(rankDelta)}`}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+              <div style={{ ...cardStyle, marginBottom: 0, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <p style={{ color: '#9CA3AF', fontSize: 10, fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Streak</p>
+                <p style={{ color: streakDays > 0 ? '#FF5C00' : '#9CA3AF', fontSize: 22, fontWeight: 800, margin: 0, lineHeight: 1 }}>
+                  {streakDays > 0 ? `${streakDays}d` : '—'}
                 </p>
               </div>
-            )
-          })()}
+            </div>
+          </div>
 
-          {/* Streak dots */}
-          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>Last 7 Days</p>
+          {/* Sub-scores */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+            <div style={{ ...cardStyle, marginBottom: 0, flex: 1 }}>
+              <p style={{ color: '#9CA3AF', fontSize: 10, fontWeight: 600, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Strength</p>
+              <p style={{ color: '#111827', fontSize: 24, fontWeight: 800, margin: '0 0 2px', lineHeight: 1 }}>{strengthScore}</p>
+              <p style={{ color: '#9CA3AF', fontSize: 11, margin: 0 }}>Based on training weights</p>
+            </div>
+            <div style={{ ...cardStyle, marginBottom: 0, flex: 1 }}>
+              <p style={{ color: '#9CA3AF', fontSize: 10, fontWeight: 600, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Consistency</p>
+              <p style={{ color: isPerfectWeek ? '#FF5C00' : '#111827', fontSize: 24, fontWeight: 800, margin: '0 0 2px', lineHeight: 1 }}>{consistencyScore}%</p>
+              <p style={{ color: isPerfectWeek ? '#FF5C00' : '#9CA3AF', fontSize: 11, margin: 0, fontWeight: isPerfectWeek ? 700 : 400 }}>
+                {isPerfectWeek ? '🔥 Perfect week' : 'Last 30 days'}
+              </p>
+            </div>
+          </div>
+
+          {/* This week */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <p style={{ color: '#111827', fontSize: 14, fontWeight: 700, margin: 0 }}>This Week</p>
+              {isPerfectWeek && (
+                <span style={{ color: '#FF5C00', fontSize: 12, fontWeight: 700 }}>Perfect Week 🔥</span>
+              )}
+            </div>
             <StreakDots days={weekDays} />
           </div>
 
-          {/* Gym presence widget */}
-          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px 16px', marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: liveAtGym.length > 0 ? 10 : 0 }}>
+          {/* Compete teaser */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <p style={{ color: '#111827', fontSize: 14, fontWeight: 700, margin: 0 }}>Campus Leaderboard</p>
+              <button
+                onClick={() => navigate('/compete')}
+                style={{ background: 'none', border: 'none', color: '#FF5C00', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              >
+                View all →
+              </button>
+            </div>
+            {workoutsCompleted < 3 ? (
+              <p style={{ color: '#9CA3AF', fontSize: 13, margin: 0 }}>
+                🔒 Rank unlocks after {3 - workoutsCompleted} more workout{3 - workoutsCompleted !== 1 ? 's' : ''}
+              </p>
+            ) : (
+              <>
+                <p style={{ color: '#FF5C00', fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>
+                  #{campusRank > 0 ? campusRank : '—'} at Penn
+                </p>
+                {bestChallenge && (
+                  <p style={{ color: '#6B7280', fontSize: 13, margin: '4px 0 0' }}>{bestChallenge}</p>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Gym presence */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: liveAtGym.length > 0 ? '#3BF0A0' : '#5A7A9A', flexShrink: 0 }} />
-                <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: liveAtGym.length > 0 ? '#16A34A' : '#9CA3AF', flexShrink: 0 }} />
+                <span style={{ color: '#111827', fontSize: 13, fontWeight: 600 }}>
                   {(() => {
                     if (liveAtGym.length === 0) return 'Gym is quiet right now'
                     const friends = liveAtGym.filter(u => u.isFriend)
@@ -567,19 +688,19 @@ export default function Home() {
                       const others = liveAtGym.length - 1
                       return others === 0
                         ? `${first} is at the gym now 👊`
-                        : `${first} and ${others} other${others > 1 ? 's' : ''} are at the gym`
+                        : `${first} and ${others} other${others > 1 ? 's' : ''} at the gym`
                     }
-                    return `${liveAtGym.length} ${liveAtGym.length === 1 ? 'person' : 'people'} at the gym now`
+                    return `${liveAtGym.length} ${liveAtGym.length === 1 ? 'person' : 'people'} at the gym`
                   })()}
                 </span>
               </div>
               {isCheckedIn ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 600 }}>You're here 💪</span>
+                  <span style={{ color: '#FF5C00', fontSize: 11, fontWeight: 700 }}>You're here 💪</span>
                   <button
                     onClick={handleGymCheckout}
                     disabled={checkinLoading}
-                    style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 6, color: '#5A7A9A', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '2px 8px' }}
+                    style={{ background: 'none', border: '1px solid #E5E7EB', borderRadius: 6, color: '#6B7280', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '3px 9px' }}
                   >
                     {checkinLoading ? '…' : 'Leave'}
                   </button>
@@ -588,20 +709,21 @@ export default function Home() {
                 <button
                   onClick={handleGymCheckin}
                   disabled={checkinLoading}
-                  style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  style={{ background: 'none', border: 'none', color: '#FF5C00', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
                 >
                   {checkinLoading ? '…' : 'Check in →'}
                 </button>
               )}
             </div>
             {liveAtGym.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
                 {liveAtGym.slice(0, 5).map(u => (
                   <span key={u.id} style={{
-                    background: u.isFriend ? '#0D2E5A' : '#1A2A42',
-                    border: u.isFriend ? '1px solid #4A9EFF' : 'none',
-                    color: u.isFriend ? '#4A9EFF' : '#7A8A9A',
+                    background: u.isFriend ? 'rgba(255,92,0,0.08)' : '#F5F5F7',
+                    border: u.isFriend ? '1px solid rgba(255,92,0,0.3)' : '1px solid #E5E7EB',
+                    color: u.isFriend ? '#FF5C00' : '#6B7280',
                     fontSize: 11,
+                    fontWeight: u.isFriend ? 600 : 500,
                     borderRadius: 20,
                     padding: '3px 10px',
                   }}>
@@ -609,169 +731,66 @@ export default function Home() {
                   </span>
                 ))}
                 {liveAtGym.length > 5 && (
-                  <span style={{ color: '#5A7A9A', fontSize: 11, alignSelf: 'center' }}>+{liveAtGym.length - 5} more</span>
+                  <span style={{ color: '#9CA3AF', fontSize: 11, alignSelf: 'center' }}>+{liveAtGym.length - 5} more</span>
                 )}
               </div>
-            )}
-          </div>
-
-          {/* Score grid */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-            <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 16 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Strength Score</p>
-              <p style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{hasAnyWorkout ? strengthScore : '—'}</p>
-              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
-                {hasAnyWorkout ? 'Based on your training weights' : 'Complete your first workout to unlock'}
-              </p>
-            </div>
-
-            <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 16 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Consistency</p>
-              <p style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{hasAnyWorkout ? `${consistencyScore}%` : '—'}</p>
-              <p style={{ color: isPerfectWeek ? '#4A9EFF' : '#5A7A9A', fontSize: 11, margin: 0, fontWeight: isPerfectWeek ? 700 : 400 }}>
-                {hasAnyWorkout ? (isPerfectWeek ? 'Perfect week 🔥' : `${streakDays} day streak`) : 'Complete your first workout to unlock'}
-              </p>
-            </div>
-          </div>
-
-          {/* Ascend Score */}
-          <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 16, padding: 16, marginBottom: 14 }}>
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Ascend Score</p>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
-              <p style={{ color: '#4A9EFF', fontSize: 36, fontWeight: 700, margin: 0 }}>{hasAnyWorkout ? displayedScore : '—'}</p>
-              {hasAnyWorkout && ascendScoreDelta !== null && ascendScoreDelta > 0 && (
-                <span style={{ color: '#3BF0A0', fontSize: 13, fontWeight: 600 }}>+{ascendScoreDelta} since last session</span>
-              )}
-            </div>
-            {!hasAnyWorkout ? (
-              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Complete your first workout to unlock</p>
-            ) : workoutsCompleted < 3 ? (
-              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
-                🔒 Campus rank unlocks after {3 - workoutsCompleted} more workout{3 - workoutsCompleted !== 1 ? 's' : ''}
-              </p>
-            ) : (
-              <>
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 10px' }}>
-                  Ranked <span style={{ color: '#FFFFFF' }}>#{campusRank > 0 ? campusRank : '—'}</span> on campus
-                  {rankDelta !== null && rankDelta !== 0 && (
-                    <> · <span style={{ color: rankDelta > 0 ? '#4A9EFF' : '#FF6B6B' }}>
-                      {rankDelta > 0 ? `↑ ${rankDelta}` : `↓ ${Math.abs(rankDelta)}`} spots
-                    </span></>
-                  )}
-                </p>
-                <div style={{ display: 'inline-block', background: '#0D2E5A', color: '#4A9EFF', fontSize: 10, borderRadius: 6, padding: '2px 8px' }}>
-                  {(() => {
-                    if (!totalUsers || campusRank <= 0) return 'Penn Campus'
-                    const pct = Math.ceil((campusRank / totalUsers) * 100)
-                    if (pct <= 5) return 'Top 5% · Penn Campus'
-                    if (pct <= 10) return 'Top 10% · Penn Campus'
-                    if (pct <= 15) return 'Top 15% · Penn Campus'
-                    if (pct <= 25) return 'Top 25% · Penn Campus'
-                    return 'Penn Campus'
-                  })()}
-                </div>
-              </>
             )}
           </div>
 
           {/* View history */}
           <button
             onClick={() => navigate('/history')}
-            style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: '0 0 14px', display: 'block' }}
+            style={{ background: 'none', border: 'none', color: '#FF5C00', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: '0 0 12px', display: 'block' }}
           >
-            View history →
+            View workout history →
           </button>
 
-          {/* CTA */}
-          <button
-            onClick={() => navigate('/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
-            style={{
-              width: '100%',
-              background: workoutCompletedToday ? '#1A2A42' : '#4A9EFF',
-              color: workoutCompletedToday ? '#5A7A9A' : '#FFFFFF',
-              fontSize: 16,
-              fontWeight: 700,
-              borderRadius: 16,
-              padding: '18px',
-              border: 'none',
-              cursor: 'pointer',
-              marginBottom: 28,
-            }}
-          >
-            {workoutCompletedToday ? "Preview Tomorrow's Workout →" : "Generate Today's Workout →"}
-          </button>
-
-          {/* Compete teaser */}
-          <div
-            style={{
-              background: '#0A1F3A',
-              border: '1px solid #1E3D6E',
-              borderRadius: 14,
-              padding: 16,
-              marginBottom: 20,
-            }}
-          >
-            <p style={{ color: workoutsCompleted < 3 ? '#5A7A9A' : '#4A9EFF', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>
-              {workoutsCompleted < 3 ? `🔒 Rank unlocks after ${3 - workoutsCompleted} more workout${3 - workoutsCompleted !== 1 ? 's' : ''}` : `Campus Rank #${campusRank > 0 ? campusRank : '—'}`}
-            </p>
-            {bestChallenge && (
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 12px' }}>{bestChallenge}</p>
-            )}
-            <button
-              onClick={() => navigate('/compete')}
-              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
-            >
-              View leaderboards →
-            </button>
-          </div>
-
-          {/* Activity Feed */}
+          {/* Activity feed */}
           {activityFeed.length > 0 && (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700 }}>Friend Activity</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+              <p style={{ color: '#111827', fontSize: 15, fontWeight: 700, margin: '4px 0 12px' }}>Friend Activity</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
                 {activityFeed.map(item => (
                   <div
                     key={item.id}
                     onClick={() => navigate(`/profile/${item.userId}`)}
                     style={{
-                      background: '#0D1728',
-                      border: '1px solid #1A2A42',
-                      borderRadius: 14,
-                      padding: '12px 14px',
+                      background: '#FFFFFF',
+                      borderRadius: 16,
+                      padding: '14px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,
                       cursor: 'pointer',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
                     }}
                   >
                     <div style={{
-                      width: 36, height: 36, borderRadius: '50%',
-                      background: '#1A2A42',
+                      width: 42, height: 42, borderRadius: '50%',
+                      background: 'rgba(255,92,0,0.1)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#4A9EFF', fontSize: 12, fontWeight: 700, flexShrink: 0,
+                      color: '#FF5C00', fontSize: 13, fontWeight: 700, flexShrink: 0,
                     }}>
                       {item.initials}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{item.userName}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ color: '#111827', fontSize: 14, fontWeight: 600, margin: '0 0 2px' }}>{item.userName}</p>
+                      <p style={{ color: '#6B7280', fontSize: 12, margin: 0 }}>
                         {item.description} · {item.time}
-                        {item.gymVerified && <span style={{ color: '#3BF0A0', marginLeft: 6, fontSize: 11, fontWeight: 600 }}>📍 Verified</span>}
+                        {item.gymVerified && <span style={{ color: '#16A34A', marginLeft: 6, fontSize: 11, fontWeight: 600 }}>📍 Verified</span>}
                       </p>
                     </div>
                     <button
                       onClick={e => { e.stopPropagation(); handleKudos(item) }}
                       disabled={item.userGaveKudos}
                       style={{
-                        background: item.userGaveKudos ? '#0D2E5A' : 'transparent',
-                        border: `1px solid ${item.userGaveKudos ? '#4A9EFF' : '#1A2A42'}`,
-                        borderRadius: 8,
-                        padding: '4px 10px',
-                        color: item.userGaveKudos ? '#4A9EFF' : '#5A7A9A',
+                        background: item.userGaveKudos ? 'rgba(255,92,0,0.08)' : 'transparent',
+                        border: `1.5px solid ${item.userGaveKudos ? '#FF5C00' : '#E5E7EB'}`,
+                        borderRadius: 10,
+                        padding: '5px 10px',
+                        color: item.userGaveKudos ? '#FF5C00' : '#6B7280',
                         fontSize: 12,
+                        fontWeight: item.userGaveKudos ? 700 : 500,
                         cursor: item.userGaveKudos ? 'default' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -788,44 +807,43 @@ export default function Home() {
             </>
           )}
 
-          {/* Campus activity fallback for users without friends */}
+          {/* Campus activity fallback */}
           {activityFeed.length === 0 && campusActivity.length > 0 && (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700 }}>Happening at Penn</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+              <p style={{ color: '#111827', fontSize: 15, fontWeight: 700, margin: '4px 0 12px' }}>Happening at Penn</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
                 {campusActivity.map(item => (
                   <div
                     key={item.id}
                     onClick={() => navigate(`/profile/${item.userId}`)}
                     style={{
-                      background: '#0D1728',
-                      border: '1px solid #1A2A42',
-                      borderRadius: 14,
-                      padding: '12px 14px',
+                      background: '#FFFFFF',
+                      borderRadius: 16,
+                      padding: '14px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,
                       cursor: 'pointer',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
                     }}
                   >
                     <div style={{
-                      width: 36, height: 36, borderRadius: '50%',
-                      background: '#1A2A42',
+                      width: 42, height: 42, borderRadius: '50%',
+                      background: '#F5F5F7',
+                      border: '1.5px solid #E5E7EB',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#5A7A9A', fontSize: 12, fontWeight: 700, flexShrink: 0,
+                      color: '#6B7280', fontSize: 13, fontWeight: 700, flexShrink: 0,
                     }}>
                       {item.initials}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{item.userName}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{item.description} · {item.time}</p>
+                      <p style={{ color: '#111827', fontSize: 14, fontWeight: 600, margin: '0 0 2px' }}>{item.userName}</p>
+                      <p style={{ color: '#6B7280', fontSize: 12, margin: 0 }}>{item.description} · {item.time}</p>
                     </div>
                   </div>
                 ))}
-                <p style={{ color: '#5A7A9A', fontSize: 11, margin: '4px 0 0', textAlign: 'center' }}>
-                  Add friends on Profile to see their activity here
+                <p style={{ color: '#9CA3AF', fontSize: 11, margin: '2px 0 0', textAlign: 'center' }}>
+                  Add friends on Profile to see their activity
                 </p>
               </div>
             </>

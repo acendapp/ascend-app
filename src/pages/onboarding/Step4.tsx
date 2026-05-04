@@ -80,8 +80,8 @@ export default function Step4() {
   }
 
   return (
-    <div className="app-shell">
-      <div className="app-content onboarding-scroll">
+    <div className="app-shell" style={{ background: '#080E1C' }}>
+      <div className="app-content onboarding-scroll" style={{ background: '#080E1C' }}>
 
         {/* Progress pills */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>

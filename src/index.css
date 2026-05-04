@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,9 +14,9 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background-color: #080E1C;
+    background-color: #F5F5F7;
   }
 
   input, button, textarea, select {
@@ -22,10 +24,10 @@
   }
 }
 
-/* App shell: centers 390px content, fills rest with #080E1C */
+/* App shell: centers 390px content */
 .app-shell {
   min-height: 100vh;
-  background-color: #080E1C;
+  background-color: #F5F5F7;
   display: flex;
   justify-content: center;
 }
@@ -34,9 +36,21 @@
   width: 100%;
   max-width: 390px;
   min-height: 100vh;
-  background-color: #080E1C;
+  background-color: #F5F5F7;
   position: relative;
   overflow-x: hidden;
+}
+
+/* Dark variant for onboarding/auth */
+.app-shell-dark {
+  min-height: 100vh;
+  background-color: #080E1C;
+  display: flex;
+  justify-content: center;
+}
+
+.app-content-dark {
+  background-color: #080E1C;
 }
 
 /* Scrollable page with bottom nav padding */
@@ -53,13 +67,13 @@
   padding: 56px 20px 40px;
 }
 
-/* Range slider — recovery screen */
+/* Range slider */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
   height: 4px;
-  background: #1A2A42;
+  background: #E5E7EB;
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -69,18 +83,18 @@ input[type="range"]::-webkit-slider-thumb {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #4A9EFF;
+  background: #FF5C00;
   cursor: pointer;
-  box-shadow: 0 0 12px #4A9EFF66;
-  border: 3px solid #080E1C;
+  box-shadow: 0 2px 8px rgba(255,92,0,0.3);
+  border: 3px solid #FFFFFF;
 }
 input[type="range"]::-moz-range-thumb {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #4A9EFF;
+  background: #FF5C00;
   cursor: pointer;
-  border: 3px solid #080E1C;
+  border: 3px solid #FFFFFF;
 }
 
 /* Horizontal friend scroll */

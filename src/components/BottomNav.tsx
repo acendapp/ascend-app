@@ -10,13 +10,13 @@ const tabs = [
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path
           d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z"
-          stroke={active ? '#4A9EFF' : '#5A7A9A'}
+          stroke={active ? '#FF5C00' : '#9CA3AF'}
           strokeWidth="1.8"
           strokeLinejoin="round"
         />
         <path
           d="M9 21V12h6v9"
-          stroke={active ? '#4A9EFF' : '#5A7A9A'}
+          stroke={active ? '#FF5C00' : '#9CA3AF'}
           strokeWidth="1.8"
           strokeLinejoin="round"
         />
@@ -31,7 +31,7 @@ const tabs = [
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path
           d="M6 4v16M18 4v16M3 8h3M18 8h3M3 16h3M18 16h3M6 12h12"
-          stroke={active ? '#4A9EFF' : '#5A7A9A'}
+          stroke={active ? '#FF5C00' : '#9CA3AF'}
           strokeWidth="1.8"
           strokeLinecap="round"
         />
@@ -46,21 +46,21 @@ const tabs = [
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path
           d="M8 21h8M12 17v4M6 3h12"
-          stroke={active ? '#4A9EFF' : '#5A7A9A'}
+          stroke={active ? '#FF5C00' : '#9CA3AF'}
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <path
           d="M6 3v4a6 6 0 0012 0V3"
-          stroke={active ? '#4A9EFF' : '#5A7A9A'}
+          stroke={active ? '#FF5C00' : '#9CA3AF'}
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <path
           d="M6 7H3v3a3 3 0 003 3M18 7h3v3a3 3 0 01-3 3"
-          stroke={active ? '#4A9EFF' : '#5A7A9A'}
+          stroke={active ? '#FF5C00' : '#9CA3AF'}
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -74,10 +74,10 @@ const tabs = [
     path: '/groups',
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <circle cx="9" cy="7" r="3" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" />
-        <circle cx="17" cy="8" r="2.5" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" />
-        <path d="M3 20c0-3 2.686-5 6-5s6 2 6 5" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M17 15c1.8 0 4 1.2 4 4" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" strokeLinecap="round" />
+        <circle cx="9" cy="7" r="3" stroke={active ? '#FF5C00' : '#9CA3AF'} strokeWidth="1.8" />
+        <circle cx="17" cy="8" r="2.5" stroke={active ? '#FF5C00' : '#9CA3AF'} strokeWidth="1.8" />
+        <path d="M3 20c0-3 2.686-5 6-5s6 2 6 5" stroke={active ? '#FF5C00' : '#9CA3AF'} strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M17 15c1.8 0 4 1.2 4 4" stroke={active ? '#FF5C00' : '#9CA3AF'} strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -87,10 +87,10 @@ const tabs = [
     path: '/profile',
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="8" r="4" stroke={active ? '#4A9EFF' : '#5A7A9A'} strokeWidth="1.8" />
+        <circle cx="12" cy="8" r="4" stroke={active ? '#FF5C00' : '#9CA3AF'} strokeWidth="1.8" />
         <path
           d="M4 20c0-3.314 3.582-6 8-6s8 2.686 8 6"
-          stroke={active ? '#4A9EFF' : '#5A7A9A'}
+          stroke={active ? '#FF5C00' : '#9CA3AF'}
           strokeWidth="1.8"
           strokeLinecap="round"
         />
@@ -119,11 +119,12 @@ export default function BottomNav() {
         transform: 'translateX(-50%)',
         width: '100%',
         maxWidth: 390,
-        background: '#0D1728',
-        borderTop: '1px solid #1A2A42',
+        background: '#FFFFFF',
+        borderTop: '1px solid #E5E7EB',
         display: 'flex',
         zIndex: 100,
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        boxShadow: '0 -1px 0 rgba(0,0,0,0.04)',
       }}
     >
       {tabs.map(tab => {
@@ -137,7 +138,7 @@ export default function BottomNav() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 4,
+              gap: 3,
               padding: '10px 0 8px',
               background: 'transparent',
               border: 'none',
@@ -151,24 +152,12 @@ export default function BottomNav() {
                 position: 'absolute', top: 6, right: '50%',
                 transform: 'translateX(calc(50% + 9px))',
                 width: 7, height: 7, borderRadius: '50%',
-                background: '#FF4444', border: '1px solid #080E1C',
+                background: '#FF5C00', border: '1.5px solid #FFFFFF',
               }} />
             )}
-            <span style={{ color: active ? '#4A9EFF' : '#5A7A9A', fontSize: 10, fontWeight: active ? 600 : 400 }}>
+            <span style={{ color: active ? '#FF5C00' : '#9CA3AF', fontSize: 10, fontWeight: active ? 700 : 500 }}>
               {tab.label}
             </span>
-            {active && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  width: 20,
-                  height: 3,
-                  borderRadius: 2,
-                  background: '#4A9EFF',
-                }}
-              />
-            )}
           </button>
         )
       })}
