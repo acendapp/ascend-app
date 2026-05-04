@@ -7,11 +7,11 @@ type Mode = 'signup' | 'signin'
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  background: '#FFFFFF',
-  border: '1.5px solid #E5E7EB',
+  background: '#0D1728',
+  border: '1px solid #1A2A42',
   borderRadius: 12,
   padding: '14px 16px',
-  color: '#111827',
+  color: '#FFFFFF',
   fontSize: 14,
   outline: 'none',
   fontFamily: 'inherit',
@@ -27,7 +27,7 @@ function Field({ label, ...props }: InputProps) {
   return (
     <div style={{ marginBottom: 12 }}>
       {label && (
-        <label style={{ color: '#111827', fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>
+        <label style={{ color: '#5A7A9A', fontSize: 12, display: 'block', marginBottom: 6 }}>
           {label}
         </label>
       )}
@@ -35,7 +35,7 @@ function Field({ label, ...props }: InputProps) {
         {...props}
         style={{
           ...inputStyle,
-          border: `1.5px solid ${focused ? '#FF5C00' : '#E5E7EB'}`,
+          border: `1px solid ${focused ? '#4A9EFF' : '#1A2A42'}`,
           transition: 'border-color 0.15s',
         }}
         onFocus={() => setFocused(true)}
@@ -81,6 +81,9 @@ export default function Auth() {
 
       if (!user) throw new Error('Signup succeeded but no user was returned.')
 
+      // If session is null, Supabase requires email confirmation.
+      // RLS policies need auth.uid(), which is only set when a session exists.
+      // Fix: disable "Confirm email" in Supabase Dashboard → Authentication → Providers → Email.
       if (!session) {
         setError('Check your email and click the confirmation link, then sign in.')
         setLoading(false)
@@ -125,6 +128,7 @@ export default function Auth() {
       }
       console.log('[Auth] public.user_scores insert — OK')
 
+      // If user came straight to auth (skipped onboarding), send them there now
       const hasOnboarding = goal && experience_level && equipment
       navigate(hasOnboarding ? '/workout' : '/onboarding/step1')
     } catch (err: unknown) {
@@ -155,128 +159,112 @@ export default function Auth() {
   }
 
   return (
-    <div className="app-shell">
-      <div className="app-content" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div className="app-shell" style={{ background: '#080E1C' }}>
+      <div className="app-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 24px', background: '#080E1C' }}>
+        {/* Wordmark */}
+        <p style={{ color: '#4A9EFF', fontSize: 24, fontWeight: 700, letterSpacing: 4, textAlign: 'center', margin: '0 0 32px' }}>
+          ASCEND
+        </p>
 
-        {/* Top brand area */}
-        <div style={{ background: '#FF5C00', padding: '52px 24px 32px', flexShrink: 0 }}>
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 700, letterSpacing: '3px', margin: '0 0 10px' }}>
-            ASCEND
-          </p>
-          <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 800, margin: '0 0 6px', lineHeight: 1.2 }}>
-            {mode === 'signup' ? 'Create your account' : 'Welcome back'}
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
-            {mode === 'signup' ? 'Your progress, saved. Your rank, earned.' : 'Sign in to continue your journey.'}
-          </p>
-        </div>
+        {/* Headline */}
+        <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 6px' }}>
+          {mode === 'signup' ? 'Create your account' : 'Welcome back'}
+        </h1>
+        <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 28px', lineHeight: 1.5 }}>
+          {mode === 'signup' ? 'Your progress, saved. Your rank, earned.' : 'Sign in to continue your journey.'}
+        </p>
 
-        {/* Form area */}
-        <div style={{ background: '#FFFFFF', flex: 1, padding: '28px 24px 40px', borderRadius: '20px 20px 0 0', marginTop: -16, position: 'relative' }}>
-
-          {mode === 'signup' && signupStep === 1 && (
+        {/* Fields */}
+        {mode === 'signup' ? (
+          signupStep === 1 ? (
             <>
-              {/* Step indicator */}
-              <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: '#FF5C00' }} />
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: '#E5E7EB' }} />
-              </div>
               <Field label="Full Name" type="text" placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} />
               <Field label="Username" type="text" placeholder="janesmith" value={username} onChange={e => setUsername(e.target.value)} />
             </>
-          )}
-
-          {mode === 'signup' && signupStep === 2 && (
+          ) : (
             <>
-              {/* Step indicator */}
-              <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: '#FF5C00' }} />
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: '#FF5C00' }} />
-              </div>
-              <Field label="Penn Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => { setEmail(e.target.value); setEmailError(null) }} />
+              <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => { setEmail(e.target.value); setEmailError(null) }} />
               {emailError && (
-                <p style={{ color: '#DC2626', fontSize: 13, marginBottom: 10, marginTop: -4, lineHeight: 1.5 }}>{emailError}</p>
+                <p style={{ color: '#E85D24', fontSize: 13, marginBottom: 10, marginTop: -4 }}>{emailError}</p>
               )}
               <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
             </>
-          )}
+          )
+        ) : (
+          <>
+            <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} />
+            <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+          </>
+        )}
 
-          {mode === 'signin' && (
-            <>
-              <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} />
-              <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-            </>
-          )}
+        {/* Error */}
+        {error && (
+          <p style={{ color: '#FF6B6B', fontSize: 13, marginBottom: 12, marginTop: 0 }}>{error}</p>
+        )}
 
-          {error && (
-            <p style={{ color: '#DC2626', fontSize: 13, marginBottom: 12, marginTop: 0, lineHeight: 1.5 }}>{error}</p>
-          )}
+        {/* Submit */}
+        <button
+          onClick={() => {
+            if (mode === 'signup' && signupStep === 1) {
+              setError(null)
+              if (!name.trim() || !username.trim()) { setError('Name and username are required.'); return }
+              setSignupStep(2)
+            } else if (mode === 'signup') {
+              setEmailError(null)
+              const isPennEmail = email.endsWith('upenn.edu')
+              if (!isPennEmail) {
+                setEmailError('Ascend is currently in beta for Penn students only. Please use your Penn email to join.')
+                return
+              }
+              handleSignup()
+            } else {
+              handleSignin()
+            }
+          }}
+          disabled={loading}
+          style={{
+            width: '100%',
+            background: loading ? '#1A2A42' : '#4A9EFF',
+            color: '#FFFFFF',
+            fontSize: 16,
+            fontWeight: 700,
+            borderRadius: 14,
+            padding: '16px',
+            border: 'none',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            marginTop: 4,
+            transition: 'background 0.2s',
+          }}
+        >
+          {loading ? 'One moment…' : mode === 'signup' ? (signupStep === 1 ? 'Continue →' : "Let's go →") : 'Sign in →'}
+        </button>
 
-          {/* Submit */}
+        {/* Back button on signup step 2 */}
+        {mode === 'signup' && signupStep === 2 && (
+          <button
+            onClick={() => { setSignupStep(1); setError(null) }}
+            style={{ width: '100%', background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, padding: '14px', cursor: 'pointer', marginTop: 4 }}
+          >
+            ← Back
+          </button>
+        )}
+
+        {/* Toggle */}
+        <p style={{ color: '#5A7A9A', fontSize: 14, textAlign: 'center', marginTop: 20 }}>
+          {mode === 'signup' ? 'Already have an account? ' : "Don't have an account? "}
           <button
             onClick={() => {
-              if (mode === 'signup' && signupStep === 1) {
-                setError(null)
-                if (!name.trim() || !username.trim()) { setError('Name and username are required.'); return }
-                setSignupStep(2)
-              } else if (mode === 'signup') {
-                setEmailError(null)
-                const isPennEmail = email.endsWith('upenn.edu')
-                if (!isPennEmail) {
-                  setEmailError('Ascend is currently in beta for Penn students only. Please use your Penn email to join.')
-                  return
-                }
-                handleSignup()
+              if (mode === 'signup') {
+                setMode('signin'); setSignupStep(1); setError(null); setEmailError(null)
               } else {
-                handleSignin()
+                navigate('/onboarding/step1')
               }
             }}
-            disabled={loading}
-            style={{
-              width: '100%',
-              background: loading ? '#E5E7EB' : '#FF5C00',
-              color: loading ? '#9CA3AF' : '#FFFFFF',
-              fontSize: 16,
-              fontWeight: 700,
-              borderRadius: 14,
-              padding: '17px',
-              border: 'none',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              marginTop: 4,
-              transition: 'all 0.2s',
-              boxShadow: loading ? 'none' : '0 4px 14px rgba(255,92,0,0.3)',
-            }}
+            style={{ color: '#4A9EFF', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0 }}
           >
-            {loading ? 'One moment…' : mode === 'signup' ? (signupStep === 1 ? 'Continue →' : "Let's go →") : 'Sign in →'}
+            {mode === 'signup' ? 'Sign in' : 'Sign up'}
           </button>
-
-          {/* Back on step 2 */}
-          {mode === 'signup' && signupStep === 2 && (
-            <button
-              onClick={() => { setSignupStep(1); setError(null) }}
-              style={{ width: '100%', background: 'none', border: 'none', color: '#6B7280', fontSize: 14, fontWeight: 500, padding: '14px', cursor: 'pointer', marginTop: 4 }}
-            >
-              ← Back
-            </button>
-          )}
-
-          {/* Toggle */}
-          <p style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center', marginTop: 20, marginBottom: 0 }}>
-            {mode === 'signup' ? 'Already have an account? ' : "Don't have an account? "}
-            <button
-              onClick={() => {
-                if (mode === 'signup') {
-                  setMode('signin'); setSignupStep(1); setError(null); setEmailError(null)
-                } else {
-                  navigate('/onboarding/step1')
-                }
-              }}
-              style={{ color: '#FF5C00', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, padding: 0 }}
-            >
-              {mode === 'signup' ? 'Sign in' : 'Sign up'}
-            </button>
-          </p>
-        </div>
+        </p>
       </div>
     </div>
   )

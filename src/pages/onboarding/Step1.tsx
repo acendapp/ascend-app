@@ -40,18 +40,18 @@ export default function Step1() {
       onBack={handleSkip}
       backLabel="Not sure yet — build me something"
       footer={
-        <p style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', margin: '4px 0 0' }}>
+        <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', margin: '4px 0 0' }}>
           Already have an account?{' '}
           <button
             onClick={() => navigate('/auth', { state: { mode: 'signin' } })}
-            style={{ background: 'none', border: 'none', color: '#FF5C00', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+            style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 13, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
           >
             Sign in →
           </button>
         </p>
       }
     >
-      <p style={{ color: '#9CA3AF', fontSize: 12, margin: '-10px 0 18px', textAlign: 'center', fontWeight: 500 }}>
+      <p style={{ color: '#5A7A9A', fontSize: 11, margin: '-12px 0 20px', textAlign: 'center', letterSpacing: '0.5px' }}>
         Takes less than 60 seconds
       </p>
       {OPTIONS.map(opt => (
