@@ -30,8 +30,8 @@ export default function OnboardingShell({
   footer,
 }: OnboardingShellProps) {
   return (
-    <div className="app-shell" style={{ background: '#080E1C' }}>
-      <div className="app-content onboarding-scroll" style={{ background: '#080E1C' }}>
+    <div className="app-shell">
+      <div className="app-content onboarding-scroll">
         {/* Progress pills */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
           {Array.from({ length: totalSteps }, (_, i) => i + 1).map(i => (

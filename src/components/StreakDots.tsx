@@ -11,24 +11,23 @@ export default function StreakDots({ days }: StreakDotsProps) {
   })
 
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', justifyContent: 'space-between' }}>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
       {days.map((filled, i) => {
         const isToday = i === 6
         return (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: 1 }}>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
             <div
               style={{
-                width: '100%',
-                maxWidth: 34,
-                height: 34,
+                width: 30,
+                height: 30,
                 borderRadius: '50%',
-                background: filled ? '#FF5C00' : 'transparent',
-                border: `2px solid ${filled ? '#FF5C00' : isToday ? 'rgba(255,92,0,0.35)' : '#E5E7EB'}`,
-                boxShadow: filled ? '0 2px 8px rgba(255,92,0,0.25)' : 'none',
+                background: filled ? '#4A9EFF' : 'transparent',
+                border: `2px solid ${filled ? '#4A9EFF' : isToday ? '#4A9EFF55' : '#1A2A42'}`,
+                boxShadow: filled ? '0 0 8px #4A9EFF44' : 'none',
                 transition: 'all 0.2s',
               }}
             />
-            <span style={{ color: isToday ? '#FF5C00' : '#9CA3AF', fontSize: 10, fontWeight: isToday ? 700 : 500 }}>
+            <span style={{ color: isToday ? '#4A9EFF' : '#5A7A9A', fontSize: 9, fontWeight: isToday ? 700 : 400 }}>
               {labels[i]}
             </span>
           </div>
