@@ -30,18 +30,19 @@ export default function OnboardingShell({
   footer,
 }: OnboardingShellProps) {
   return (
-    <div className="app-shell" style={{ background: '#080E1C' }}>
-      <div className="app-content onboarding-scroll" style={{ background: '#080E1C' }}>
+    <div className="app-shell">
+      <div className="app-content onboarding-scroll">
+
         {/* Progress pills */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
           {Array.from({ length: totalSteps }, (_, i) => i + 1).map(i => (
             <div
               key={i}
               style={{
                 flex: 1,
-                height: 3,
+                height: 4,
                 borderRadius: 99,
-                background: i <= step ? '#4A9EFF' : '#1A2A42',
+                background: i <= step ? '#FF5C00' : '#E5E7EB',
                 transition: 'background 0.3s',
               }}
             />
@@ -49,32 +50,31 @@ export default function OnboardingShell({
         </div>
 
         {/* Eyebrow */}
-        <p style={{ color: '#4A9EFF', fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+        <p style={{ color: '#FF5C00', fontSize: 11, letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: 700, margin: '0 0 10px' }}>
           {eyebrow}
         </p>
 
         {/* Headline */}
-        <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 8px', lineHeight: 1.2 }}>
+        <h1 style={{ color: '#111827', fontSize: 26, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.2 }}>
           {headline}
         </h1>
 
         {/* Subheadline */}
-        <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 12px', lineHeight: 1.5 }}>
+        <p style={{ color: '#6B7280', fontSize: 14, margin: '0 0 14px', lineHeight: 1.6 }}>
           {subheadline}
         </p>
 
         {showPrivacy && (
-          <p style={{ color: '#3A5A3A', background: '#0A1F0A', border: '1px solid #1A3A1A', borderRadius: 8, fontSize: 11, padding: '6px 10px', margin: '0 0 20px', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, fontSize: 12, padding: '8px 12px', margin: '0 0 20px', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>🔒</span>
-            <span style={{ color: '#5A9A5A' }}>Private — only used to personalize your plan</span>
-          </p>
+            <span style={{ color: '#15803D', fontWeight: 500 }}>Private — only used to personalize your plan</span>
+          </div>
         )}
 
         {/* Option cards */}
         {children}
 
-        {/* Spacer */}
-        <div style={{ height: 24 }} />
+        <div style={{ height: 20 }} />
 
         {/* Continue button */}
         <button
@@ -82,36 +82,40 @@ export default function OnboardingShell({
           disabled={continueDisabled}
           style={{
             width: '100%',
-            background: continueDisabled ? '#1A2A42' : '#4A9EFF',
-            color: '#FFFFFF',
+            background: continueDisabled ? '#E5E7EB' : '#FF5C00',
+            color: continueDisabled ? '#9CA3AF' : '#FFFFFF',
             fontSize: 16,
             fontWeight: 700,
             borderRadius: 14,
-            padding: '16px',
+            padding: '17px',
             border: 'none',
             cursor: continueDisabled ? 'not-allowed' : 'pointer',
-            transition: 'background 0.2s',
+            transition: 'all 0.2s',
+            boxShadow: continueDisabled ? 'none' : '0 4px 14px rgba(255,92,0,0.3)',
           }}
         >
           {continueLabel}
         </button>
 
-        {/* Ghost button */}
-        <button
-          onClick={onBack}
-          style={{
-            width: '100%',
-            background: 'transparent',
-            border: 'none',
-            color: '#5A7A9A',
-            fontSize: 14,
-            padding: '14px',
-            cursor: 'pointer',
-            marginTop: 4,
-          }}
-        >
-          {backLabel}
-        </button>
+        {/* Back / ghost button */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              color: '#6B7280',
+              fontSize: 14,
+              fontWeight: 500,
+              padding: '14px',
+              cursor: 'pointer',
+              marginTop: 4,
+            }}
+          >
+            {backLabel}
+          </button>
+        )}
 
         {footer}
       </div>

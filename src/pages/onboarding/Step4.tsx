@@ -20,11 +20,11 @@ const LIMITATIONS = [
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  background: '#0D1728',
-  border: '1px solid #1A2A42',
+  background: '#FFFFFF',
+  border: '1.5px solid #E5E7EB',
   borderRadius: 12,
   padding: '13px 16px',
-  color: '#FFFFFF',
+  color: '#111827',
   fontSize: 14,
   outline: 'none',
   fontFamily: 'inherit',
@@ -80,33 +80,33 @@ export default function Step4() {
   }
 
   return (
-    <div className="app-shell" style={{ background: '#080E1C' }}>
-      <div className="app-content onboarding-scroll" style={{ background: '#080E1C' }}>
+    <div className="app-shell">
+      <div className="app-content onboarding-scroll">
 
         {/* Progress pills */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
           {[1, 2, 3, 4].map(i => (
-            <div key={i} style={{ flex: 1, height: 3, borderRadius: 99, background: '#4A9EFF', transition: 'background 0.3s' }} />
+            <div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: '#FF5C00', transition: 'background 0.3s' }} />
           ))}
         </div>
 
-        <p style={{ color: '#4A9EFF', fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+        <p style={{ color: '#FF5C00', fontSize: 11, letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: 700, margin: '0 0 10px' }}>
           STEP 4 OF 4 · OPTIONAL
         </p>
-        <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 8px', lineHeight: 1.2 }}>
+        <h1 style={{ color: '#111827', fontSize: 26, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.2 }}>
           A little more about you
         </h1>
-        <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 12px', lineHeight: 1.5 }}>
+        <p style={{ color: '#6B7280', fontSize: 14, margin: '0 0 12px', lineHeight: 1.6 }}>
           Helps us fine-tune your plan even further.
         </p>
 
-        <div style={{ background: '#0A1F0A', border: '1px solid #1A3A1A', borderRadius: 8, padding: '6px 10px', margin: '0 0 24px', display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ fontSize: 11 }}>🔒</span>
-          <span style={{ color: '#5A9A5A', fontSize: 11 }}>Optional and private — only used to personalize your program</span>
+        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '8px 12px', margin: '0 0 24px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12 }}>🔒</span>
+          <span style={{ color: '#15803D', fontSize: 12, fontWeight: 500 }}>Optional and private — only used to personalize your program</span>
         </div>
 
         {/* Workout duration */}
-        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 10px' }}>
+        <p style={{ color: '#111827', fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>
           How long do you want your workouts to be?
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 24 }}>
@@ -117,25 +117,26 @@ export default function Step4() {
                 key={opt.value}
                 onClick={() => setDuration(active ? null : opt.value)}
                 style={{
-                  background: active ? '#0D1F3A' : '#0D1728',
-                  border: `2px solid ${active ? '#4A9EFF' : '#1A2A42'}`,
+                  background: active ? 'rgba(255,92,0,0.06)' : '#FFFFFF',
+                  border: `2px solid ${active ? '#FF5C00' : '#E5E7EB'}`,
                   borderRadius: 14, padding: '14px 12px',
                   display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                   cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all 0.15s',
+                  boxShadow: active ? '0 2px 8px rgba(255,92,0,0.12)' : '0 1px 3px rgba(0,0,0,0.05)',
                 }}
               >
-                <span style={{ color: active ? '#FFFFFF' : '#BBCDE0', fontSize: 16, fontWeight: 700 }}>{opt.label}</span>
-                <span style={{ color: '#5A7A9A', fontSize: 11, marginTop: 2 }}>{opt.sub}</span>
+                <span style={{ color: active ? '#FF5C00' : '#111827', fontSize: 16, fontWeight: 700 }}>{opt.label}</span>
+                <span style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>{opt.sub}</span>
               </button>
             )
           })}
         </div>
 
         {/* Injuries / limitations */}
-        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 4px' }}>
+        <p style={{ color: '#111827', fontSize: 14, fontWeight: 700, margin: '0 0 4px' }}>
           Any injuries or areas to work around?
         </p>
-        <p style={{ color: '#5A7A9A', fontSize: 11, margin: '0 0 10px' }}>Select all that apply</p>
+        <p style={{ color: '#9CA3AF', fontSize: 12, fontWeight: 500, margin: '0 0 10px' }}>Select all that apply</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
           {LIMITATIONS.map(opt => {
             const active = limitations.includes(opt.value)
@@ -144,12 +145,13 @@ export default function Step4() {
                 key={opt.value}
                 onClick={() => toggleLimitation(opt.value)}
                 style={{
-                  background: active ? '#0D1F3A' : '#0D1728',
-                  border: `1.5px solid ${active ? '#4A9EFF' : '#1A2A42'}`,
-                  borderRadius: 20, padding: '8px 14px',
-                  color: active ? '#FFFFFF' : '#BBCDE0',
-                  fontSize: 13, fontWeight: active ? 600 : 400,
+                  background: active ? 'rgba(255,92,0,0.06)' : '#FFFFFF',
+                  border: `1.5px solid ${active ? '#FF5C00' : '#E5E7EB'}`,
+                  borderRadius: 20, padding: '8px 16px',
+                  color: active ? '#FF5C00' : '#6B7280',
+                  fontSize: 13, fontWeight: active ? 700 : 500,
                   cursor: 'pointer', transition: 'all 0.15s',
+                  boxShadow: active ? '0 1px 4px rgba(255,92,0,0.15)' : 'none',
                 }}
               >
                 {opt.label}
@@ -159,16 +161,16 @@ export default function Step4() {
         </div>
 
         {/* Height */}
-        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>
-          Height <span style={{ color: '#5A7A9A', fontWeight: 400 }}>(optional)</span>
+        <p style={{ color: '#111827', fontSize: 14, fontWeight: 700, margin: '0 0 6px' }}>
+          Height <span style={{ color: '#9CA3AF', fontWeight: 500 }}>(optional)</span>
         </p>
         <div style={{ marginBottom: 14 }}>
           <input type="text" placeholder="e.g. 5'11 or 180cm" value={height} onChange={e => setHeight(e.target.value)} style={inputStyle} />
         </div>
 
         {/* Weight */}
-        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>
-          Weight <span style={{ color: '#5A7A9A', fontWeight: 400 }}>(optional)</span>
+        <p style={{ color: '#111827', fontSize: 14, fontWeight: 700, margin: '0 0 6px' }}>
+          Weight <span style={{ color: '#9CA3AF', fontWeight: 500 }}>(optional)</span>
         </p>
         <div style={{ marginBottom: 32 }}>
           <input type="text" placeholder="e.g. 165 lbs or 75 kg" value={weight} onChange={e => setWeight(e.target.value)} style={inputStyle} />
@@ -177,14 +179,20 @@ export default function Step4() {
         <button
           onClick={() => finish(false)}
           disabled={saving}
-          style={{ width: '100%', background: '#4A9EFF', color: '#FFFFFF', fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: 'pointer', marginBottom: 8 }}
+          style={{
+            width: '100%', background: saving ? '#E5E7EB' : '#FF5C00', color: saving ? '#9CA3AF' : '#FFFFFF',
+            fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '17px',
+            border: 'none', cursor: saving ? 'not-allowed' : 'pointer', marginBottom: 8,
+            boxShadow: saving ? 'none' : '0 4px 14px rgba(255,92,0,0.3)',
+            transition: 'all 0.2s',
+          }}
         >
           {saving ? 'One moment…' : 'Build My Program →'}
         </button>
         <button
           onClick={() => finish(true)}
           disabled={saving}
-          style={{ width: '100%', background: 'transparent', border: 'none', color: '#5A7A9A', fontSize: 14, padding: '14px', cursor: 'pointer' }}
+          style={{ width: '100%', background: 'transparent', border: 'none', color: '#6B7280', fontSize: 14, fontWeight: 500, padding: '14px', cursor: 'pointer' }}
         >
           Skip for now →
         </button>

@@ -14,28 +14,29 @@ export default function OptionCard({ emoji, title, subtitle, selected, onSelect 
         width: '100%',
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        background: selected ? '#0D1F3A' : '#0D1728',
-        border: `1px solid ${selected ? '#4A9EFF' : '#1A2A42'}`,
+        gap: 14,
+        background: selected ? 'rgba(255,92,0,0.05)' : '#FFFFFF',
+        border: `2px solid ${selected ? '#FF5C00' : '#E5E7EB'}`,
         borderRadius: 14,
-        padding: '16px 18px',
+        padding: '15px 16px',
         marginBottom: 10,
         cursor: 'pointer',
         textAlign: 'left',
         transition: 'all 0.15s',
+        boxShadow: selected ? '0 2px 8px rgba(255,92,0,0.12)' : '0 1px 3px rgba(0,0,0,0.05)',
       }}
     >
-      {/* Icon container */}
+      {/* Icon */}
       <div
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: selected ? '#0D2E5A' : '#1A2A42',
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          background: selected ? 'rgba(255,92,0,0.1)' : '#F5F5F7',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 18,
+          fontSize: 20,
           flexShrink: 0,
           transition: 'background 0.15s',
         }}
@@ -45,8 +46,8 @@ export default function OptionCard({ emoji, title, subtitle, selected, onSelect 
 
       {/* Text */}
       <div style={{ flex: 1 }}>
-        <div style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{title}</div>
-        <div style={{ color: '#5A7A9A', fontSize: 12 }}>{subtitle}</div>
+        <div style={{ color: '#111827', fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{title}</div>
+        <div style={{ color: '#6B7280', fontSize: 12 }}>{subtitle}</div>
       </div>
 
       {/* Radio */}
@@ -55,8 +56,8 @@ export default function OptionCard({ emoji, title, subtitle, selected, onSelect 
           width: 20,
           height: 20,
           borderRadius: '50%',
-          border: `1.5px solid ${selected ? '#4A9EFF' : '#1A2A42'}`,
-          background: selected ? '#4A9EFF' : 'transparent',
+          border: `2px solid ${selected ? '#FF5C00' : '#D1D5DB'}`,
+          background: selected ? '#FF5C00' : 'transparent',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
