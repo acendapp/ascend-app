@@ -1,3 +1,5 @@
+import { useTheme } from '../lib/theme'
+
 interface OptionCardProps {
   emoji: string
   title: string
@@ -7,6 +9,8 @@ interface OptionCardProps {
 }
 
 export default function OptionCard({ emoji, title, subtitle, selected, onSelect }: OptionCardProps) {
+  const { colors: c } = useTheme()
+
   return (
     <button
       onClick={onSelect}
@@ -15,9 +19,9 @@ export default function OptionCard({ emoji, title, subtitle, selected, onSelect 
         display: 'flex',
         alignItems: 'center',
         gap: 16,
-        background: selected ? 'rgba(74,158,255,0.07)' : 'transparent',
-        border: `1px solid ${selected ? '#4A9EFF' : '#1E2E44'}`,
-        borderLeft: `${selected ? 3 : 1}px solid ${selected ? '#4A9EFF' : '#1E2E44'}`,
+        background: selected ? c.accentBg : 'transparent',
+        border: `1px solid ${selected ? c.accent : c.border}`,
+        borderLeft: `${selected ? 3 : 1}px solid ${selected ? c.accent : c.border}`,
         borderRadius: 14,
         padding: '18px 20px',
         marginBottom: 10,
@@ -29,8 +33,8 @@ export default function OptionCard({ emoji, title, subtitle, selected, onSelect 
       <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>{emoji}</span>
 
       <div style={{ flex: 1 }}>
-        <div style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{title}</div>
-        <div style={{ color: '#6B7E96', fontSize: 12 }}>{subtitle}</div>
+        <div style={{ color: c.text, fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{title}</div>
+        <div style={{ color: c.textSub, fontSize: 12 }}>{subtitle}</div>
       </div>
 
       <div
@@ -38,8 +42,8 @@ export default function OptionCard({ emoji, title, subtitle, selected, onSelect 
           width: 22,
           height: 22,
           borderRadius: '50%',
-          border: `2px solid ${selected ? '#4A9EFF' : '#2A3A52'}`,
-          background: selected ? '#4A9EFF' : 'transparent',
+          border: `2px solid ${selected ? c.accent : c.border}`,
+          background: selected ? c.accent : 'transparent',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

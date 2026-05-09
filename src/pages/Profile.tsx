@@ -8,6 +8,7 @@ import {
   GOAL_OPTIONS, EXPERIENCE_OPTIONS, EQUIPMENT_OPTIONS, SCHOOL_YEAR_OPTIONS,
 } from '../lib/display'
 import { calculateConsistencyScore } from '../lib/scoring'
+import { useTheme } from '../lib/theme'
 import type { UserProfile, UserScores, FriendshipWithProfile, FriendProfile } from '../types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ interface EditableFieldProps {
 }
 
 function EditableField({ label, value, display, onSave, options, locked }: EditableFieldProps) {
+  const { colors: c } = useTheme()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
   const [saving, setSaving] = useState(false)
@@ -53,12 +55,12 @@ function EditableField({ label, value, display, onSave, options, locked }: Edita
 
   if (editing && !locked) {
     return (
-      <div style={{ background: '#0D1728', border: '1px solid #4A9EFF', borderRadius: 12, padding: '12px 16px', marginBottom: 8 }}>
-        <p style={{ color: '#4A9EFF', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 6px' }}>{label}</p>
+      <div style={{ background: c.surface, border: `1px solid ${c.accent}`, borderRadius: 12, padding: '12px 16px', marginBottom: 8 }}>
+        <p style={{ color: c.accent, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 6px' }}>{label}</p>
         {options ? (
-          <select value={draft} onChange={e => setDraft(e.target.value)} style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: 14, width: '100%', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-            <option value="" style={{ background: '#0D1728' }}>Not set</option>
-            {options.map(o => <option key={o.value} value={o.value} style={{ background: '#0D1728' }}>{o.label}</option>)}
+          <select value={draft} onChange={e => setDraft(e.target.value)} style={{ background: 'transparent', border: 'none', color: c.text, fontSize: 14, width: '100%', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+            <option value="" style={{ background: c.surface }}>Not set</option>
+            {options.map(o => <option key={o.value} value={o.value} style={{ background: c.surface }}>{o.label}</option>)}
           </select>
         ) : (
           <input
@@ -66,14 +68,14 @@ function EditableField({ label, value, display, onSave, options, locked }: Edita
             onChange={e => setDraft(e.target.value)}
             autoFocus
             onKeyDown={e => e.key === 'Enter' && commit()}
-            style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: 14, width: '100%', outline: 'none', fontFamily: 'inherit' }}
+            style={{ background: 'transparent', border: 'none', color: c.text, fontSize: 14, width: '100%', outline: 'none', fontFamily: 'inherit' }}
           />
         )}
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-          <button onClick={commit} disabled={saving} style={{ background: '#4A9EFF', color: '#FFF', border: 'none', borderRadius: 8, padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+          <button onClick={commit} disabled={saving} style={{ background: c.accent, color: '#FFF', border: 'none', borderRadius: 8, padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
             {saving ? 'Saving…' : 'Save'}
           </button>
-          <button onClick={() => setEditing(false)} style={{ background: 'transparent', color: '#5A7A9A', border: 'none', padding: '5px 6px', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => setEditing(false)} style={{ background: 'transparent', color: c.textSub, border: 'none', padding: '5px 6px', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
         </div>
       </div>
     )
@@ -82,15 +84,15 @@ function EditableField({ label, value, display, onSave, options, locked }: Edita
   return (
     <button
       onClick={() => { if (!locked) { setDraft(value); setEditing(true) } }}
-      style={{ width: '100%', background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: locked ? 'default' : 'pointer', textAlign: 'left' }}
+      style={{ width: '100%', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: locked ? 'default' : 'pointer', textAlign: 'left' }}
     >
       <div>
-        <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>{label}</p>
-        <p style={{ color: (display ?? value) ? '#FFFFFF' : '#5A7A9A', fontSize: 14, margin: 0 }}>{(display ?? value) || 'Tap to set'}</p>
+        <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>{label}</p>
+        <p style={{ color: (display ?? value) ? c.text : c.textSub, fontSize: 14, margin: 0 }}>{(display ?? value) || 'Tap to set'}</p>
       </div>
       {locked
-        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="#5A7A9A" strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round"/></svg>
-        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke={c.textSub} strokeWidth="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke={c.textSub} strokeWidth="2" strokeLinecap="round"/></svg>
+        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={c.textSub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={c.textSub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       }
     </button>
   )
@@ -99,10 +101,11 @@ function EditableField({ label, value, display, onSave, options, locked }: Edita
 // ── Score mini-card ───────────────────────────────────────────────────────────
 
 function ScoreCard({ label, value, unit, accent }: { label: string; value: number; unit?: string; accent?: boolean }) {
+  const { colors: c } = useTheme()
   return (
-    <div style={{ flex: 1, background: accent ? '#0A1F3A' : '#0D1728', border: `1px solid ${accent ? '#1E3D6E' : '#1A2A42'}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
-      <p style={{ color: '#5A7A9A', fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>{label}</p>
-      <p style={{ color: accent ? '#4A9EFF' : '#FFFFFF', fontSize: 24, fontWeight: 700, margin: 0, lineHeight: 1 }}>{value}{unit}</p>
+    <div style={{ flex: 1, background: accent ? c.accentBg : c.surface, border: `1px solid ${accent ? c.accentBorder : c.border}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+      <p style={{ color: c.textSub, fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>{label}</p>
+      <p style={{ color: accent ? c.accent : c.text, fontSize: 24, fontWeight: 700, margin: 0, lineHeight: 1 }}>{value}{unit}</p>
     </div>
   )
 }
@@ -254,6 +257,7 @@ function CropModal({ src, onDone, onCancel }: CropModalProps) {
 export default function Profile() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { colors: c, toggleTheme, theme } = useTheme()
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [scores, setScores] = useState<UserScores | null>(null)
@@ -568,8 +572,8 @@ export default function Profile() {
   if (loading) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-          <div style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</div>
+        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: c.bg }}>
+          <div style={{ color: c.textSub, fontSize: 14 }}>Loading…</div>
         </div>
       </div>
     )
@@ -578,12 +582,12 @@ export default function Profile() {
   if (loadError || !profile) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '0 24px', gap: 12 }}>
-          <p style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 700, margin: 0 }}>Couldn't load your profile</p>
-          <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', margin: 0 }}>Check your connection and try again.</p>
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '0 24px', gap: 12, background: c.bg }}>
+          <p style={{ color: c.text, fontSize: 18, fontWeight: 700, margin: 0 }}>Couldn't load your profile</p>
+          <p style={{ color: c.textSub, fontSize: 13, textAlign: 'center', margin: 0 }}>Check your connection and try again.</p>
           <button
             onClick={() => { setLoadError(false); setLoading(true); setProfile(null); setRetryKey(k => k + 1) }}
-            style={{ background: '#4A9EFF', color: '#FFF', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}
+            style={{ background: c.accent, color: '#FFF', border: 'none', borderRadius: 12, padding: '12px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}
           >
             Retry
           </button>
@@ -601,7 +605,7 @@ export default function Profile() {
   return (
     <div className="app-shell">
       {cropSrc && <CropModal src={cropSrc} onDone={handleCropDone} onCancel={handleCropCancel} />}
-      <div className="app-content page-scroll">
+      <div className="app-content page-scroll" style={{ background: c.bg }}>
         <div style={{ padding: '48px 20px 0' }}>
 
           {/* ── Avatar + identity ── */}
@@ -609,26 +613,26 @@ export default function Profile() {
             <div style={{ position: 'relative', marginBottom: 14 }}>
               <div
                 onClick={() => fileInputRef.current?.click()}
-                style={{ width: 88, height: 88, borderRadius: '50%', background: '#1A2A42', border: '3px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
+                style={{ width: 88, height: 88, borderRadius: '50%', background: c.border, border: `3px solid ${c.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
               >
                 {profile.avatar_url
                   ? <img src={profile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ color: '#4A9EFF', fontSize: 28, fontWeight: 700 }}>{avatarIni}</span>}
+                  : <span style={{ color: c.accent, fontSize: 28, fontWeight: 700 }}>{avatarIni}</span>}
                 {avatarUploading && (
-                  <div style={{ position: 'absolute', inset: 0, background: '#080E1C99', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ color: '#4A9EFF', fontSize: 12 }}>…</span>
+                  <div style={{ position: 'absolute', inset: 0, background: `${c.bg}99`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ color: c.accent, fontSize: 12 }}>…</span>
                   </div>
                 )}
               </div>
-              <div onClick={() => fileInputRef.current?.click()} style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: '#4A9EFF', border: '2px solid #080E1C', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <div onClick={() => fileInputRef.current?.click()} style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: c.accent, border: `2px solid ${c.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="#FFF" strokeWidth="2"/><circle cx="12" cy="13" r="4" stroke="#FFF" strokeWidth="2"/></svg>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
             </div>
-            <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 3px', textAlign: 'center' }}>{profile.name}</h1>
-            <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 3px' }}>@{profile.username}</p>
+            <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: '0 0 3px', textAlign: 'center' }}>{profile.name}</h1>
+            <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 3px' }}>@{profile.username}</p>
             {(profile.school_year || profile.affiliation) && (
-              <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+              <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
                 {[profile.school_year, profile.affiliation].filter(Boolean).join(' · ')}
               </p>
             )}
@@ -642,21 +646,21 @@ export default function Profile() {
           </div>
 
           {/* ── Campus rank ── */}
-          <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>Campus Rank</p>
+          <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>Campus Rank</p>
             {totalWorkouts < 3 ? (
               <>
-                <p style={{ color: '#5A7A9A', fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>🔒 Locked</p>
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                <p style={{ color: c.textSub, fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>🔒 Locked</p>
+                <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
                   Complete {3 - totalWorkouts} more workout{3 - totalWorkouts !== 1 ? 's' : ''} to unlock your rank
                 </p>
               </>
             ) : (
               <>
-                <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>
+                <p style={{ color: c.accent, fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>
                   Ranked #{campusRank > 0 ? campusRank : '—'} at Penn
                 </p>
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
                   {campusRank > 0
                     ? `Top ${campusRank <= 10 ? '10' : campusRank <= 25 ? '25' : '50'} · Penn Campus`
                     : 'Complete a workout to get ranked'}
@@ -678,9 +682,9 @@ export default function Profile() {
               }
             }}
             style={{
-              width: '100%', background: '#0D1728', border: '1px solid #1A2A42',
+              width: '100%', background: c.surface, border: `1px solid ${c.border}`,
               borderRadius: 14, padding: '14px 16px', marginBottom: 14,
-              color: shareCopied ? '#3BF0A0' : '#4A9EFF',
+              color: shareCopied ? '#3BF0A0' : c.accent,
               fontSize: 14, fontWeight: 700, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
@@ -689,20 +693,20 @@ export default function Profile() {
           </button>
 
           {/* ── Streak ── */}
-          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Last 7 Days</p>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Last 7 Days</p>
             <StreakDots days={weekDays} />
           </div>
 
           {/* ── My Groups ── */}
           {myProfileGroups.length > 0 && (
             <>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>My Groups</p>
+              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>My Groups</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
                 {myProfileGroups.map(m => (
-                  <span key={m.group_id} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600 }}>
-                    <span style={{ color: '#FFFFFF' }}>{m.name}</span>
-                    {m.role === 'admin' && <span style={{ color: '#4A9EFF' }}> (Admin)</span>}
+                  <span key={m.group_id} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600 }}>
+                    <span style={{ color: c.text }}>{m.name}</span>
+                    {m.role === 'admin' && <span style={{ color: c.accent }}> (Admin)</span>}
                   </span>
                 ))}
               </div>
@@ -712,15 +716,15 @@ export default function Profile() {
           {/* ── Personal Records ── */}
           {prs.length > 0 && (
             <>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Personal Records</p>
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 16px', marginBottom: 14 }}>
+              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Personal Records</p>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 16px', marginBottom: 14 }}>
                 {prs.map((pr, i) => (
-                  <div key={pr.exercise_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: i < prs.length - 1 ? '1px solid #1A2A42' : 'none' }}>
+                  <div key={pr.exercise_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: i < prs.length - 1 ? `1px solid ${c.border}` : 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ color: i === 0 ? '#F5A623' : '#5A7A9A', fontSize: 14 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅'}</span>
-                      <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600 }}>{pr.exercise_name}</span>
+                      <span style={{ color: i === 0 ? '#F5A623' : c.textSub, fontSize: 14 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅'}</span>
+                      <span style={{ color: c.text, fontSize: 13, fontWeight: 600 }}>{pr.exercise_name}</span>
                     </div>
-                    <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{pr.weight} lb</span>
+                    <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{pr.weight} lb</span>
                   </div>
                 ))}
               </div>
@@ -734,53 +738,53 @@ export default function Profile() {
               { label: 'Volume', value: formatVolume(totalVolume) },
               { label: 'Weeks Active', value: String(weeksActive) },
             ].map(stat => (
-              <div key={stat.label} style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
-                <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: '0 0 3px' }}>{stat.value}</p>
-                <p style={{ color: '#5A7A9A', fontSize: 10, margin: 0 }}>{stat.label}</p>
+              <div key={stat.label} style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
+                <p style={{ color: c.text, fontSize: 16, fontWeight: 700, margin: '0 0 3px' }}>{stat.value}</p>
+                <p style={{ color: c.textSub, fontSize: 10, margin: 0 }}>{stat.label}</p>
               </div>
             ))}
           </div>
 
           {/* ── Friends horizontal scroll ── */}
-          <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Friends</p>
+          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Friends</p>
           {friendCards.length > 0 ? (
             <div className="friend-scroll" style={{ marginBottom: 14 }}>
               {friendCards.map(fc => (
                 <div key={fc.id} onClick={() => navigate(`/profile/${fc.id}`)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0, cursor: 'pointer' }}>
-                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#1A2A42', border: '2px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: c.border, border: `2px solid ${c.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {fc.avatar_url
                       ? <img src={fc.avatar_url} alt={fc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{initials(fc.name)}</span>}
+                      : <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{initials(fc.name)}</span>}
                   </div>
-                  <p style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 600, margin: 0, maxWidth: 56, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                  <p style={{ color: c.text, fontSize: 10, fontWeight: 600, margin: 0, maxWidth: 56, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
                     {fc.name.split(' ')[0]}
                   </p>
-                  <p style={{ color: '#4A9EFF', fontSize: 10, fontWeight: 700, margin: 0 }}>{fc.ascend_score}</p>
+                  <p style={{ color: c.accent, fontSize: 10, fontWeight: 700, margin: 0 }}>{fc.ascend_score}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <p style={{ color: '#5A7A9A', fontSize: 13, marginBottom: 14 }}>Search below to add friends.</p>
+            <p style={{ color: c.textSub, fontSize: 13, marginBottom: 14 }}>Search below to add friends.</p>
           )}
 
           {/* Group-based friend suggestions */}
           {groupSuggestions.length > 0 && (
             <>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>People in your groups</p>
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '4px 14px', marginBottom: 12 }}>
+              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>People in your groups</p>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '4px 14px', marginBottom: 12 }}>
                 {groupSuggestions.map((u, i) => (
-                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < groupSuggestions.length - 1 ? '1px solid #1A2A42' : 'none' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < groupSuggestions.length - 1 ? `1px solid ${c.border}` : 'none' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                       {initials(u.name)}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{u.name}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{u.username}</p>
+                      <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{u.name}</p>
+                      <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>@{u.username}</p>
                     </div>
                     <button
                       onClick={() => sendFriendRequest(u.id)}
                       disabled={sentIds.has(u.id)}
-                      style={{ background: sentIds.has(u.id) ? 'transparent' : '#4A9EFF', border: sentIds.has(u.id) ? '1px solid #1A2A42' : 'none', borderRadius: 8, padding: '5px 12px', color: sentIds.has(u.id) ? '#5A7A9A' : '#FFF', fontSize: 12, fontWeight: 700, cursor: sentIds.has(u.id) ? 'default' : 'pointer' }}
+                      style={{ background: sentIds.has(u.id) ? 'transparent' : c.accent, border: sentIds.has(u.id) ? `1px solid ${c.border}` : 'none', borderRadius: 8, padding: '5px 12px', color: sentIds.has(u.id) ? c.textSub : '#FFF', fontSize: 12, fontWeight: 700, cursor: sentIds.has(u.id) ? 'default' : 'pointer' }}
                     >
                       {sentIds.has(u.id) ? 'Sent' : 'Add'}
                     </button>
@@ -795,21 +799,21 @@ export default function Profile() {
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search by username…"
-            style={{ width: '100%', background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px 16px', color: '#FFFFFF', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8 }}
+            style={{ width: '100%', background: c.inputBg, border: `1px solid ${c.border}`, borderRadius: 12, padding: '12px 16px', color: c.text, fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8 }}
           />
 
           {searchResults.length > 0 && (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
               {searchResults.map(u => (
-                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #1A2A42' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${c.border}` }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                     {initials(u.name)}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{u.name}</p>
-                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{u.username}</p>
+                    <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{u.name}</p>
+                    <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>@{u.username}</p>
                   </div>
-                  <button onClick={() => sendFriendRequest(u.id)} style={{ background: '#4A9EFF', border: 'none', borderRadius: 8, padding: '5px 12px', color: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Add</button>
+                  <button onClick={() => sendFriendRequest(u.id)} style={{ background: c.accent, border: 'none', borderRadius: 8, padding: '5px 12px', color: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Add</button>
                 </div>
               ))}
             </div>
@@ -817,18 +821,18 @@ export default function Profile() {
 
           {/* Pending requests */}
           {pendingReceived.length > 0 && (
-            <div style={{ background: '#0D1728', border: '1px solid #1E3D6E', borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
-              <p style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 700, margin: '10px 0 4px' }}>Friend Requests ({pendingReceived.length})</p>
+            <div style={{ background: c.surface, border: `1px solid ${c.accentBorder}`, borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
+              <p style={{ color: c.accent, fontSize: 11, fontWeight: 700, margin: '10px 0 4px' }}>Friend Requests ({pendingReceived.length})</p>
               {pendingReceived.map(item => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid #1A2A42' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials(item.friend.name)}</div>
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: `1px solid ${c.border}` }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials(item.friend.name)}</div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{item.friend.name}</p>
-                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{item.friend.username}</p>
+                    <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{item.friend.name}</p>
+                    <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>@{item.friend.username}</p>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => acceptFriend(item.id)} style={{ background: '#4A9EFF', border: 'none', borderRadius: 8, padding: '5px 10px', color: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Accept</button>
-                    <button onClick={() => declineFriend(item.id)} style={{ background: 'transparent', border: '1px solid #1A2A42', borderRadius: 8, padding: '5px 10px', color: '#5A7A9A', fontSize: 12, cursor: 'pointer' }}>Decline</button>
+                    <button onClick={() => acceptFriend(item.id)} style={{ background: c.accent, border: 'none', borderRadius: 8, padding: '5px 10px', color: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Accept</button>
+                    <button onClick={() => declineFriend(item.id)} style={{ background: 'transparent', border: `1px solid ${c.border}`, borderRadius: 8, padding: '5px 10px', color: c.textSub, fontSize: 12, cursor: 'pointer' }}>Decline</button>
                   </div>
                 </div>
               ))}
@@ -837,29 +841,29 @@ export default function Profile() {
 
           {/* Friends list with remove */}
           {friends.length > 0 && (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '4px 14px', marginBottom: 8 }}>
               {friends.map((item, i) => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < friends.length - 1 ? '1px solid #1A2A42' : 'none' }}>
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < friends.length - 1 ? `1px solid ${c.border}` : 'none' }}>
                   <div
                     onClick={() => navigate(`/profile/${item.friend.id}`)}
-                    style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: '1.5px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}
+                    style={{ width: 32, height: 32, borderRadius: '50%', background: c.border, border: `1.5px solid ${c.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 11, fontWeight: 700, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}
                   >
                     {item.friend.avatar_url
                       ? <img src={item.friend.avatar_url} alt={item.friend.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : initials(item.friend.name)}
                   </div>
                   <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/profile/${item.friend.id}`)}>
-                    <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{item.friend.name}</p>
-                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{item.friend.username}</p>
+                    <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{item.friend.name}</p>
+                    <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>@{item.friend.username}</p>
                   </div>
-                  <button onClick={() => removeFriend(item.id)} style={{ background: 'transparent', border: 'none', color: '#5A7A9A', fontSize: 11, cursor: 'pointer', padding: '4px 0' }}>Remove</button>
+                  <button onClick={() => removeFriend(item.id)} style={{ background: 'transparent', border: 'none', color: c.textSub, fontSize: 11, cursor: 'pointer', padding: '4px 0' }}>Remove</button>
                 </div>
               ))}
             </div>
           )}
 
           {/* ── Editable fields ── */}
-          <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '20px 0 10px' }}>Profile Settings</p>
+          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '20px 0 10px' }}>Profile Settings</p>
 
           <EditableField label="Full Name" value={profile.name} onSave={v => updateField('name', v)} />
           <EditableField label="Username" value={profile.username} locked />
@@ -868,10 +872,27 @@ export default function Profile() {
           <EditableField label="Equipment" value={profile.equipment ?? ''} display={displayEquipment(profile.equipment)} options={EQUIPMENT_OPTIONS} onSave={v => updateField('equipment', v)} />
           <EditableField label="School Year" value={profile.school_year ?? ''} options={SCHOOL_YEAR_OPTIONS} onSave={v => updateField('school_year', v)} />
 
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            style={{
+              width: '100%', background: c.surface, border: `1px solid ${c.border}`,
+              borderRadius: 12, padding: '12px 16px', marginBottom: 8,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            <div>
+              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Appearance</p>
+              <p style={{ color: c.text, fontSize: 14, margin: 0 }}>{theme === 'dark' ? '🌙 Dark mode' : '☀️ Light mode'}</p>
+            </div>
+            <span style={{ color: c.accent, fontSize: 12, fontWeight: 600 }}>Toggle</span>
+          </button>
+
           {/* Sign out */}
           <button
             onClick={handleSignOut}
-            style={{ width: '100%', background: 'transparent', border: 'none', color: '#5A7A9A', fontSize: 14, padding: '20px 0 8px', cursor: 'pointer' }}
+            style={{ width: '100%', background: 'transparent', border: 'none', color: c.textSub, fontSize: 14, padding: '20px 0 8px', cursor: 'pointer' }}
           >
             Sign out
           </button>

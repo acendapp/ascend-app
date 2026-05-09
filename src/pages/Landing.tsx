@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import AscendBolt from '../components/AscendBolt'
+import { useTheme } from '../lib/theme'
 
 const FEATURES = [
   {
@@ -21,6 +22,7 @@ const FEATURES = [
 
 export default function Landing() {
   const navigate = useNavigate()
+  const { colors: c } = useTheme()
 
   return (
     <div className="app-shell">
@@ -31,25 +33,25 @@ export default function Landing() {
           flexDirection: 'column',
           minHeight: '100vh',
           padding: '0 24px',
-          background: 'linear-gradient(180deg, #060B15 0%, #080E1C 40%, #0A1425 100%)',
+          background: `linear-gradient(180deg, ${c.isDark ? '#060B15' : '#EFF4FF'} 0%, ${c.bg} 40%, ${c.isDark ? '#0A1425' : '#E8F0FF'} 100%)`,
         }}
       >
         {/* Hero */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: 72, paddingBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
             <AscendBolt size={36} />
-            <span style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px' }}>Ascend</span>
+            <span style={{ color: c.text, fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px' }}>Ascend</span>
             <span style={{
-              background: '#0A1F3A', border: '1px solid #1E3D6E',
+              background: c.accentBg, border: `1px solid ${c.accentBorder}`,
               borderRadius: 6, padding: '2px 8px',
-              color: '#4A9EFF', fontSize: 10, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase',
+              color: c.accent, fontSize: 10, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase',
             }}>
               Penn
             </span>
           </div>
 
           <h1 style={{
-            color: '#FFFFFF',
+            color: c.text,
             fontSize: 38,
             fontWeight: 800,
             lineHeight: 1.1,
@@ -57,12 +59,12 @@ export default function Landing() {
             letterSpacing: '-1px',
           }}>
             Train smarter.<br />
-            <span style={{ color: '#4A9EFF' }}>Rise together</span><br />
+            <span style={{ color: c.accent }}>Rise together</span><br />
             at Penn.
           </h1>
 
           <p style={{
-            color: '#6B8CAE',
+            color: c.textSub,
             fontSize: 15,
             lineHeight: 1.6,
             margin: '0 0 40px',
@@ -77,15 +79,15 @@ export default function Landing() {
               <div key={f.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
                 <div style={{
                   width: 38, height: 38, borderRadius: 10,
-                  background: '#0D1728', border: '1px solid #1A2A42',
+                  background: c.surface, border: `1px solid ${c.border}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 18, flexShrink: 0,
                 }}>
                   {f.icon}
                 </div>
                 <div>
-                  <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 2px' }}>{f.title}</p>
-                  <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0, lineHeight: 1.4 }}>{f.sub}</p>
+                  <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 2px' }}>{f.title}</p>
+                  <p style={{ color: c.textSub, fontSize: 12, margin: 0, lineHeight: 1.4 }}>{f.sub}</p>
                 </div>
               </div>
             ))}
@@ -95,10 +97,10 @@ export default function Landing() {
         {/* CTAs */}
         <div style={{ paddingBottom: 48 }}>
           <button
-            onClick={() => navigate('/onboarding/step1')}
+            onClick={() => navigate('/onboarding/step0')}
             style={{
               width: '100%',
-              background: '#4A9EFF',
+              background: c.accent,
               border: 'none',
               borderRadius: 14,
               padding: '17px',
@@ -108,19 +110,19 @@ export default function Landing() {
               cursor: 'pointer',
               letterSpacing: '-0.3px',
               marginBottom: 16,
-              boxShadow: '0 4px 24px rgba(74, 158, 255, 0.3)',
+              boxShadow: `0 4px 24px ${c.accentBg}`,
             }}
           >
             Get started — it's free
           </button>
 
           <p style={{ textAlign: 'center', margin: 0 }}>
-            <span style={{ color: '#5A7A9A', fontSize: 14 }}>Already have an account? </span>
+            <span style={{ color: c.textSub, fontSize: 14 }}>Already have an account? </span>
             <button
               onClick={() => navigate('/auth', { state: { mode: 'signin' } })}
               style={{
                 background: 'none', border: 'none',
-                color: '#4A9EFF', fontSize: 14, fontWeight: 700,
+                color: c.accent, fontSize: 14, fontWeight: 700,
                 cursor: 'pointer', padding: 0,
               }}
             >

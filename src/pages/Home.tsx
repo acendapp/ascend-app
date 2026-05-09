@@ -4,6 +4,7 @@ import StreakDots from '../components/StreakDots'
 import AscendBolt from '../components/AscendBolt'
 import { supabase } from '../lib/supabase'
 import { getLevelName } from '../lib/scoring'
+import { useTheme } from '../lib/theme'
 import type { UserProfile, UserScores, ActivityItem } from '../types'
 
 
@@ -55,6 +56,7 @@ function storeRankSnapshot(userId: string, rank: number) {
 export default function Home() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { colors: c } = useTheme()
   const newPRs: string[] = (location.state as { prs?: string[] } | null)?.prs ?? []
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -441,8 +443,8 @@ export default function Home() {
   if (loading) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-          <div style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</div>
+        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: c.bg }}>
+          <div style={{ color: c.textSub, fontSize: 14 }}>Loading…</div>
         </div>
       </div>
     )
@@ -452,21 +454,21 @@ export default function Home() {
   if (!hasAnyWorkout) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '0 24px' }}>
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '0 24px', background: c.bg }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 14px' }}>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 14px' }}>
               Welcome to Ascend
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 30, fontWeight: 700, margin: '0 0 14px', lineHeight: 1.15 }}>
+            <h1 style={{ color: c.text, fontSize: 30, fontWeight: 700, margin: '0 0 14px', lineHeight: 1.15 }}>
               Your first workout<br />unlocks everything.
             </h1>
-            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 40px', lineHeight: 1.65 }}>
+            <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 40px', lineHeight: 1.65 }}>
               Your Ascend Score, your campus rank, your history — none of it exists until you train. Every person on the leaderboard started right here.
             </p>
             <button
               onClick={() => navigate('/workout')}
               style={{
-                width: '100%', background: '#4A9EFF', color: '#FFFFFF',
+                width: '100%', background: c.accent, color: '#FFFFFF',
                 fontSize: 18, fontWeight: 700, borderRadius: 16, padding: '20px',
                 border: 'none', cursor: 'pointer', marginBottom: 14,
               }}
@@ -474,7 +476,7 @@ export default function Home() {
               Start My First Workout →
             </button>
             {campusActivity.length > 0 && (
-              <p style={{ color: '#5A7A9A', fontSize: 12, textAlign: 'center', margin: 0 }}>
+              <p style={{ color: c.textSub, fontSize: 12, textAlign: 'center', margin: 0 }}>
                 {campusActivity.length} Penn students trained recently. You're next.
               </p>
             )}
@@ -489,22 +491,22 @@ export default function Home() {
 
   return (
     <div className="app-shell">
-      <div className="app-content page-scroll">
+      <div className="app-content page-scroll" style={{ background: c.bg }}>
         <div style={{ padding: '52px 0 100px' }}>
 
           {/* ── Banner (max one) ─────────────────────────────────────── */}
           {(showPRBanner && newPRs.length > 0) || (streakDays > 0 && !workoutCompletedToday && !streakBannerDismissed) ? (
             <div style={{ padding: '0 16px', marginBottom: 10 }}>
               {showPRBanner && newPRs.length > 0 ? (
-                <div style={{ background: 'linear-gradient(135deg, #0D2E5A, #0A1F3A)', border: '1px solid #4A9EFF', borderRadius: 12, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ background: `linear-gradient(135deg, ${c.accentBg}, ${c.accentBg})`, border: `1px solid ${c.accent}`, borderRadius: 12, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <p style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 700, margin: '0 0 1px' }}>🏆 New PR{newPRs.length > 1 ? 's' : ''}!</p>
-                    <p style={{ color: '#FFFFFF', fontSize: 13, margin: 0, fontWeight: 600 }}>{newPRs.slice(0, 2).join(', ')}{newPRs.length > 2 ? ` +${newPRs.length - 2} more` : ''}</p>
+                    <p style={{ color: c.accent, fontSize: 11, fontWeight: 700, margin: '0 0 1px' }}>🏆 New PR{newPRs.length > 1 ? 's' : ''}!</p>
+                    <p style={{ color: c.text, fontSize: 13, margin: 0, fontWeight: 600 }}>{newPRs.slice(0, 2).join(', ')}{newPRs.length > 2 ? ` +${newPRs.length - 2} more` : ''}</p>
                   </div>
-                  <button onClick={() => setShowPRBanner(false)} style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 20, cursor: 'pointer', padding: '0 0 0 12px', lineHeight: 1 }}>×</button>
+                  <button onClick={() => setShowPRBanner(false)} style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 20, cursor: 'pointer', padding: '0 0 0 12px', lineHeight: 1 }}>×</button>
                 </div>
               ) : (
-                <div style={{ background: 'linear-gradient(135deg, #1A1200, #221600)', border: '1px solid #F59E0B', borderRadius: 12, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ background: c.isDark ? 'linear-gradient(135deg, #1A1200, #221600)' : 'linear-gradient(135deg, #FFF8E7, #FFF3D0)', border: '1px solid #F59E0B', borderRadius: 12, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <p style={{ color: '#F59E0B', fontSize: 13, fontWeight: 700, margin: 0 }}>🔥 {streakDays}-day streak — train today to keep it</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 10 }}>
                     <button onClick={() => navigate('/workout')} style={{ background: '#F59E0B', border: 'none', borderRadius: 7, padding: '4px 10px', color: '#000', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Train now</button>
@@ -519,11 +521,11 @@ export default function Home() {
           <div style={{ padding: '0 16px', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 1px' }}>{getGreeting()}</p>
-                <h1 style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{firstName}</h1>
+                <p style={{ color: c.textSub, fontSize: 12, margin: '0 0 1px' }}>{getGreeting()}</p>
+                <h1 style={{ color: c.text, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{firstName}</h1>
               </div>
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 20, padding: '5px 12px', flexShrink: 0 }}>
-                <span style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 700 }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 20, padding: '5px 12px', flexShrink: 0 }}>
+                <span style={{ color: c.accent, fontSize: 11, fontWeight: 700 }}>
                   Lv.{scores?.level ?? 1} {getLevelName(scores?.level ?? 1)}
                 </span>
               </div>
@@ -532,47 +534,47 @@ export default function Home() {
 
           {/* ── Streak + Weekly Calendar ─────────────────────────────── */}
           <div style={{ padding: '0 16px', marginBottom: 12 }}>
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: '14px 16px' }}>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 16, padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <div>
-                    <span style={{ color: streakDays > 0 ? '#F59E0B' : '#2A3A52', fontSize: 20, fontWeight: 800 }}>
+                    <span style={{ color: streakDays > 0 ? '#F59E0B' : c.border, fontSize: 20, fontWeight: 800 }}>
                       🔥 {streakDays > 0 ? streakDays : '—'}
                     </span>
-                    <span style={{ color: '#5A7A9A', fontSize: 11, marginLeft: 4 }}>day streak</span>
+                    <span style={{ color: c.textSub, fontSize: 11, marginLeft: 4 }}>day streak</span>
                   </div>
-                  <div style={{ width: 1, height: 20, background: '#1A2A42' }} />
+                  <div style={{ width: 1, height: 20, background: c.border }} />
                   <div>
-                    <span style={{ color: workoutsThisWeek >= 5 ? '#3BF0A0' : '#FFFFFF', fontSize: 18, fontWeight: 700 }}>
+                    <span style={{ color: workoutsThisWeek >= 5 ? '#3BF0A0' : c.text, fontSize: 18, fontWeight: 700 }}>
                       {workoutsThisWeek}
-                      <span style={{ color: '#5A7A9A', fontSize: 13, fontWeight: 400 }}>/5</span>
+                      <span style={{ color: c.textSub, fontSize: 13, fontWeight: 400 }}>/5</span>
                     </span>
-                    <span style={{ color: '#5A7A9A', fontSize: 11, marginLeft: 5 }}>this week</span>
+                    <span style={{ color: c.textSub, fontSize: 11, marginLeft: 5 }}>this week</span>
                   </div>
                 </div>
                 {workoutsThisWeek >= 5 && (
-                  <span style={{ background: '#0D2E1A', border: '1px solid #1A5A34', borderRadius: 20, padding: '3px 10px', color: '#3BF0A0', fontSize: 11, fontWeight: 700 }}>Perfect week 🎯</span>
+                  <span style={{ background: c.isDark ? '#0D2E1A' : '#E8FFF0', border: '1px solid #1A5A34', borderRadius: 20, padding: '3px 10px', color: '#3BF0A0', fontSize: 11, fontWeight: 700 }}>Perfect week 🎯</span>
                 )}
               </div>
               <StreakDots days={weekDays} />
-              <div style={{ background: '#1A2A42', borderRadius: 4, height: 3, overflow: 'hidden', marginTop: 10 }}>
-                <div style={{ background: workoutsThisWeek >= 5 ? '#3BF0A0' : '#4A9EFF', height: '100%', width: `${Math.min((workoutsThisWeek / 5) * 100, 100)}%`, borderRadius: 4, transition: 'width 0.6s ease' }} />
+              <div style={{ background: c.border, borderRadius: 4, height: 3, overflow: 'hidden', marginTop: 10 }}>
+                <div style={{ background: workoutsThisWeek >= 5 ? '#3BF0A0' : c.accent, height: '100%', width: `${Math.min((workoutsThisWeek / 5) * 100, 100)}%`, borderRadius: 4, transition: 'width 0.6s ease' }} />
               </div>
               {workoutsThisWeek === 0 && (
-                <p style={{ color: '#3A5A7A', fontSize: 11, margin: '8px 0 0', textAlign: 'center' }}>No workouts logged yet this week — your streak starts today</p>
+                <p style={{ color: c.textMuted, fontSize: 11, margin: '8px 0 0', textAlign: 'center' }}>No workouts logged yet this week — your streak starts today</p>
               )}
             </div>
           </div>
 
           {/* ── Ascend Score Hero ───────────────────────────────────── */}
           <div style={{ padding: '0 16px', marginBottom: 12 }}>
-            <div style={{ position: 'relative', background: 'linear-gradient(135deg, #06111E 0%, #0A1F3A 60%, #081628 100%)', border: '1px solid #1A3558', borderRadius: 20, padding: '24px 20px 20px', overflow: 'hidden', textAlign: 'center' }}>
+            <div style={{ position: 'relative', background: `linear-gradient(135deg, ${c.isDark ? '#06111E' : '#EEF5FF'} 0%, ${c.isDark ? '#0A1F3A' : '#E8F2FF'} 60%, ${c.isDark ? '#081628' : '#EAF0FF'} 100%)`, border: `1px solid ${c.isDark ? '#1A3558' : '#C0D8F0'}`, borderRadius: 20, padding: '24px 20px 20px', overflow: 'hidden', textAlign: 'center' }}>
               <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', opacity: 0.04, pointerEvents: 'none' }}>
                 <AscendBolt size={180} />
               </div>
-              <p style={{ color: '#3A5A7A', fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 6px' }}>Ascend Score</p>
+              <p style={{ color: c.textMuted, fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 6px' }}>Ascend Score</p>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
-                <span style={{ color: '#4A9EFF', fontSize: 72, fontWeight: 800, lineHeight: 1, letterSpacing: '-3px' }}>
+                <span style={{ color: c.accent, fontSize: 72, fontWeight: 800, lineHeight: 1, letterSpacing: '-3px' }}>
                   {displayedScore}
                 </span>
                 {ascendScoreDelta !== null && ascendScoreDelta > 0 && (
@@ -581,11 +583,11 @@ export default function Home() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {workoutsCompleted >= 3 && campusRank > 0 ? (
-                  <span style={{ background: 'rgba(74,158,255,0.12)', border: '1px solid rgba(74,158,255,0.25)', borderRadius: 20, padding: '4px 14px', color: '#4A9EFF', fontSize: 13, fontWeight: 700 }}>
+                  <span style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 20, padding: '4px 14px', color: c.accent, fontSize: 13, fontWeight: 700 }}>
                     #{campusRank} at Penn
                   </span>
                 ) : (
-                  <span style={{ color: '#3A5A7A', fontSize: 12 }}>
+                  <span style={{ color: c.textMuted, fontSize: 12 }}>
                     🔒 {3 - workoutsCompleted} more workout{3 - workoutsCompleted !== 1 ? 's' : ''} to unlock rank
                   </span>
                 )}
@@ -598,7 +600,7 @@ export default function Home() {
                   const pct = Math.ceil((campusRank / totalUsers) * 100)
                   if (pct > 25) return null
                   return (
-                    <span style={{ background: '#0A1F3A', border: '1px solid #1A3558', borderRadius: 20, padding: '4px 12px', color: '#4A9EFF', fontSize: 12, fontWeight: 600 }}>
+                    <span style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 20, padding: '4px 12px', color: c.accent, fontSize: 12, fontWeight: 600 }}>
                       {pct <= 5 ? 'Top 5% 🔥' : pct <= 10 ? 'Top 10%' : 'Top 25%'}
                     </span>
                   )
@@ -613,14 +615,14 @@ export default function Home() {
               onClick={() => navigate('/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
               style={{
                 width: '100%',
-                background: workoutCompletedToday ? '#0D1728' : '#4A9EFF',
-                color: workoutCompletedToday ? '#4A6A8A' : '#FFFFFF',
+                background: workoutCompletedToday ? c.surface : c.accent,
+                color: workoutCompletedToday ? c.textMuted : '#FFFFFF',
                 fontSize: 16, fontWeight: 800,
                 borderRadius: 16, padding: '17px',
-                border: workoutCompletedToday ? '1px solid #1A2A42' : 'none',
+                border: workoutCompletedToday ? `1px solid ${c.border}` : 'none',
                 cursor: 'pointer',
                 letterSpacing: '-0.3px',
-                boxShadow: workoutCompletedToday ? 'none' : '0 4px 28px rgba(74,158,255,0.35)',
+                boxShadow: workoutCompletedToday ? 'none' : `0 4px 28px ${c.accentBg}`,
               }}
             >
               {workoutCompletedToday ? "✓ Done today · Preview Tomorrow →" : "Generate Today's Workout →"}
@@ -629,11 +631,11 @@ export default function Home() {
 
           {/* ── Gym Presence (always visible) ──────────────────────── */}
           <div style={{ padding: '0 16px', marginBottom: 12 }}>
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 14px' }}>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: liveAtGym.length > 0 || isCheckedIn ? '#3BF0A0' : '#2A3A52', flexShrink: 0 }} />
-                  <span style={{ color: liveAtGym.length > 0 || isCheckedIn ? '#FFFFFF' : '#3A5A7A', fontSize: 13, fontWeight: 600 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: liveAtGym.length > 0 || isCheckedIn ? '#3BF0A0' : c.border, flexShrink: 0 }} />
+                  <span style={{ color: liveAtGym.length > 0 || isCheckedIn ? c.text : c.textMuted, fontSize: 13, fontWeight: 600 }}>
                     {liveAtGym.length > 0 ? (() => {
                       const friends = liveAtGym.filter(u => u.isFriend)
                       if (friends.length > 0) {
@@ -646,11 +648,11 @@ export default function Home() {
                   </span>
                 </div>
                 {isCheckedIn ? (
-                  <button onClick={handleGymCheckout} disabled={checkinLoading} style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 7, color: '#5A7A9A', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '3px 10px', flexShrink: 0 }}>
+                  <button onClick={handleGymCheckout} disabled={checkinLoading} style={{ background: 'none', border: `1px solid ${c.border}`, borderRadius: 7, color: c.textSub, fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '3px 10px', flexShrink: 0 }}>
                     {checkinLoading ? '…' : 'Leave'}
                   </button>
                 ) : (
-                  <button onClick={handleGymCheckin} disabled={checkinLoading} style={{ background: '#4A9EFF', border: 'none', borderRadius: 7, color: '#FFFFFF', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '4px 12px', flexShrink: 0 }}>
+                  <button onClick={handleGymCheckin} disabled={checkinLoading} style={{ background: c.accent, border: 'none', borderRadius: 7, color: '#FFFFFF', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '4px 12px', flexShrink: 0 }}>
                     {checkinLoading ? '…' : 'Check in'}
                   </button>
                 )}
@@ -658,11 +660,11 @@ export default function Home() {
               {liveAtGym.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 9 }}>
                   {liveAtGym.slice(0, 6).map(u => (
-                    <span key={u.id} style={{ background: u.isFriend ? '#0D2E5A' : '#1A2A42', border: u.isFriend ? '1px solid rgba(74,158,255,0.4)' : 'none', color: u.isFriend ? '#4A9EFF' : '#5A7A9A', fontSize: 11, borderRadius: 20, padding: '3px 10px' }}>
+                    <span key={u.id} style={{ background: u.isFriend ? c.accentBg : c.surfaceHigh, border: u.isFriend ? `1px solid ${c.accentBorder}` : 'none', color: u.isFriend ? c.accent : c.textSub, fontSize: 11, borderRadius: 20, padding: '3px 10px' }}>
                       {u.name.split(' ')[0]}
                     </span>
                   ))}
-                  {liveAtGym.length > 6 && <span style={{ color: '#3A5A7A', fontSize: 11, alignSelf: 'center' }}>+{liveAtGym.length - 6}</span>}
+                  {liveAtGym.length > 6 && <span style={{ color: c.textMuted, fontSize: 11, alignSelf: 'center' }}>+{liveAtGym.length - 6}</span>}
                 </div>
               )}
             </div>
@@ -671,31 +673,31 @@ export default function Home() {
           {/* ── Activity Feed ────────────────────────────────────────── */}
           <div style={{ padding: '0 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>
+              <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>
                 {activityFeed.length > 0 ? 'Friend Activity' : campusActivity.length > 0 ? 'Happening at Penn' : 'Activity'}
               </p>
               {activityFeed.length === 0 && campusActivity.length === 0 && (
-                <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Find people →</button>
+                <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Find people →</button>
               )}
             </div>
 
             {activityFeed.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {activityFeed.map(item => (
-                  <div key={item.id} onClick={() => navigate(`/profile/${item.userId}`)} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '11px 13px', display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                  <div key={item.id} onClick={() => navigate(`/profile/${item.userId}`)} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '11px 13px', display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                       {item.initials}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{item.userName}</p>
+                        <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{item.userName}</p>
                         {item.gymVerified && <span style={{ color: '#3BF0A0', fontSize: 10, fontWeight: 700 }}>📍</span>}
                       </div>
-                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <p style={{ color: c.textSub, fontSize: 12, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.description} · {item.time}
                       </p>
                     </div>
-                    <button onClick={e => { e.stopPropagation(); handleKudos(item) }} disabled={item.userGaveKudos} style={{ background: item.userGaveKudos ? '#0D2E5A' : 'transparent', border: `1px solid ${item.userGaveKudos ? '#1A4A8A' : '#1A2A42'}`, borderRadius: 8, padding: '4px 10px', color: item.userGaveKudos ? '#4A9EFF' : '#5A7A9A', fontSize: 12, cursor: item.userGaveKudos ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    <button onClick={e => { e.stopPropagation(); handleKudos(item) }} disabled={item.userGaveKudos} style={{ background: item.userGaveKudos ? c.accentBg : 'transparent', border: `1px solid ${item.userGaveKudos ? c.accentBorder : c.border}`, borderRadius: 8, padding: '4px 10px', color: item.userGaveKudos ? c.accent : c.textSub, fontSize: 12, cursor: item.userGaveKudos ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, whiteSpace: 'nowrap' }}>
                       👊 {item.kudosCount > 0 ? item.kudosCount : ''}
                     </button>
                   </div>
@@ -705,31 +707,31 @@ export default function Home() {
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
                   {campusActivity.map(item => (
-                    <div key={item.id} onClick={() => navigate(`/profile/${item.userId}`)} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '11px 13px', display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer' }}>
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5A7A9A', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                    <div key={item.id} onClick={() => navigate(`/profile/${item.userId}`)} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '11px 13px', display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.textSub, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                         {item.initials}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 1px' }}>{item.userName}</p>
-                        <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{item.description} · {item.time}</p>
+                        <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: '0 0 1px' }}>{item.userName}</p>
+                        <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>{item.description} · {item.time}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-                <p style={{ color: '#3A5A7A', fontSize: 12, margin: 0, textAlign: 'center' }}>
+                <p style={{ color: c.textMuted, fontSize: 12, margin: 0, textAlign: 'center' }}>
                   Add friends on{' '}
-                  <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Profile</button>
+                  <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Profile</button>
                   {' '}to see their workouts here
                 </p>
               </>
             ) : (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '24px 20px', textAlign: 'center' }}>
-                <p style={{ color: '#2A3A52', fontSize: 28, margin: '0 0 10px' }}>🏃</p>
-                <p style={{ color: '#3A5A7A', fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>No activity yet</p>
-                <p style={{ color: '#2A3A52', fontSize: 12, margin: '0 0 14px', lineHeight: 1.5 }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '24px 20px', textAlign: 'center' }}>
+                <p style={{ color: c.border, fontSize: 28, margin: '0 0 10px' }}>🏃</p>
+                <p style={{ color: c.textMuted, fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>No activity yet</p>
+                <p style={{ color: c.textFaint, fontSize: 12, margin: '0 0 14px', lineHeight: 1.5 }}>
                   Your friends' workouts appear here once you connect with people. Find classmates on Profile.
                 </p>
-                <button onClick={() => navigate('/profile')} style={{ background: '#0A1F3A', border: '1px solid #1A3558', borderRadius: 10, padding: '8px 18px', color: '#4A9EFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                <button onClick={() => navigate('/profile')} style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 10, padding: '8px 18px', color: c.accent, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                   Find people →
                 </button>
               </div>

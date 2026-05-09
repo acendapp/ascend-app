@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getLevelName } from '../lib/scoring'
+import { useTheme } from '../lib/theme'
 
 interface FriendData {
   name: string
@@ -48,6 +49,7 @@ const SOURCE_META: Record<string, { emoji: string; label: string }> = {
 export default function FriendProfile() {
   const navigate = useNavigate()
   const { userId } = useParams<{ userId: string }>()
+  const { colors: c } = useTheme()
 
   const [friendData, setFriendData] = useState<FriendData | null>(null)
   const [scores, setScores] = useState<FriendScores | null>(null)
@@ -97,8 +99,8 @@ export default function FriendProfile() {
   if (loading) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-          <div style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</div>
+        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: c.bg }}>
+          <div style={{ color: c.textSub, fontSize: 14 }}>Loading…</div>
         </div>
       </div>
     )
@@ -107,9 +109,9 @@ export default function FriendProfile() {
   if (!friendData) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ padding: '52px 20px 0' }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '0 0 16px' }}>← Back</button>
-          <p style={{ color: '#5A7A9A', fontSize: 14 }}>Couldn't load this profile.</p>
+        <div className="app-content" style={{ padding: '52px 20px 0', background: c.bg }}>
+          <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '0 0 16px' }}>← Back</button>
+          <p style={{ color: c.textSub, fontSize: 14 }}>Couldn't load this profile.</p>
         </div>
       </div>
     )
@@ -119,27 +121,27 @@ export default function FriendProfile() {
 
   return (
     <div className="app-shell">
-      <div className="app-content page-scroll">
+      <div className="app-content page-scroll" style={{ background: c.bg }}>
         <div style={{ padding: '52px 20px 24px' }}>
 
           <button
             onClick={() => navigate(-1)}
-            style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '0 0 20px', display: 'flex', alignItems: 'center', gap: 4 }}
+            style={{ background: 'none', border: 'none', color: c.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '0 0 20px', display: 'flex', alignItems: 'center', gap: 4 }}
           >
             ← Back
           </button>
 
           {/* Avatar + identity */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
-            <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1A2A42', border: '3px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 12 }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: c.border, border: `3px solid ${c.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 12 }}>
               {friendData.avatar_url
                 ? <img src={friendData.avatar_url} alt={friendData.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <span style={{ color: '#4A9EFF', fontSize: 26, fontWeight: 700 }}>{avatarIni}</span>}
+                : <span style={{ color: c.accent, fontSize: 26, fontWeight: 700 }}>{avatarIni}</span>}
             </div>
-            <h1 style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 700, margin: '0 0 3px', textAlign: 'center' }}>{friendData.name}</h1>
-            <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 3px' }}>@{friendData.username}</p>
+            <h1 style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: '0 0 3px', textAlign: 'center' }}>{friendData.name}</h1>
+            <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 3px' }}>@{friendData.username}</p>
             {(friendData.school_year || friendData.affiliation) && (
-              <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+              <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
                 {[friendData.school_year, friendData.affiliation].filter(Boolean).join(' · ')}
               </p>
             )}
@@ -153,9 +155,9 @@ export default function FriendProfile() {
                 { label: 'Strength', value: scores.strength_score, accent: false, unit: '' },
                 { label: 'Streak', value: scores.streak_days, accent: false, unit: 'd' },
               ].map(s => (
-                <div key={s.label} style={{ flex: 1, background: s.accent ? '#0A1F3A' : '#0D1728', border: `1px solid ${s.accent ? '#1E3D6E' : '#1A2A42'}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
-                  <p style={{ color: '#5A7A9A', fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>{s.label}</p>
-                  <p style={{ color: s.accent ? '#4A9EFF' : '#FFFFFF', fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1 }}>{s.value}{s.unit}</p>
+                <div key={s.label} style={{ flex: 1, background: s.accent ? c.accentBg : c.surface, border: `1px solid ${s.accent ? c.accentBorder : c.border}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+                  <p style={{ color: c.textSub, fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>{s.label}</p>
+                  <p style={{ color: s.accent ? c.accent : c.text, fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1 }}>{s.value}{s.unit}</p>
                 </div>
               ))}
             </div>
@@ -163,17 +165,17 @@ export default function FriendProfile() {
 
           {/* Level + rank */}
           {scores && (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 16px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Level</p>
-                <p style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 700, margin: 0 }}>
+                <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Level</p>
+                <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: 0 }}>
                   Level {scores.level} · {getLevelName(scores.level)}
                 </p>
               </div>
               {campusRank > 0 && (
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Campus Rank</p>
-                  <p style={{ color: '#4A9EFF', fontSize: 15, fontWeight: 700, margin: 0 }}>#{campusRank}</p>
+                  <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Campus Rank</p>
+                  <p style={{ color: c.accent, fontSize: 15, fontWeight: 700, margin: 0 }}>#{campusRank}</p>
                 </div>
               )}
             </div>
@@ -182,15 +184,15 @@ export default function FriendProfile() {
           {/* Personal Records */}
           {prs.length > 0 && (
             <>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Personal Records</p>
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 16px', marginBottom: 14 }}>
+              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Personal Records</p>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 16px', marginBottom: 14 }}>
                 {prs.map((pr, i) => (
-                  <div key={pr.exercise_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: i < prs.length - 1 ? '1px solid #1A2A42' : 'none' }}>
+                  <div key={pr.exercise_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: i < prs.length - 1 ? `1px solid ${c.border}` : 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 14 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-                      <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600 }}>{pr.exercise_name}</span>
+                      <span style={{ color: c.text, fontSize: 13, fontWeight: 600 }}>{pr.exercise_name}</span>
                     </div>
-                    <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{pr.weight} lb</span>
+                    <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{pr.weight} lb</span>
                   </div>
                 ))}
               </div>
@@ -200,17 +202,17 @@ export default function FriendProfile() {
           {/* Recent Workouts */}
           {recentWorkouts.length > 0 && (
             <>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Recent Workouts</p>
+              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Recent Workouts</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {recentWorkouts.map(w => {
                   const source = w.workout_source ?? 'ascend_method'
                   const meta = SOURCE_META[source] ?? SOURCE_META.ascend_method
                   return (
-                    <div key={w.id} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div key={w.id} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 18, flexShrink: 0 }}>{meta.emoji}</span>
                       <div style={{ flex: 1 }}>
-                        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{w.workout_type ?? meta.label}</p>
-                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{formatDate(w.workout_date)}</p>
+                        <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{w.workout_type ?? meta.label}</p>
+                        <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{formatDate(w.workout_date)}</p>
                       </div>
                     </div>
                   )

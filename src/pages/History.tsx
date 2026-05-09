@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useTheme } from '../lib/theme'
 
 interface LogRow {
   exercise_name: string
@@ -39,6 +40,7 @@ function condensedSummary(w: WorkoutRow): string {
 
 export default function History() {
   const navigate = useNavigate()
+  const { colors: c } = useTheme()
   const [workouts, setWorkouts] = useState<WorkoutRow[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -106,8 +108,8 @@ export default function History() {
   if (loading) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-          <div style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</div>
+        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: c.bg }}>
+          <div style={{ color: c.textSub, fontSize: 14 }}>Loading…</div>
         </div>
       </div>
     )
@@ -115,21 +117,21 @@ export default function History() {
 
   return (
     <div className="app-shell">
-      <div className="app-content page-scroll">
+      <div className="app-content page-scroll" style={{ background: c.bg }}>
         <div style={{ padding: '52px 20px 0' }}>
 
           <button
             onClick={() => navigate('/home')}
-            style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}
+            style={{ background: 'none', border: 'none', color: c.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '0 0 16px', display: 'flex', alignItems: 'center', gap: 4 }}
           >
             ← Back
           </button>
 
-          <h1 style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 700, margin: '0 0 20px' }}>Workout History</h1>
+          <h1 style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: '0 0 20px' }}>Workout History</h1>
 
           {workouts.length === 0 ? (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 32, textAlign: 'center' }}>
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>No workouts yet. Complete your first session to see history here.</p>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 32, textAlign: 'center' }}>
+              <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>No workouts yet. Complete your first session to see history here.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 32 }}>
@@ -143,8 +145,8 @@ export default function History() {
                     key={w.id}
                     onClick={() => setExpandedId(isExpanded ? null : w.id)}
                     style={{
-                      background: '#0D1728',
-                      border: '1px solid #1A2A42',
+                      background: c.surface,
+                      border: `1px solid ${c.border}`,
                       borderRadius: 14,
                       padding: '14px 16px',
                       cursor: 'pointer',
@@ -155,34 +157,34 @@ export default function History() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                           <span style={{ fontSize: 14 }}>⚡</span>
-                          <p style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {title}
                           </p>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{formatDate(w.workout_date)}</p>
+                          <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{formatDate(w.workout_date)}</p>
                           {w.duration && (
-                            <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{w.duration} min</p>
+                            <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{w.duration} min</p>
                           )}
                         </div>
                       </div>
-                      <span style={{ color: '#5A7A9A', fontSize: 18, flexShrink: 0, lineHeight: 1 }}>
+                      <span style={{ color: c.textSub, fontSize: 18, flexShrink: 0, lineHeight: 1 }}>
                         {isExpanded ? '∧' : '∨'}
                       </span>
                     </div>
 
                     {/* Preview when collapsed */}
                     {!isExpanded && preview && (
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: '8px 0 0', lineHeight: 1.5 }}>
+                      <p style={{ color: c.textSub, fontSize: 11, margin: '8px 0 0', lineHeight: 1.5 }}>
                         {preview}
                       </p>
                     )}
 
                     {/* Expanded detail */}
                     {isExpanded && (
-                      <div style={{ marginTop: 12, borderTop: '1px solid #1A2A42', paddingTop: 10 }}>
+                      <div style={{ marginTop: 12, borderTop: `1px solid ${c.border}`, paddingTop: 10 }}>
                         {w.logs.length === 0 ? (
-                          <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>No exercise data logged.</p>
+                          <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>No exercise data logged.</p>
                         ) : (
                           w.logs.map((log, i) => (
                             <div
@@ -190,11 +192,11 @@ export default function History() {
                               style={{
                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                 padding: '8px 0',
-                                borderTop: i > 0 ? '1px solid #1A2A42' : 'none',
+                                borderTop: i > 0 ? `1px solid ${c.border}` : 'none',
                               }}
                             >
-                              <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600 }}>{log.exercise_name}</span>
-                              <span style={{ color: '#5A7A9A', fontSize: 12 }}>
+                              <span style={{ color: c.text, fontSize: 13, fontWeight: 600 }}>{log.exercise_name}</span>
+                              <span style={{ color: c.textSub, fontSize: 12 }}>
                                 {log.sets}×{log.reps}{log.weight > 0 ? ` @ ${log.weight}lb` : ''}
                               </span>
                               {prRecords.get(log.exercise_name) === log.weight && log.weight > 0 && (

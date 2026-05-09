@@ -14,7 +14,7 @@
     padding: 0;
     font-family: system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background-color: #080E1C;
+    background-color: var(--bg, #F0F4FA);
   }
 
   input, button, textarea, select {
@@ -22,10 +22,26 @@
   }
 }
 
-/* App shell: centers 390px content, fills rest with #080E1C */
+:root {
+  --bg: #F0F4FA;
+  --surface: #FFFFFF;
+  --border: #DDE6F0;
+  --text: #0D1728;
+  --accent: #2B7FE0;
+}
+
+[data-theme="dark"] {
+  --bg: #080E1C;
+  --surface: #0D1728;
+  --border: #1A2A42;
+  --text: #FFFFFF;
+  --accent: #4A9EFF;
+}
+
+/* App shell: centers 390px content, fills rest with bg color */
 .app-shell {
   min-height: 100vh;
-  background-color: #080E1C;
+  background-color: var(--bg);
   display: flex;
   justify-content: center;
 }
@@ -34,7 +50,7 @@
   width: 100%;
   max-width: 390px;
   min-height: 100vh;
-  background-color: #080E1C;
+  background-color: var(--bg);
   position: relative;
   overflow-x: hidden;
 }
@@ -72,7 +88,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: #4A9EFF;
   cursor: pointer;
   box-shadow: 0 0 12px #4A9EFF66;
-  border: 3px solid #080E1C;
+  border: 3px solid var(--bg);
 }
 input[type="range"]::-moz-range-thumb {
   width: 26px;
@@ -80,7 +96,7 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 50%;
   background: #4A9EFF;
   cursor: pointer;
-  border: 3px solid #080E1C;
+  border: 3px solid var(--bg);
 }
 
 /* Horizontal friend scroll */

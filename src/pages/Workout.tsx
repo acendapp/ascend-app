@@ -746,6 +746,7 @@ export default function Workout() {
         firstSessionType: firstSessionType ?? undefined,
         sore_muscles: soreLabels.length > 0 ? soreLabels : undefined,
         injured_muscles: injuredLabels.length > 0 ? injuredLabels : undefined,
+        sex: profile?.sex ?? undefined,
       })
       clearSession()
       startTimeRef.current = Date.now()
