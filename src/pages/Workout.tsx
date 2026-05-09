@@ -798,6 +798,16 @@ export default function Workout() {
       const { data: { user }, error: authErr } = await supabase.auth.getUser()
       if (authErr || !user) { navigate('/auth'); return }
 
+      // Resolve profile ID — may differ from auth UID (same fallback as Home.tsx)
+      let profileId = user.id
+      const { data: profileRow } = await supabase.from('users').select('id').eq('id', user.id).maybeSingle()
+      if (!profileRow && user.email) {
+        const { data: byEmail } = await supabase.from('users').select('id').eq('email', user.email).maybeSingle()
+        if (byEmail) profileId = byEmail.id as string
+      } else if (profileRow) {
+        profileId = profileRow.id as string
+      }
+
       const duration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 60000))
 
       const { data: workoutRecord, error: wErr } = await supabase
@@ -905,7 +915,7 @@ export default function Workout() {
         const consistencyScore = calculateConsistencyScore(weekCount ?? 0)
 
         const { data: curScores } = await supabase
-          .from('user_scores').select('social_score, streak_days, xp, level, ascend_score').eq('user_id', user.id).maybeSingle()
+          .from('user_scores').select('social_score, streak_days, xp, level, ascend_score').eq('user_id', profileId).maybeSingle()
         const socialScore = curScores?.social_score ?? 0
         const currentXP = curScores?.xp ?? 0
         const currentLevel = curScores?.level ?? 1
@@ -942,11 +952,11 @@ export default function Workout() {
             level: newLevel,
             streak_days: newStreakDays,
           })
-          .eq('user_id', user.id)
+          .eq('user_id', profileId)
         if (scoreUpdateErr) console.error('user_scores update error:', scoreUpdateErr)
 
         try {
-          await supabase.from('user_scores').update({ workouts_completed: wids.length }).eq('user_id', user.id)
+          await supabase.from('user_scores').update({ workouts_completed: wids.length }).eq('user_id', profileId)
         } catch { /* column not yet added */ }
       } catch (scoreErr) {
         console.error('Score update error:', scoreErr)
