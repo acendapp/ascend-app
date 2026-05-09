@@ -566,39 +566,31 @@ export default function Home() {
 
           {/* ── Ascend Score Hero ───────────────────────────────────── */}
           <div style={{ padding: '0 16px', marginBottom: 12 }}>
-            <div style={{ position: 'relative', background: 'linear-gradient(135deg, #06111E 0%, #0A1F3A 60%, #081628 100%)', border: '1px solid #1A3558', borderRadius: 20, padding: '18px 20px 16px', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', right: -20, top: -20, opacity: 0.05, pointerEvents: 'none' }}>
-                <AscendBolt size={160} />
+            <div style={{ position: 'relative', background: 'linear-gradient(135deg, #06111E 0%, #0A1F3A 60%, #081628 100%)', border: '1px solid #1A3558', borderRadius: 20, padding: '24px 20px 20px', overflow: 'hidden', textAlign: 'center' }}>
+              <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', opacity: 0.04, pointerEvents: 'none' }}>
+                <AscendBolt size={180} />
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                <div>
-                  <p style={{ color: '#3A5A7A', fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>Ascend Score</p>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{ color: '#4A9EFF', fontSize: 52, fontWeight: 800, lineHeight: 1, letterSpacing: '-2px' }}>
-                      {displayedScore}
-                    </span>
-                    {ascendScoreDelta !== null && ascendScoreDelta > 0 && (
-                      <span style={{ color: '#3BF0A0', fontSize: 16, fontWeight: 700 }}>+{ascendScoreDelta}</span>
-                    )}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right', paddingBottom: 4 }}>
-                  {workoutsCompleted >= 3 && campusRank > 0 ? (
-                    <>
-                      <p style={{ color: '#4A9EFF', fontSize: 18, fontWeight: 800, margin: '0 0 2px', letterSpacing: '-0.5px' }}>#{campusRank}</p>
-                      <p style={{ color: '#3A5A7A', fontSize: 11, margin: 0 }}>at Penn</p>
-                    </>
-                  ) : (
-                    <>
-                      <p style={{ color: '#3A5A7A', fontSize: 11, margin: '0 0 2px' }}>🔒 rank</p>
-                      <p style={{ color: '#3A5A7A', fontSize: 10, margin: 0 }}>{3 - workoutsCompleted} more workout{3 - workoutsCompleted !== 1 ? 's' : ''}</p>
-                    </>
-                  )}
-                </div>
+              <p style={{ color: '#3A5A7A', fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 6px' }}>Ascend Score</p>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+                <span style={{ color: '#4A9EFF', fontSize: 72, fontWeight: 800, lineHeight: 1, letterSpacing: '-3px' }}>
+                  {displayedScore}
+                </span>
+                {ascendScoreDelta !== null && ascendScoreDelta > 0 && (
+                  <span style={{ color: '#3BF0A0', fontSize: 18, fontWeight: 700 }}>+{ascendScoreDelta}</span>
+                )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {workoutsCompleted >= 3 && campusRank > 0 ? (
+                  <span style={{ background: 'rgba(74,158,255,0.12)', border: '1px solid rgba(74,158,255,0.25)', borderRadius: 20, padding: '4px 14px', color: '#4A9EFF', fontSize: 13, fontWeight: 700 }}>
+                    #{campusRank} at Penn
+                  </span>
+                ) : (
+                  <span style={{ color: '#3A5A7A', fontSize: 12 }}>
+                    🔒 {3 - workoutsCompleted} more workout{3 - workoutsCompleted !== 1 ? 's' : ''} to unlock rank
+                  </span>
+                )}
                 {workoutsCompleted >= 3 && rankDelta !== null && rankDelta !== 0 && (
-                  <span style={{ background: rankDelta > 0 ? '#091E12' : '#1E0909', border: `1px solid ${rankDelta > 0 ? '#1A5A34' : '#5A1A1A'}`, borderRadius: 20, padding: '3px 10px', color: rankDelta > 0 ? '#3BF0A0' : '#FF6B6B', fontSize: 11, fontWeight: 700 }}>
+                  <span style={{ background: rankDelta > 0 ? '#091E12' : '#1E0909', border: `1px solid ${rankDelta > 0 ? '#1A5A34' : '#5A1A1A'}`, borderRadius: 20, padding: '4px 12px', color: rankDelta > 0 ? '#3BF0A0' : '#FF6B6B', fontSize: 12, fontWeight: 700 }}>
                     {rankDelta > 0 ? `↑${rankDelta} spots` : `↓${Math.abs(rankDelta)} spots`}
                   </span>
                 )}
@@ -606,7 +598,7 @@ export default function Home() {
                   const pct = Math.ceil((campusRank / totalUsers) * 100)
                   if (pct > 25) return null
                   return (
-                    <span style={{ background: '#0A1F3A', border: '1px solid #1A3558', borderRadius: 20, padding: '3px 10px', color: '#4A9EFF', fontSize: 11, fontWeight: 600 }}>
+                    <span style={{ background: '#0A1F3A', border: '1px solid #1A3558', borderRadius: 20, padding: '4px 12px', color: '#4A9EFF', fontSize: 12, fontWeight: 600 }}>
                       {pct <= 5 ? 'Top 5% 🔥' : pct <= 10 ? 'Top 10%' : 'Top 25%'}
                     </span>
                   )
