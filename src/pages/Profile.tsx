@@ -272,7 +272,7 @@ export default function Profile() {
   const [prs, setPrs] = useState<{ exercise_name: string; weight: number }[]>([])
   const [totalWorkouts, setTotalWorkouts] = useState(0)
   const [totalVolume, setTotalVolume] = useState(0)
-  const [workoutsLast30Days, setWorkoutsLast30Days] = useState(0)
+  const [_workoutsLast30Days, setWorkoutsLast30Days] = useState(0)
   const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0)
 
   const [campusRank, setCampusRank] = useState(0)
