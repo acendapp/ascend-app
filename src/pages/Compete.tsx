@@ -75,11 +75,11 @@ function daysLeft(endDate: string) {
 
 const RANK_COLORS: Record<number, string> = { 1: '#F5A623', 2: '#B0B8C4', 3: '#CD7F32' }
 
-function tierBadge(level: number): { label: string; bg: string; color: string } {
-  if (level >= 7) return { label: `Lv ${level}`, bg: '#2D1B4E', color: '#9B59B6' }
-  if (level >= 5) return { label: `Lv ${level}`, bg: '#2D2000', color: '#F5A623' }
-  if (level >= 3) return { label: `Lv ${level}`, bg: '#0D2040', color: '#4A9EFF' }
-  return { label: `Lv ${level}`, bg: '#1A2A42', color: '#5A7A9A' }
+function tierBadge(level: number, isDark: boolean): { label: string; bg: string; color: string } {
+  if (level >= 7) return { label: `Lv ${level}`, bg: isDark ? '#2D1B4E' : '#F5EEFF', color: isDark ? '#9B59B6' : '#7B2FBE' }
+  if (level >= 5) return { label: `Lv ${level}`, bg: isDark ? '#2D2000' : '#FFF3DC', color: isDark ? '#F5A623' : '#B07400' }
+  if (level >= 3) return { label: `Lv ${level}`, bg: isDark ? '#0D2040' : '#DEEEFF', color: isDark ? '#4A9EFF' : '#2B7FE0' }
+  return { label: `Lv ${level}`, bg: isDark ? '#1A2A42' : '#E8EEF8', color: isDark ? '#5A7A9A' : '#4A6A8A' }
 }
 
 interface ThemeColors {
@@ -881,7 +881,7 @@ export default function Compete() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                         <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                        {!row.isPlaceholder && (() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                        {!row.isPlaceholder && (() => { const t = tierBadge(row.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                       </div>
                       <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                     </div>
@@ -961,7 +961,7 @@ export default function Compete() {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                      {!row.isPlaceholder && (() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                      {!row.isPlaceholder && (() => { const t = tierBadge(row.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                     </div>
                     <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                   </div>
@@ -1008,7 +1008,7 @@ export default function Compete() {
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                          {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                          {(() => { const t = tierBadge(row.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                         </div>
                         <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                       </div>
@@ -1054,7 +1054,7 @@ export default function Compete() {
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                          {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                          {(() => { const t = tierBadge(row.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                         </div>
                         <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                       </div>
@@ -1079,7 +1079,7 @@ export default function Compete() {
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <p style={{ color: c.accent, fontSize: 13, fontWeight: 700, margin: 0 }}>{pinnedRow.name}</p>
-                          {(() => { const t = tierBadge(pinnedRow.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
+                          {(() => { const t = tierBadge(pinnedRow.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                         </div>
                         <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{pinnedRow.subtitle}</p>
                       </div>

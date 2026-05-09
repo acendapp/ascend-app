@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useTheme } from '../lib/theme'
 
 interface RecentTemplate {
   id: string
@@ -91,21 +92,23 @@ export default function WorkoutTypeSelector() {
     navigate('/workout/custom', { state: { templateId } })
   }
 
+  const { colors: c } = useTheme()
+
   return (
     <div className="app-shell">
-      <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 32px' }}>
 
           {isPreview && (
-            <div style={{ background: '#0D2E5A', border: '1px solid #1E3D6E', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 14 }}>👁️</span>
-              <p style={{ color: '#4A9EFF', fontSize: 12, fontWeight: 600, margin: 0 }}>Preview mode — plan tomorrow's workout</p>
+              <p style={{ color: c.accent, fontSize: 12, fontWeight: 600, margin: 0 }}>Preview mode — plan tomorrow's workout</p>
             </div>
           )}
-          <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
+          <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
             {isPreview ? "Tomorrow's session" : 'Ready to train?'}
           </p>
-          <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 28px', lineHeight: 1.2 }}>
+          <h1 style={{ color: c.text, fontSize: 26, fontWeight: 700, margin: '0 0 28px', lineHeight: 1.2 }}>
             {isPreview ? 'Plan your workout type' : 'What kind of workout?'}
           </h1>
 
@@ -117,8 +120,8 @@ export default function WorkoutTypeSelector() {
                   key={opt.id}
                   onClick={() => selectType(opt.id, opt.path)}
                   style={{
-                    background: '#0D1728',
-                    border: `1.5px solid ${isLast ? opt.accent : '#1A2A42'}`,
+                    background: c.surface,
+                    border: `1.5px solid ${isLast ? opt.accent : c.border}`,
                     borderRadius: 18,
                     padding: '18px 20px',
                     display: 'flex', alignItems: 'center', gap: 16,
@@ -128,8 +131,8 @@ export default function WorkoutTypeSelector() {
                 >
                   <span style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>{opt.emoji}</span>
                   <div style={{ flex: 1 }}>
-                    <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: '0 0 3px' }}>{opt.title}</p>
-                    <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{opt.subtitle}</p>
+                    <p style={{ color: c.text, fontSize: 16, fontWeight: 700, margin: '0 0 3px' }}>{opt.title}</p>
+                    <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>{opt.subtitle}</p>
                   </div>
                   {isLast && (
                     <span style={{
@@ -142,7 +145,7 @@ export default function WorkoutTypeSelector() {
                     </span>
                   )}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, opacity: 0.4 }}>
-                    <path d="M9 18l6-6-6-6" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
+                    <path d="M9 18l6-6-6-6" stroke={c.text} strokeWidth="2.5" strokeLinecap="round" />
                   </svg>
                 </button>
               )
@@ -152,7 +155,7 @@ export default function WorkoutTypeSelector() {
           {/* Quick-repeat section for saved custom templates — hidden in preview */}
           {ready && recentTemplates.length > 0 && !isPreview && (
             <div style={{ marginTop: 28 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>
+              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>
                 Quick Repeat
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -161,7 +164,7 @@ export default function WorkoutTypeSelector() {
                     key={t.id}
                     onClick={() => quickStart(t.id)}
                     style={{
-                      background: '#0D1728', border: '1px solid #1A2A42',
+                      background: c.surface, border: `1px solid ${c.border}`,
                       borderRadius: 14, padding: '13px 16px',
                       display: 'flex', alignItems: 'center', gap: 12,
                       cursor: 'pointer', width: '100%', textAlign: 'left',
@@ -169,8 +172,8 @@ export default function WorkoutTypeSelector() {
                   >
                     <span style={{ fontSize: 20, flexShrink: 0 }}>✏️</span>
                     <div style={{ flex: 1 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>{t.name}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
+                      <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>{t.name}</p>
+                      <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>
                         {t.exercise_count} exercise{t.exercise_count !== 1 ? 's' : ''}
                         {t.last_used_at
                           ? ` · ${new Date(t.last_used_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
