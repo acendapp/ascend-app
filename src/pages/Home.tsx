@@ -56,7 +56,7 @@ function storeRankSnapshot(userId: string, rank: number) {
 export default function Home() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { colors: c } = useTheme()
+  const { colors: c, toggleTheme, theme } = useTheme()
   const newPRs: string[] = (location.state as { prs?: string[] } | null)?.prs ?? []
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -517,17 +517,26 @@ export default function Home() {
             </div>
           ) : null}
 
-          {/* ── Greeting + Level ────────────────────────────────────── */}
+          {/* ── Greeting + Level + Theme toggle ─────────────────────── */}
           <div style={{ padding: '0 16px', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <p style={{ color: c.textSub, fontSize: 12, margin: '0 0 1px' }}>{getGreeting()}</p>
                 <h1 style={{ color: c.text, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{firstName}</h1>
               </div>
-              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 20, padding: '5px 12px', flexShrink: 0 }}>
-                <span style={{ color: c.accent, fontSize: 11, fontWeight: 700 }}>
-                  Lv.{scores?.level ?? 1} {getLevelName(scores?.level ?? 1)}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 20, padding: '5px 12px', flexShrink: 0 }}>
+                  <span style={{ color: c.accent, fontSize: 11, fontWeight: 700 }}>
+                    Lv.{scores?.level ?? 1} {getLevelName(scores?.level ?? 1)}
+                  </span>
+                </div>
+                <button
+                  onClick={toggleTheme}
+                  title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 20, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}
+                >
+                  {theme === 'dark' ? '☀️' : '🌙'}
+                </button>
               </div>
             </div>
           </div>

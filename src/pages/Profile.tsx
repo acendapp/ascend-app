@@ -257,7 +257,7 @@ function CropModal({ src, onDone, onCancel }: CropModalProps) {
 export default function Profile() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { colors: c, toggleTheme, theme } = useTheme()
+  const { colors: c } = useTheme()
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [scores, setScores] = useState<UserScores | null>(null)
@@ -871,23 +871,6 @@ export default function Profile() {
           <EditableField label="Experience Level" value={profile.experience_level ?? ''} display={displayExperience(profile.experience_level)} options={EXPERIENCE_OPTIONS} onSave={v => updateField('experience_level', v)} />
           <EditableField label="Equipment" value={profile.equipment ?? ''} display={displayEquipment(profile.equipment)} options={EQUIPMENT_OPTIONS} onSave={v => updateField('equipment', v)} />
           <EditableField label="School Year" value={profile.school_year ?? ''} options={SCHOOL_YEAR_OPTIONS} onSave={v => updateField('school_year', v)} />
-
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            style={{
-              width: '100%', background: c.surface, border: `1px solid ${c.border}`,
-              borderRadius: 12, padding: '12px 16px', marginBottom: 8,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              cursor: 'pointer', textAlign: 'left',
-            }}
-          >
-            <div>
-              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Appearance</p>
-              <p style={{ color: c.text, fontSize: 14, margin: 0 }}>{theme === 'dark' ? '🌙 Dark mode' : '☀️ Light mode'}</p>
-            </div>
-            <span style={{ color: c.accent, fontSize: 12, fontWeight: 600 }}>Toggle</span>
-          </button>
 
           {/* Sign out */}
           <button

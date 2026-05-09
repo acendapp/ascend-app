@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
-import { ThemeProvider } from './lib/theme'
+import { ThemeProvider, useTheme } from './lib/theme'
 import AscendBolt from './components/AscendBolt'
 import BottomNav from './components/BottomNav'
 import Step0 from './pages/onboarding/Step0'
@@ -23,6 +23,21 @@ import FriendProfile from './pages/FriendProfile'
 import Landing from './pages/Landing'
 
 const TAB_PATHS = new Set(['/home', '/workout', '/groups', '/compete', '/profile'])
+
+function SplashScreen({ fading }: { fading: boolean }) {
+  const { colors: c } = useTheme()
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+      zIndex: 9999, background: c.bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      opacity: fading ? 0 : 1, transition: 'opacity 0.8s ease',
+      pointerEvents: fading ? 'none' : 'auto',
+    }}>
+      <AscendBolt size={120} />
+    </div>
+  )
+}
 
 function AppRoutes() {
   const [authed, setAuthed] = useState(false)
@@ -80,31 +95,11 @@ function AppRoutes() {
           {showNav && <BottomNav />}
         </>
       ) : (
-        <div style={{ minHeight: '100vh', background: '#080E1C' }} />
+        <div style={{ minHeight: '100vh', background: 'var(--bg)' }} />
       )}
 
       {/* Splash overlay — sits above everything, removed from DOM after animation */}
-      {!splashDone && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            zIndex: 9999,
-            background: '#080E1C',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: splashFading ? 0 : 1,
-            transition: 'opacity 0.8s ease',
-            pointerEvents: splashFading ? 'none' : 'auto',
-          }}
-        >
-          <AscendBolt size={120} />
-        </div>
-      )}
+      {!splashDone && <SplashScreen fading={splashFading} />}
     </>
   )
 }
