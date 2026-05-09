@@ -42,6 +42,7 @@ export default function History() {
   const [workouts, setWorkouts] = useState<WorkoutRow[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [prRecords, setPrRecords] = useState<Map<string, number>>(new Map())
 
   useEffect(() => {
     async function load() {
@@ -67,6 +68,16 @@ export default function History() {
         .select('workout_id, exercise_name, sets, reps, weight')
         .in('workout_id', ids)
 
+      const { data: prData } = await supabase
+        .from('personal_records')
+        .select('exercise_name, weight')
+        .eq('user_id', user.id)
+
+      const prMap = new Map<string, number>()
+      for (const pr of prData ?? []) {
+        prMap.set(pr.exercise_name as string, pr.weight as number)
+      }
+
       const logMap = new Map<string, LogRow[]>()
       for (const l of logData ?? []) {
         const arr = logMap.get(l.workout_id as string) ?? []
@@ -86,6 +97,7 @@ export default function History() {
         duration: w.duration as number | null,
         logs: logMap.get(w.id as string) ?? [],
       })))
+      setPrRecords(prMap)
       setLoading(false)
     }
     load()
@@ -185,6 +197,9 @@ export default function History() {
                               <span style={{ color: '#5A7A9A', fontSize: 12 }}>
                                 {log.sets}×{log.reps}{log.weight > 0 ? ` @ ${log.weight}lb` : ''}
                               </span>
+                              {prRecords.get(log.exercise_name) === log.weight && log.weight > 0 && (
+                                <span style={{ color: '#F5A623', fontSize: 10, fontWeight: 700, marginLeft: 4 }}>🏆 PR</span>
+                              )}
                             </div>
                           ))
                         )}

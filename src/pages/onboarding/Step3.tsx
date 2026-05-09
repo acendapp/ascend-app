@@ -5,9 +5,9 @@ import OptionCard from '../../components/OptionCard'
 import type { Equipment } from '../../types'
 
 const OPTIONS: { value: Equipment; emoji: string; title: string; subtitle: string }[] = [
-  { value: 'gym',        emoji: '🏋️', title: 'Full gym',    subtitle: 'Barbells, cables, machines — the works' },
-  { value: 'bodyweight', emoji: '🏠', title: 'Bodyweight',  subtitle: 'No equipment needed, train anywhere' },
-  { value: 'both',       emoji: '🔄', title: 'Both',        subtitle: 'I switch between gym and home' },
+  { value: 'gym',        emoji: '🏋️', title: 'Full gym',      subtitle: 'Barbells, cables, machines — the works' },
+  { value: 'bodyweight', emoji: '🏠', title: 'At home',       subtitle: 'No equipment, bodyweight only' },
+  { value: 'both',       emoji: '🔄', title: 'Both',          subtitle: 'I mix gym and home sessions' },
 ]
 
 export default function Step3() {
@@ -25,15 +25,13 @@ export default function Step3() {
   return (
     <OnboardingShell
       step={3}
-      eyebrow="STEP 3 OF 4"
-      headline="Where do you train?"
-      subheadline="We'll build your workouts around what you actually have access to."
-      showPrivacy
+      headline="Where do you put in the work?"
+      subheadline="We'll build every workout around what you actually have access to."
       onContinue={handleContinue}
       continueLabel="Continue →"
       continueDisabled={!selected}
       onBack={() => navigate('/onboarding/step2')}
-      backLabel="Back"
+      backLabel="← Back"
     >
       {OPTIONS.map(opt => (
         <OptionCard

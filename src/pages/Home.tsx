@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import StreakDots from '../components/StreakDots'
+import AscendBolt from '../components/AscendBolt'
 import { supabase } from '../lib/supabase'
-import { calculateConsistencyScore, getLevelName, getXPProgress } from '../lib/scoring'
+import { getLevelName } from '../lib/scoring'
 import type { UserProfile, UserScores, ActivityItem } from '../types'
 
 
@@ -62,7 +63,7 @@ export default function Home() {
 
   const [weekDays, setWeekDays] = useState<boolean[]>(new Array(7).fill(false))
   const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0)
-  const [workoutsLast30Days, setWorkoutsLast30Days] = useState(0)
+  const [_workoutsLast30Days, setWorkoutsLast30Days] = useState(0)
 
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
   const [isCheckedIn, setIsCheckedIn] = useState(false)
@@ -70,10 +71,11 @@ export default function Home() {
   const [workoutCompletedToday, setWorkoutCompletedToday] = useState(false)
 
   const [showPRBanner, setShowPRBanner] = useState(newPRs.length > 0)
+  const [streakBannerDismissed, setStreakBannerDismissed] = useState(false)
   const [hasAnyWorkout, setHasAnyWorkout] = useState(false)
   const [workoutsCompleted, setWorkoutsCompleted] = useState(0)
   const [campusRank, setCampusRank] = useState(0)
-  const [bestChallenge, setBestChallenge] = useState<string | null>(null)
+  const [_bestChallenge, setBestChallenge] = useState<string | null>(null)
   const [liveAtGym, setLiveAtGym] = useState<GymUser[]>([])
   const [campusActivity, setCampusActivity] = useState<ActivityItem[]>([])
   const [rankDelta, setRankDelta] = useState<number | null>(null)
@@ -483,353 +485,264 @@ export default function Home() {
   }
 
   const firstName = profile ? profile.name.split(' ')[0] : 'Athlete'
-  const strengthScore = scores?.strength_score ?? 0
-  const consistencyScore = calculateConsistencyScore(workoutsLast30Days)
-  const isPerfectWeek = workoutsThisWeek >= 4
   const streakDays = scores?.streak_days ?? 0
 
   return (
     <div className="app-shell">
       <div className="app-content page-scroll">
-        <div style={{ padding: '48px 20px 0' }}>
+        <div style={{ padding: '52px 0 100px' }}>
 
-          {/* PR Banner */}
-          {showPRBanner && newPRs.length > 0 && (
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #0D2E5A, #0A1F3A)',
-                border: '1px solid #4A9EFF',
-                borderRadius: 14,
-                padding: '14px 16px',
-                marginBottom: 16,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                <p style={{ color: '#4A9EFF', fontSize: 12, fontWeight: 700, margin: '0 0 2px' }}>
-                  🏆 New Personal Record{newPRs.length > 1 ? 's' : ''}!
-                </p>
-                <p style={{ color: '#FFFFFF', fontSize: 13, margin: 0 }}>
-                  {newPRs.slice(0, 2).join(', ')}{newPRs.length > 2 ? ` +${newPRs.length - 2} more` : ''}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowPRBanner(false)}
-                style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 18, cursor: 'pointer', padding: 0 }}
-              >
-                ×
-              </button>
-            </div>
-          )}
-
-          {/* Greeting */}
-          <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 2px' }}>{getGreeting()}</p>
-          <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 4px' }}>{firstName}</h1>
-          <p style={{ color: '#4A9EFF', fontSize: 13, margin: '0 0 10px', fontWeight: 600 }}>
-            Level {scores?.level ?? 1} · {getLevelName(scores?.level ?? 1)}
-            {streakDays > 0 && <span style={{ color: '#5A7A9A', fontWeight: 400 }}> · {streakDays}d streak</span>}
-          </p>
-          {(() => {
-            const xp = scores?.xp ?? 0
-            const level = scores?.level ?? 1
-            const { current, needed, fraction } = getXPProgress(xp, level)
-            return (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ background: '#1A2A42', borderRadius: 4, height: 4, overflow: 'hidden' }}>
-                  <div style={{ background: '#4A9EFF', height: '100%', width: `${fraction * 100}%`, borderRadius: 4, transition: 'width 0.6s ease' }} />
-                </div>
-                <p style={{ color: '#5A7A9A', fontSize: 10, margin: '4px 0 0', textAlign: 'right' }}>
-                  {current} / {needed} XP · Level {level + 1} next
-                </p>
-              </div>
-            )
-          })()}
-
-          {/* Streak dots */}
-          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>Last 7 Days</p>
-            <StreakDots days={weekDays} />
-          </div>
-
-          {/* Gym presence widget */}
-          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px 16px', marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: liveAtGym.length > 0 ? 10 : 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: liveAtGym.length > 0 ? '#3BF0A0' : '#5A7A9A', flexShrink: 0 }} />
-                <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600 }}>
-                  {(() => {
-                    if (liveAtGym.length === 0) return 'Gym is quiet right now'
-                    const friends = liveAtGym.filter(u => u.isFriend)
-                    if (friends.length > 0) {
-                      const first = friends[0].name.split(' ')[0]
-                      const others = liveAtGym.length - 1
-                      return others === 0
-                        ? `${first} is at the gym now 👊`
-                        : `${first} and ${others} other${others > 1 ? 's' : ''} are at the gym`
-                    }
-                    return `${liveAtGym.length} ${liveAtGym.length === 1 ? 'person' : 'people'} at the gym now`
-                  })()}
-                </span>
-              </div>
-              {isCheckedIn ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 600 }}>You're here 💪</span>
-                  <button
-                    onClick={handleGymCheckout}
-                    disabled={checkinLoading}
-                    style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 6, color: '#5A7A9A', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '2px 8px' }}
-                  >
-                    {checkinLoading ? '…' : 'Leave'}
-                  </button>
+          {/* ── Banner (max one) ─────────────────────────────────────── */}
+          {(showPRBanner && newPRs.length > 0) || (streakDays > 0 && !workoutCompletedToday && !streakBannerDismissed) ? (
+            <div style={{ padding: '0 16px', marginBottom: 10 }}>
+              {showPRBanner && newPRs.length > 0 ? (
+                <div style={{ background: 'linear-gradient(135deg, #0D2E5A, #0A1F3A)', border: '1px solid #4A9EFF', borderRadius: 12, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <p style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 700, margin: '0 0 1px' }}>🏆 New PR{newPRs.length > 1 ? 's' : ''}!</p>
+                    <p style={{ color: '#FFFFFF', fontSize: 13, margin: 0, fontWeight: 600 }}>{newPRs.slice(0, 2).join(', ')}{newPRs.length > 2 ? ` +${newPRs.length - 2} more` : ''}</p>
+                  </div>
+                  <button onClick={() => setShowPRBanner(false)} style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 20, cursor: 'pointer', padding: '0 0 0 12px', lineHeight: 1 }}>×</button>
                 </div>
               ) : (
-                <button
-                  onClick={handleGymCheckin}
-                  disabled={checkinLoading}
-                  style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                >
-                  {checkinLoading ? '…' : 'Check in →'}
-                </button>
+                <div style={{ background: 'linear-gradient(135deg, #1A1200, #221600)', border: '1px solid #F59E0B', borderRadius: 12, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <p style={{ color: '#F59E0B', fontSize: 13, fontWeight: 700, margin: 0 }}>🔥 {streakDays}-day streak — train today to keep it</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 10 }}>
+                    <button onClick={() => navigate('/workout')} style={{ background: '#F59E0B', border: 'none', borderRadius: 7, padding: '4px 10px', color: '#000', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Train now</button>
+                    <button onClick={() => setStreakBannerDismissed(true)} style={{ background: 'none', border: 'none', color: '#92700A', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}>×</button>
+                  </div>
+                </div>
               )}
             </div>
-            {liveAtGym.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {liveAtGym.slice(0, 5).map(u => (
-                  <span key={u.id} style={{
-                    background: u.isFriend ? '#0D2E5A' : '#1A2A42',
-                    border: u.isFriend ? '1px solid #4A9EFF' : 'none',
-                    color: u.isFriend ? '#4A9EFF' : '#7A8A9A',
-                    fontSize: 11,
-                    borderRadius: 20,
-                    padding: '3px 10px',
-                  }}>
-                    {u.name.split(' ')[0]}
-                  </span>
-                ))}
-                {liveAtGym.length > 5 && (
-                  <span style={{ color: '#5A7A9A', fontSize: 11, alignSelf: 'center' }}>+{liveAtGym.length - 5} more</span>
+          ) : null}
+
+          {/* ── Greeting + Level ────────────────────────────────────── */}
+          <div style={{ padding: '0 16px', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 1px' }}>{getGreeting()}</p>
+                <h1 style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{firstName}</h1>
+              </div>
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 20, padding: '5px 12px', flexShrink: 0 }}>
+                <span style={{ color: '#4A9EFF', fontSize: 11, fontWeight: 700 }}>
+                  Lv.{scores?.level ?? 1} {getLevelName(scores?.level ?? 1)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Streak + Weekly Calendar ─────────────────────────────── */}
+          <div style={{ padding: '0 16px', marginBottom: 12 }}>
+            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div>
+                    <span style={{ color: streakDays > 0 ? '#F59E0B' : '#2A3A52', fontSize: 20, fontWeight: 800 }}>
+                      🔥 {streakDays > 0 ? streakDays : '—'}
+                    </span>
+                    <span style={{ color: '#5A7A9A', fontSize: 11, marginLeft: 4 }}>day streak</span>
+                  </div>
+                  <div style={{ width: 1, height: 20, background: '#1A2A42' }} />
+                  <div>
+                    <span style={{ color: workoutsThisWeek >= 5 ? '#3BF0A0' : '#FFFFFF', fontSize: 18, fontWeight: 700 }}>
+                      {workoutsThisWeek}
+                      <span style={{ color: '#5A7A9A', fontSize: 13, fontWeight: 400 }}>/5</span>
+                    </span>
+                    <span style={{ color: '#5A7A9A', fontSize: 11, marginLeft: 5 }}>this week</span>
+                  </div>
+                </div>
+                {workoutsThisWeek >= 5 && (
+                  <span style={{ background: '#0D2E1A', border: '1px solid #1A5A34', borderRadius: 20, padding: '3px 10px', color: '#3BF0A0', fontSize: 11, fontWeight: 700 }}>Perfect week 🎯</span>
                 )}
               </div>
-            )}
-          </div>
-
-          {/* Score grid */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-            <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 16 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Strength Score</p>
-              <p style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{hasAnyWorkout ? strengthScore : '—'}</p>
-              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
-                {hasAnyWorkout ? 'Based on your training weights' : 'Complete your first workout to unlock'}
-              </p>
-            </div>
-
-            <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: 16 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Consistency</p>
-              <p style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{hasAnyWorkout ? `${consistencyScore}%` : '—'}</p>
-              <p style={{ color: isPerfectWeek ? '#4A9EFF' : '#5A7A9A', fontSize: 11, margin: 0, fontWeight: isPerfectWeek ? 700 : 400 }}>
-                {hasAnyWorkout ? (isPerfectWeek ? 'Perfect week 🔥' : `${streakDays} day streak`) : 'Complete your first workout to unlock'}
-              </p>
-            </div>
-          </div>
-
-          {/* Ascend Score */}
-          <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 16, padding: 16, marginBottom: 14 }}>
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Ascend Score</p>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
-              <p style={{ color: '#4A9EFF', fontSize: 36, fontWeight: 700, margin: 0 }}>{hasAnyWorkout ? displayedScore : '—'}</p>
-              {hasAnyWorkout && ascendScoreDelta !== null && ascendScoreDelta > 0 && (
-                <span style={{ color: '#3BF0A0', fontSize: 13, fontWeight: 600 }}>+{ascendScoreDelta} since last session</span>
+              <StreakDots days={weekDays} />
+              <div style={{ background: '#1A2A42', borderRadius: 4, height: 3, overflow: 'hidden', marginTop: 10 }}>
+                <div style={{ background: workoutsThisWeek >= 5 ? '#3BF0A0' : '#4A9EFF', height: '100%', width: `${Math.min((workoutsThisWeek / 5) * 100, 100)}%`, borderRadius: 4, transition: 'width 0.6s ease' }} />
+              </div>
+              {workoutsThisWeek === 0 && (
+                <p style={{ color: '#3A5A7A', fontSize: 11, margin: '8px 0 0', textAlign: 'center' }}>No workouts logged yet this week — your streak starts today</p>
               )}
             </div>
-            {!hasAnyWorkout ? (
-              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Complete your first workout to unlock</p>
-            ) : workoutsCompleted < 3 ? (
-              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
-                🔒 Campus rank unlocks after {3 - workoutsCompleted} more workout{3 - workoutsCompleted !== 1 ? 's' : ''}
-              </p>
-            ) : (
-              <>
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 10px' }}>
-                  Ranked <span style={{ color: '#FFFFFF' }}>#{campusRank > 0 ? campusRank : '—'}</span> on campus
-                  {rankDelta !== null && rankDelta !== 0 && (
-                    <> · <span style={{ color: rankDelta > 0 ? '#4A9EFF' : '#FF6B6B' }}>
-                      {rankDelta > 0 ? `↑ ${rankDelta}` : `↓ ${Math.abs(rankDelta)}`} spots
-                    </span></>
-                  )}
-                </p>
-                <div style={{ display: 'inline-block', background: '#0D2E5A', color: '#4A9EFF', fontSize: 10, borderRadius: 6, padding: '2px 8px' }}>
-                  {(() => {
-                    if (!totalUsers || campusRank <= 0) return 'Penn Campus'
-                    const pct = Math.ceil((campusRank / totalUsers) * 100)
-                    if (pct <= 5) return 'Top 5% · Penn Campus'
-                    if (pct <= 10) return 'Top 10% · Penn Campus'
-                    if (pct <= 15) return 'Top 15% · Penn Campus'
-                    if (pct <= 25) return 'Top 25% · Penn Campus'
-                    return 'Penn Campus'
-                  })()}
-                </div>
-              </>
-            )}
           </div>
 
-          {/* View history */}
-          <button
-            onClick={() => navigate('/history')}
-            style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: '0 0 14px', display: 'block' }}
-          >
-            View history →
-          </button>
+          {/* ── Ascend Score Hero ───────────────────────────────────── */}
+          <div style={{ padding: '0 16px', marginBottom: 12 }}>
+            <div style={{ position: 'relative', background: 'linear-gradient(135deg, #06111E 0%, #0A1F3A 60%, #081628 100%)', border: '1px solid #1A3558', borderRadius: 20, padding: '18px 20px 16px', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', right: -20, top: -20, opacity: 0.05, pointerEvents: 'none' }}>
+                <AscendBolt size={160} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                <div>
+                  <p style={{ color: '#3A5A7A', fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>Ascend Score</p>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ color: '#4A9EFF', fontSize: 52, fontWeight: 800, lineHeight: 1, letterSpacing: '-2px' }}>
+                      {displayedScore}
+                    </span>
+                    {ascendScoreDelta !== null && ascendScoreDelta > 0 && (
+                      <span style={{ color: '#3BF0A0', fontSize: 16, fontWeight: 700 }}>+{ascendScoreDelta}</span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', paddingBottom: 4 }}>
+                  {workoutsCompleted >= 3 && campusRank > 0 ? (
+                    <>
+                      <p style={{ color: '#4A9EFF', fontSize: 18, fontWeight: 800, margin: '0 0 2px', letterSpacing: '-0.5px' }}>#{campusRank}</p>
+                      <p style={{ color: '#3A5A7A', fontSize: 11, margin: 0 }}>at Penn</p>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ color: '#3A5A7A', fontSize: 11, margin: '0 0 2px' }}>🔒 rank</p>
+                      <p style={{ color: '#3A5A7A', fontSize: 10, margin: 0 }}>{3 - workoutsCompleted} more workout{3 - workoutsCompleted !== 1 ? 's' : ''}</p>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                {workoutsCompleted >= 3 && rankDelta !== null && rankDelta !== 0 && (
+                  <span style={{ background: rankDelta > 0 ? '#091E12' : '#1E0909', border: `1px solid ${rankDelta > 0 ? '#1A5A34' : '#5A1A1A'}`, borderRadius: 20, padding: '3px 10px', color: rankDelta > 0 ? '#3BF0A0' : '#FF6B6B', fontSize: 11, fontWeight: 700 }}>
+                    {rankDelta > 0 ? `↑${rankDelta} spots` : `↓${Math.abs(rankDelta)} spots`}
+                  </span>
+                )}
+                {workoutsCompleted >= 3 && totalUsers > 0 && campusRank > 0 && (() => {
+                  const pct = Math.ceil((campusRank / totalUsers) * 100)
+                  if (pct > 25) return null
+                  return (
+                    <span style={{ background: '#0A1F3A', border: '1px solid #1A3558', borderRadius: 20, padding: '3px 10px', color: '#4A9EFF', fontSize: 11, fontWeight: 600 }}>
+                      {pct <= 5 ? 'Top 5% 🔥' : pct <= 10 ? 'Top 10%' : 'Top 25%'}
+                    </span>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
 
-          {/* CTA */}
-          <button
-            onClick={() => navigate('/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
-            style={{
-              width: '100%',
-              background: workoutCompletedToday ? '#1A2A42' : '#4A9EFF',
-              color: workoutCompletedToday ? '#5A7A9A' : '#FFFFFF',
-              fontSize: 16,
-              fontWeight: 700,
-              borderRadius: 16,
-              padding: '18px',
-              border: 'none',
-              cursor: 'pointer',
-              marginBottom: 28,
-            }}
-          >
-            {workoutCompletedToday ? "Preview Tomorrow's Workout →" : "Generate Today's Workout →"}
-          </button>
-
-          {/* Compete teaser */}
-          <div
-            style={{
-              background: '#0A1F3A',
-              border: '1px solid #1E3D6E',
-              borderRadius: 14,
-              padding: 16,
-              marginBottom: 20,
-            }}
-          >
-            <p style={{ color: workoutsCompleted < 3 ? '#5A7A9A' : '#4A9EFF', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>
-              {workoutsCompleted < 3 ? `🔒 Rank unlocks after ${3 - workoutsCompleted} more workout${3 - workoutsCompleted !== 1 ? 's' : ''}` : `Campus Rank #${campusRank > 0 ? campusRank : '—'}`}
-            </p>
-            {bestChallenge && (
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 12px' }}>{bestChallenge}</p>
-            )}
+          {/* ── Primary CTA ─────────────────────────────────────────── */}
+          <div style={{ padding: '0 16px', marginBottom: 12 }}>
             <button
-              onClick={() => navigate('/compete')}
-              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              onClick={() => navigate('/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
+              style={{
+                width: '100%',
+                background: workoutCompletedToday ? '#0D1728' : '#4A9EFF',
+                color: workoutCompletedToday ? '#4A6A8A' : '#FFFFFF',
+                fontSize: 16, fontWeight: 800,
+                borderRadius: 16, padding: '17px',
+                border: workoutCompletedToday ? '1px solid #1A2A42' : 'none',
+                cursor: 'pointer',
+                letterSpacing: '-0.3px',
+                boxShadow: workoutCompletedToday ? 'none' : '0 4px 28px rgba(74,158,255,0.35)',
+              }}
             >
-              View leaderboards →
+              {workoutCompletedToday ? "✓ Done today · Preview Tomorrow →" : "Generate Today's Workout →"}
             </button>
           </div>
 
-          {/* Activity Feed */}
-          {activityFeed.length > 0 && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700 }}>Friend Activity</span>
+          {/* ── Gym Presence (always visible) ──────────────────────── */}
+          <div style={{ padding: '0 16px', marginBottom: 12 }}>
+            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: liveAtGym.length > 0 || isCheckedIn ? '#3BF0A0' : '#2A3A52', flexShrink: 0 }} />
+                  <span style={{ color: liveAtGym.length > 0 || isCheckedIn ? '#FFFFFF' : '#3A5A7A', fontSize: 13, fontWeight: 600 }}>
+                    {liveAtGym.length > 0 ? (() => {
+                      const friends = liveAtGym.filter(u => u.isFriend)
+                      if (friends.length > 0) {
+                        const first = friends[0].name.split(' ')[0]
+                        const others = liveAtGym.length - 1
+                        return others === 0 ? `${first} is at the gym 👊` : `${first} + ${others} other${others > 1 ? 's' : ''} at the gym`
+                      }
+                      return `${liveAtGym.length} ${liveAtGym.length === 1 ? 'person' : 'people'} at the gym now`
+                    })() : isCheckedIn ? "You're at the gym 💪" : 'Nobody here yet · Be the first'}
+                  </span>
+                </div>
+                {isCheckedIn ? (
+                  <button onClick={handleGymCheckout} disabled={checkinLoading} style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 7, color: '#5A7A9A', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '3px 10px', flexShrink: 0 }}>
+                    {checkinLoading ? '…' : 'Leave'}
+                  </button>
+                ) : (
+                  <button onClick={handleGymCheckin} disabled={checkinLoading} style={{ background: '#4A9EFF', border: 'none', borderRadius: 7, color: '#FFFFFF', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '4px 12px', flexShrink: 0 }}>
+                    {checkinLoading ? '…' : 'Check in'}
+                  </button>
+                )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+              {liveAtGym.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 9 }}>
+                  {liveAtGym.slice(0, 6).map(u => (
+                    <span key={u.id} style={{ background: u.isFriend ? '#0D2E5A' : '#1A2A42', border: u.isFriend ? '1px solid rgba(74,158,255,0.4)' : 'none', color: u.isFriend ? '#4A9EFF' : '#5A7A9A', fontSize: 11, borderRadius: 20, padding: '3px 10px' }}>
+                      {u.name.split(' ')[0]}
+                    </span>
+                  ))}
+                  {liveAtGym.length > 6 && <span style={{ color: '#3A5A7A', fontSize: 11, alignSelf: 'center' }}>+{liveAtGym.length - 6}</span>}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Activity Feed ────────────────────────────────────────── */}
+          <div style={{ padding: '0 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>
+                {activityFeed.length > 0 ? 'Friend Activity' : campusActivity.length > 0 ? 'Happening at Penn' : 'Activity'}
+              </p>
+              {activityFeed.length === 0 && campusActivity.length === 0 && (
+                <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Find people →</button>
+              )}
+            </div>
+
+            {activityFeed.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {activityFeed.map(item => (
-                  <div
-                    key={item.id}
-                    onClick={() => navigate(`/profile/${item.userId}`)}
-                    style={{
-                      background: '#0D1728',
-                      border: '1px solid #1A2A42',
-                      borderRadius: 14,
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{
-                      width: 36, height: 36, borderRadius: '50%',
-                      background: '#1A2A42',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#4A9EFF', fontSize: 12, fontWeight: 700, flexShrink: 0,
-                    }}>
+                  <div key={item.id} onClick={() => navigate(`/profile/${item.userId}`)} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '11px 13px', display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                       {item.initials}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{item.userName}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{item.userName}</p>
+                        {item.gymVerified && <span style={{ color: '#3BF0A0', fontSize: 10, fontWeight: 700 }}>📍</span>}
+                      </div>
+                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.description} · {item.time}
-                        {item.gymVerified && <span style={{ color: '#3BF0A0', marginLeft: 6, fontSize: 11, fontWeight: 600 }}>📍 Verified</span>}
                       </p>
                     </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleKudos(item) }}
-                      disabled={item.userGaveKudos}
-                      style={{
-                        background: item.userGaveKudos ? '#0D2E5A' : 'transparent',
-                        border: `1px solid ${item.userGaveKudos ? '#4A9EFF' : '#1A2A42'}`,
-                        borderRadius: 8,
-                        padding: '4px 10px',
-                        color: item.userGaveKudos ? '#4A9EFF' : '#5A7A9A',
-                        fontSize: 12,
-                        cursor: item.userGaveKudos ? 'default' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        flexShrink: 0,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      👊 {item.kudosCount > 0 ? item.kudosCount : 'Kudos'}
+                    <button onClick={e => { e.stopPropagation(); handleKudos(item) }} disabled={item.userGaveKudos} style={{ background: item.userGaveKudos ? '#0D2E5A' : 'transparent', border: `1px solid ${item.userGaveKudos ? '#1A4A8A' : '#1A2A42'}`, borderRadius: 8, padding: '4px 10px', color: item.userGaveKudos ? '#4A9EFF' : '#5A7A9A', fontSize: 12, cursor: item.userGaveKudos ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                      👊 {item.kudosCount > 0 ? item.kudosCount : ''}
                     </button>
                   </div>
                 ))}
               </div>
-            </>
-          )}
-
-          {/* Campus activity fallback for users without friends */}
-          {activityFeed.length === 0 && campusActivity.length > 0 && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700 }}>Happening at Penn</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                {campusActivity.map(item => (
-                  <div
-                    key={item.id}
-                    onClick={() => navigate(`/profile/${item.userId}`)}
-                    style={{
-                      background: '#0D1728',
-                      border: '1px solid #1A2A42',
-                      borderRadius: 14,
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{
-                      width: 36, height: 36, borderRadius: '50%',
-                      background: '#1A2A42',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#5A7A9A', fontSize: 12, fontWeight: 700, flexShrink: 0,
-                    }}>
-                      {item.initials}
+            ) : campusActivity.length > 0 ? (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                  {campusActivity.map(item => (
+                    <div key={item.id} onClick={() => navigate(`/profile/${item.userId}`)} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '11px 13px', display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5A7A9A', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                        {item.initials}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 1px' }}>{item.userName}</p>
+                        <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{item.description} · {item.time}</p>
+                      </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{item.userName}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{item.description} · {item.time}</p>
-                    </div>
-                  </div>
-                ))}
-                <p style={{ color: '#5A7A9A', fontSize: 11, margin: '4px 0 0', textAlign: 'center' }}>
-                  Add friends on Profile to see their activity here
+                  ))}
+                </div>
+                <p style={{ color: '#3A5A7A', fontSize: 12, margin: 0, textAlign: 'center' }}>
+                  Add friends on{' '}
+                  <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Profile</button>
+                  {' '}to see their workouts here
                 </p>
+              </>
+            ) : (
+              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '24px 20px', textAlign: 'center' }}>
+                <p style={{ color: '#2A3A52', fontSize: 28, margin: '0 0 10px' }}>🏃</p>
+                <p style={{ color: '#3A5A7A', fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>No activity yet</p>
+                <p style={{ color: '#2A3A52', fontSize: 12, margin: '0 0 14px', lineHeight: 1.5 }}>
+                  Your friends' workouts appear here once you connect with people. Find classmates on Profile.
+                </p>
+                <button onClick={() => navigate('/profile')} style={{ background: '#0A1F3A', border: '1px solid #1A3558', borderRadius: 10, padding: '8px 18px', color: '#4A9EFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  Find people →
+                </button>
               </div>
-            </>
-          )}
+            )}
+          </div>
 
         </div>
       </div>

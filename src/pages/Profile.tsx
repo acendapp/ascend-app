@@ -271,6 +271,7 @@ export default function Profile() {
   const [workoutsLast30Days, setWorkoutsLast30Days] = useState(0)
 
   const [campusRank, setCampusRank] = useState(0)
+  const [shareCopied, setShareCopied] = useState(false)
 
   interface ProfileGroup { group_id: string; role: 'admin' | 'member'; name: string }
   const [myProfileGroups, setMyProfileGroups] = useState<ProfileGroup[]>([])
@@ -658,6 +659,29 @@ export default function Profile() {
               </>
             )}
           </div>
+
+          {/* ── Share Ascend Score ── */}
+          <button
+            onClick={async () => {
+              const shareText = `I'm ranked #${campusRank > 0 ? campusRank : '?'} at Penn on Ascend — Score: ${ascendScore}. Train with me: ${window.location.origin}/profile/${profile.id}`
+              if (navigator.share) {
+                try { await navigator.share({ title: 'Ascend', text: shareText }) } catch { /* dismissed */ }
+              } else {
+                await navigator.clipboard.writeText(shareText)
+                setShareCopied(true)
+                setTimeout(() => setShareCopied(false), 2000)
+              }
+            }}
+            style={{
+              width: '100%', background: '#0D1728', border: '1px solid #1A2A42',
+              borderRadius: 14, padding: '14px 16px', marginBottom: 14,
+              color: shareCopied ? '#3BF0A0' : '#4A9EFF',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            {shareCopied ? '✓ Link copied' : '↗ Share your Ascend Score'}
+          </button>
 
           {/* ── Streak ── */}
           <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>

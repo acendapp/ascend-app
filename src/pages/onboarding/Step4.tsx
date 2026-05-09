@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
 const DURATIONS = [
-  { value: '30', label: '30 min', sub: 'Quick & focused' },
-  { value: '45', label: '45 min', sub: 'Efficient' },
-  { value: '60', label: '60 min', sub: 'Standard' },
-  { value: '75', label: '75+ min', sub: 'Full sessions' },
+  { value: '30', label: '30 min' },
+  { value: '45', label: '45 min' },
+  { value: '60', label: '60 min' },
+  { value: '75', label: '75+ min' },
 ]
 
 const LIMITATIONS = [
@@ -17,19 +17,6 @@ const LIMITATIONS = [
   { value: 'hips', label: 'Hips' },
   { value: 'none', label: 'None' },
 ]
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  background: '#0D1728',
-  border: '1px solid #1A2A42',
-  borderRadius: 12,
-  padding: '13px 16px',
-  color: '#FFFFFF',
-  fontSize: 14,
-  outline: 'none',
-  fontFamily: 'inherit',
-  boxSizing: 'border-box',
-}
 
 function savedLimitations(): string[] {
   try { return JSON.parse(localStorage.getItem('onboarding_limitations') ?? '[]') as string[] } catch { return [] }
@@ -79,37 +66,51 @@ export default function Step4() {
     }
   }
 
+  const sectionLabel: React.CSSProperties = {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 700,
+    margin: '0 0 12px',
+  }
+
+  const sectionSub: React.CSSProperties = {
+    color: '#8895A7',
+    fontSize: 12,
+    fontWeight: 400,
+    marginLeft: 6,
+  }
+
   return (
     <div className="app-shell">
       <div className="app-content onboarding-scroll">
 
-        {/* Progress pills */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
+        {/* Progress — all 4 filled */}
+        <div style={{ display: 'flex', gap: 5, margin: '-16px -20px 36px' }}>
           {[1, 2, 3, 4].map(i => (
-            <div key={i} style={{ flex: 1, height: 3, borderRadius: 99, background: '#4A9EFF', transition: 'background 0.3s' }} />
+            <div key={i} style={{ flex: 1, height: 3, background: '#4A9EFF' }} />
           ))}
         </div>
 
-        <p style={{ color: '#4A9EFF', fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 10px' }}>
-          STEP 4 OF 4 · OPTIONAL
-        </p>
-        <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 8px', lineHeight: 1.2 }}>
-          A little more about you
-        </h1>
-        <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 12px', lineHeight: 1.5 }}>
-          Helps us fine-tune your plan even further.
+        <p style={{ color: '#2E4A6A', fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', margin: '0 0 16px', textTransform: 'uppercase' }}>
+          4 / 4 · Optional
         </p>
 
-        <div style={{ background: '#0A1F0A', border: '1px solid #1A3A1A', borderRadius: 8, padding: '6px 10px', margin: '0 0 24px', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <h1 style={{ color: '#FFFFFF', fontSize: 30, fontWeight: 800, margin: '0 0 12px', lineHeight: 1.15, letterSpacing: '-0.5px' }}>
+          Fine-tune your program
+        </h1>
+        <p style={{ color: '#8895A7', fontSize: 15, margin: '0 0 8px', lineHeight: 1.6 }}>
+          Skip anything that doesn't apply. You can always update this in settings.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 36 }}>
           <span style={{ fontSize: 11 }}>🔒</span>
-          <span style={{ color: '#5A9A5A', fontSize: 11 }}>Optional and private — only used to personalize your program</span>
+          <span style={{ color: '#3A5A7A', fontSize: 11 }}>Private — only used to personalize your plan</span>
         </div>
 
         {/* Workout duration */}
-        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 10px' }}>
-          How long do you want your workouts to be?
+        <p style={sectionLabel}>
+          How long do you want your sessions? <span style={sectionSub}>Optional</span>
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
           {DURATIONS.map(opt => {
             const active = duration === opt.value
             return (
@@ -117,39 +118,16 @@ export default function Step4() {
                 key={opt.value}
                 onClick={() => setDuration(active ? null : opt.value)}
                 style={{
-                  background: active ? '#0D1F3A' : '#0D1728',
-                  border: `2px solid ${active ? '#4A9EFF' : '#1A2A42'}`,
-                  borderRadius: 14, padding: '14px 12px',
-                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                  cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all 0.15s',
-                }}
-              >
-                <span style={{ color: active ? '#FFFFFF' : '#BBCDE0', fontSize: 16, fontWeight: 700 }}>{opt.label}</span>
-                <span style={{ color: '#5A7A9A', fontSize: 11, marginTop: 2 }}>{opt.sub}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Injuries / limitations */}
-        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 4px' }}>
-          Any injuries or areas to work around?
-        </p>
-        <p style={{ color: '#5A7A9A', fontSize: 11, margin: '0 0 10px' }}>Select all that apply</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-          {LIMITATIONS.map(opt => {
-            const active = limitations.includes(opt.value)
-            return (
-              <button
-                key={opt.value}
-                onClick={() => toggleLimitation(opt.value)}
-                style={{
-                  background: active ? '#0D1F3A' : '#0D1728',
-                  border: `1.5px solid ${active ? '#4A9EFF' : '#1A2A42'}`,
-                  borderRadius: 20, padding: '8px 14px',
-                  color: active ? '#FFFFFF' : '#BBCDE0',
-                  fontSize: 13, fontWeight: active ? 600 : 400,
-                  cursor: 'pointer', transition: 'all 0.15s',
+                  flex: 1,
+                  background: active ? 'rgba(74,158,255,0.1)' : 'transparent',
+                  border: `1px solid ${active ? '#4A9EFF' : '#1E2E44'}`,
+                  borderRadius: 10,
+                  padding: '12px 4px',
+                  color: active ? '#FFFFFF' : '#8895A7',
+                  fontSize: 13,
+                  fontWeight: active ? 700 : 400,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
                 }}
               >
                 {opt.label}
@@ -158,33 +136,112 @@ export default function Step4() {
           })}
         </div>
 
-        {/* Height */}
-        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>
-          Height <span style={{ color: '#5A7A9A', fontWeight: 400 }}>(optional)</span>
+        {/* Injuries */}
+        <p style={sectionLabel}>
+          Any injuries to work around? <span style={sectionSub}>Optional</span>
         </p>
-        <div style={{ marginBottom: 14 }}>
-          <input type="text" placeholder="e.g. 5'11 or 180cm" value={height} onChange={e => setHeight(e.target.value)} style={inputStyle} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 32 }}>
+          {LIMITATIONS.map(opt => {
+            const active = limitations.includes(opt.value)
+            return (
+              <button
+                key={opt.value}
+                onClick={() => toggleLimitation(opt.value)}
+                style={{
+                  background: active ? 'rgba(74,158,255,0.1)' : 'transparent',
+                  border: `1px solid ${active ? '#4A9EFF' : '#1E2E44'}`,
+                  borderRadius: 20,
+                  padding: '9px 16px',
+                  color: active ? '#FFFFFF' : '#8895A7',
+                  fontSize: 13,
+                  fontWeight: active ? 600 : 400,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {opt.label}
+              </button>
+            )
+          })}
         </div>
 
-        {/* Weight */}
-        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>
-          Weight <span style={{ color: '#5A7A9A', fontWeight: 400 }}>(optional)</span>
-        </p>
-        <div style={{ marginBottom: 32 }}>
-          <input type="text" placeholder="e.g. 165 lbs or 75 kg" value={weight} onChange={e => setWeight(e.target.value)} style={inputStyle} />
+        {/* Height & Weight */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 40 }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ ...sectionLabel, marginBottom: 8 }}>Height <span style={sectionSub}>opt.</span></p>
+            <input
+              type="text"
+              placeholder="5'11 or 180cm"
+              value={height}
+              onChange={e => setHeight(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: '1px solid #1E2E44',
+                borderRadius: 10,
+                padding: '12px 14px',
+                color: '#FFFFFF',
+                fontSize: 14,
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ ...sectionLabel, marginBottom: 8 }}>Weight <span style={sectionSub}>opt.</span></p>
+            <input
+              type="text"
+              placeholder="165 lbs or 75kg"
+              value={weight}
+              onChange={e => setWeight(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: '1px solid #1E2E44',
+                borderRadius: 10,
+                padding: '12px 14px',
+                color: '#FFFFFF',
+                fontSize: 14,
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
         </div>
 
         <button
           onClick={() => finish(false)}
           disabled={saving}
-          style={{ width: '100%', background: '#4A9EFF', color: '#FFFFFF', fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: 'pointer', marginBottom: 8 }}
+          style={{
+            width: '100%',
+            background: '#4A9EFF',
+            color: '#FFFFFF',
+            fontSize: 16,
+            fontWeight: 700,
+            borderRadius: 14,
+            padding: '17px',
+            border: 'none',
+            cursor: saving ? 'not-allowed' : 'pointer',
+            marginBottom: 4,
+            letterSpacing: '0.2px',
+          }}
         >
           {saving ? 'One moment…' : 'Build My Program →'}
         </button>
         <button
           onClick={() => finish(true)}
           disabled={saving}
-          style={{ width: '100%', background: 'transparent', border: 'none', color: '#5A7A9A', fontSize: 14, padding: '14px', cursor: 'pointer' }}
+          style={{
+            width: '100%',
+            background: 'transparent',
+            border: 'none',
+            color: '#3A5A7A',
+            fontSize: 14,
+            padding: '15px',
+            cursor: 'pointer',
+          }}
         >
           Skip for now →
         </button>

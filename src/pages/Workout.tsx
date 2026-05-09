@@ -184,6 +184,7 @@ function ExerciseCard({
   savedWeights,
   isPreview,
   onCompleteSet,
+  onDecrementSet,
   onSkipRest,
   onSwap,
   onEditSet,
@@ -199,6 +200,7 @@ function ExerciseCard({
   savedWeights: Record<string, number>
   isPreview?: boolean
   onCompleteSet: (setIdx: number, weight: number | null) => void
+  onDecrementSet: () => void
   onSkipRest: () => void
   onSwap: () => void
   onEditSet: (setIdx: number, weight: number) => void
@@ -387,6 +389,20 @@ function ExerciseCard({
         <span style={{ color: '#5A7A9A', fontSize: 10, marginLeft: 4, marginTop: 8 }}>
           · {Math.round(exercise.rest_seconds / 60)}m rest
         </span>
+        {completedSets > 0 && !isPreview && (
+          <button
+            onClick={e => { e.stopPropagation(); onDecrementSet() }}
+            title="Undo last set"
+            style={{
+              marginLeft: 'auto', marginTop: 4,
+              background: 'none', border: '1px solid #1A2A42',
+              borderRadius: 6, padding: '2px 8px',
+              color: '#5A7A9A', fontSize: 11, cursor: 'pointer',
+            }}
+          >
+            undo
+          </button>
+        )}
       </div>
 
       {/* Inline weight input — new set */}
@@ -560,6 +576,7 @@ export default function Workout() {
   const [feedbackRating, setFeedbackRating] = useState<number | null>(null)
   const [finishing, setFinishing] = useState(false)
   const [finishError, setFinishError] = useState<string | null>(null)
+  const [showEndEarly, setShowEndEarly] = useState(false)
   const [soreMuscles, setSoreMuscles] = useState<string[]>([])
   const [injuredMuscles, setInjuredMuscles] = useState<string[]>([])
   const [showMethodIntro, setShowMethodIntro] = useState(() =>
@@ -696,6 +713,14 @@ export default function Workout() {
     }
   }
 
+  function handleDecrementSet(key: string) {
+    setCompletedSets(prev => {
+      const current = prev[key] ?? 0
+      if (current <= 0) return prev
+      return { ...prev, [key]: current - 1 }
+    })
+  }
+
   function handleEditSet(key: string, setIdx: number, weight: number) {
     setSetWeights(prev => ({ ...prev, [`${key}_${setIdx}`]: weight }))
   }
@@ -709,12 +734,15 @@ export default function Workout() {
     try {
       const soreLabels = soreMuscles.map(id => MUSCLE_ZONE_LABELS[id] ?? id)
       const injuredLabels = injuredMuscles.map(id => MUSCLE_ZONE_LABELS[id] ?? id)
+      const durationPref = parseInt(localStorage.getItem('onboarding_workout_duration') ?? '60', 10)
+      const workoutDuration = isNaN(durationPref) ? 60 : durationPref
       const result = await generateWorkout({
         userId: profile.id,
         goal: profile.goal,
         experience_level: profile.experience_level,
         equipment: profile.equipment,
         recovery_score: score,
+        workoutDuration,
         firstSessionType: firstSessionType ?? undefined,
         sore_muscles: soreLabels.length > 0 ? soreLabels : undefined,
         injured_muscles: injuredLabels.length > 0 ? injuredLabels : undefined,
@@ -1118,7 +1146,7 @@ export default function Workout() {
 
   if (phase === 'recovery') {
     const recoveryOptions = [
-      { score: 3, emoji: '😴', label: 'Rough', sub: 'Lighter load · Focus on form' },
+      { score: 3, emoji: '🪫', label: 'Rough', sub: 'Lighter load · Focus on form' },
       { score: 5, emoji: '💪', label: 'Decent', sub: 'Standard training today' },
       { score: 8, emoji: '🔥', label: 'Feeling great', sub: 'Extra sets · Push harder' },
     ]
@@ -1417,6 +1445,13 @@ export default function Workout() {
         <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '60px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ marginBottom: 12 }}><AscendBolt size={72} /></div>
+            <div style={{
+              background: '#0A2A1A', border: '1px solid #22C55E',
+              borderRadius: 20, padding: '5px 14px', marginBottom: 16,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{ color: '#22C55E', fontSize: 11, fontWeight: 700 }}>✓ Saved to your history</span>
+            </div>
             <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Workout Complete
             </p>
@@ -1537,14 +1572,59 @@ export default function Workout() {
     <div className="app-shell">
       <div className="app-content page-scroll">
 
-        {/* Fixed workout timer */}
-        <div style={{
-          position: 'fixed', top: 16, right: 20, zIndex: 50,
-          background: '#0D1728', border: '1px solid #1A2A42',
-          borderRadius: 8, padding: '4px 10px',
-        }}>
-          <span style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700 }}>{fmtTime(elapsedSeconds)}</span>
+        {/* Fixed workout timer + end early */}
+        <div style={{ position: 'fixed', top: 16, right: 20, zIndex: 50, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => setShowEndEarly(true)}
+            style={{
+              background: '#0D1728', border: '1px solid #1A2A42',
+              borderRadius: 8, padding: '4px 10px',
+              color: '#5A7A9A', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            End early
+          </button>
+          <div style={{
+            background: '#0D1728', border: '1px solid #1A2A42',
+            borderRadius: 8, padding: '4px 10px',
+          }}>
+            <span style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700 }}>{fmtTime(elapsedSeconds)}</span>
+          </div>
         </div>
+
+        {/* End early confirmation modal */}
+        {showEndEarly && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+          }}>
+            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 20, padding: 28, width: '100%', maxWidth: 320 }}>
+              <p style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 700, margin: '0 0 8px', textAlign: 'center' }}>End workout early?</p>
+              <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 24px', textAlign: 'center', lineHeight: 1.5 }}>All completed sets will be saved and counted toward your score.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  onClick={() => { setShowEndEarly(false); handleFinish() }}
+                  style={{
+                    background: '#4A9EFF', border: 'none', borderRadius: 12,
+                    padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >
+                  Save &amp; End
+                </button>
+                <button
+                  onClick={() => setShowEndEarly(false)}
+                  style={{
+                    background: 'none', border: '1px solid #1A2A42', borderRadius: 12,
+                    padding: '14px', color: '#5A7A9A', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  Keep going
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ padding: '52px 20px 0' }}>
 
@@ -1574,7 +1654,7 @@ export default function Workout() {
             {workout.session_label}
           </h1>
           <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 16px' }}>
-            {workout.main_work.length + workout.finisher.length} exercises · Est. 60 min
+            {workout.main_work.length + workout.finisher.length} exercises · Est. {parseInt(localStorage.getItem('onboarding_workout_duration') ?? '60', 10) || 60} min
           </p>
 
           <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 24 }}>
@@ -1604,7 +1684,7 @@ export default function Workout() {
 
           {/* Main work */}
           <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
-            Main Work · 40 min
+            Main Work · {Math.max(5, (parseInt(localStorage.getItem('onboarding_workout_duration') ?? '60', 10) || 60) - 20)} min
           </p>
           {workout.main_work.map((ex, i) => {
             const key = `main_${i}`
@@ -1622,6 +1702,7 @@ export default function Workout() {
                 savedWeights={setWeights}
                 isPreview={isPreview}
                 onCompleteSet={(setIdx, weight) => handleCompleteSet(key, setIdx, weight, ex.sets)}
+                onDecrementSet={() => handleDecrementSet(key)}
                 onSkipRest={() => { if (timerRef.current) clearInterval(timerRef.current); setActiveRest(null) }}
                 onSwap={() => handleSwap(key, ex)}
                 onEditSet={(setIdx, weight) => handleEditSet(key, setIdx, weight)}
@@ -1661,6 +1742,7 @@ export default function Workout() {
                     savedWeights={setWeights}
                     isPreview={isPreview}
                     onCompleteSet={(setIdx, weight) => handleCompleteSet(key, setIdx, weight, ex.sets)}
+                    onDecrementSet={() => handleDecrementSet(key)}
                     onSkipRest={() => { if (timerRef.current) clearInterval(timerRef.current); setActiveRest(null) }}
                     onSwap={() => handleSwap(key, ex)}
                     onEditSet={(setIdx, weight) => handleEditSet(key, setIdx, weight)}

@@ -35,6 +35,7 @@ export interface WorkoutInput {
   experience_level: string | null
   equipment: string | null
   recovery_score: number
+  workoutDuration?: number
   firstSessionType?: string
   sore_muscles?: string[]
   injured_muscles?: string[]
@@ -233,8 +234,17 @@ function parseJSON<T>(raw: string): T {
 
 const FIRST_SESSION_INSIGHT = "Welcome to your first Ascend workout. We've built this session around your goal and will personalize it further as you log more sessions."
 
+function mainExerciseCount(durationMin: number): number {
+  if (durationMin <= 30) return 2
+  if (durationMin <= 45) return 3
+  if (durationMin >= 75) return 5
+  return 4
+}
+
 export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWorkout> {
-  const { userId, goal, experience_level, equipment, recovery_score, firstSessionType, sore_muscles, injured_muscles } = input
+  const { userId, goal, experience_level, equipment, recovery_score, workoutDuration, firstSessionType, sore_muscles, injured_muscles } = input
+  const totalMin = workoutDuration ?? 60
+  const mainCount = mainExerciseCount(totalMin)
 
   const [hoursSince, previousWeights, detailedHistory] = await Promise.all([
     getRecentMuscleHoursSince(userId),
@@ -269,7 +279,7 @@ export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWor
     ? `\nINJURED muscles (COMPLETELY EXCLUDE — zero exercises targeting these): ${injured_muscles.join(', ')}`
     : ''
 
-  const prompt = `Design a 60-minute workout for this athlete:
+  const prompt = `Design a ${totalMin}-minute workout for this athlete:
 
 Goal: ${goal ?? 'general fitness'}
 Experience: ${experience_level ?? 'beginner'}
@@ -326,7 +336,7 @@ Return ONLY valid JSON matching this exact structure:
   ]
 }
 
-main_work: exactly 4 exercises. finisher: exactly 2 exercises. warmup: exactly 3 movements.`
+main_work: exactly ${mainCount} exercises. finisher: exactly 2 exercises. warmup: exactly 3 movements.`
 
   const raw = await callAnthropic(prompt)
   const result = parseJSON<GeneratedWorkout>(raw)
