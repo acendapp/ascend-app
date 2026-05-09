@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import AscendBolt from '../components/AscendBolt'
+import BodyDiagram, { MUSCLE_ZONE_LABELS } from '../components/BodyDiagram'
 import { supabase } from '../lib/supabase'
 import { generateWorkout, suggestSubstitution, parseReps } from '../lib/workout-generator'
 import type { GeneratedWorkout, ExerciseItem } from '../lib/workout-generator'
@@ -16,7 +17,7 @@ import { notificationPermission, requestPushPermission } from '../lib/notificati
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Phase = 'session-picker' | 'recovery' | 'loading' | 'workout' | 'error' | 'summary' | 'pr-celebration' | 'celebration'
+type Phase = 'session-picker' | 'recovery' | 'soreness' | 'injury' | 'loading' | 'workout' | 'error' | 'summary' | 'pr-celebration' | 'celebration'
 
 interface SummaryData {
   sessionLabel: string
@@ -557,6 +558,10 @@ export default function Workout() {
   const [showTwoHourModal, setShowTwoHourModal] = useState(false)
   const [currentWorkoutId, setCurrentWorkoutId] = useState<string | null>(null)
   const [feedbackRating, setFeedbackRating] = useState<number | null>(null)
+  const [finishing, setFinishing] = useState(false)
+  const [finishError, setFinishError] = useState<string | null>(null)
+  const [soreMuscles, setSoreMuscles] = useState<string[]>([])
+  const [injuredMuscles, setInjuredMuscles] = useState<string[]>([])
   const [showMethodIntro, setShowMethodIntro] = useState(() =>
     !isPreview && !loadSession() && !localStorage.getItem('ascend_method_intro_seen')
   )
@@ -702,6 +707,8 @@ export default function Workout() {
     setPhase('loading')
     setLoadingMsgIdx(0)
     try {
+      const soreLabels = soreMuscles.map(id => MUSCLE_ZONE_LABELS[id] ?? id)
+      const injuredLabels = injuredMuscles.map(id => MUSCLE_ZONE_LABELS[id] ?? id)
       const result = await generateWorkout({
         userId: profile.id,
         goal: profile.goal,
@@ -709,6 +716,8 @@ export default function Workout() {
         equipment: profile.equipment,
         recovery_score: score,
         firstSessionType: firstSessionType ?? undefined,
+        sore_muscles: soreLabels.length > 0 ? soreLabels : undefined,
+        injured_muscles: injuredLabels.length > 0 ? injuredLabels : undefined,
       })
       clearSession()
       startTimeRef.current = Date.now()
@@ -753,169 +762,187 @@ export default function Workout() {
   }
 
   async function handleFinish() {
-    if (!workout || !profile) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const duration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 60000))
-    const isGymVerified = profile?.gym_checkin_at
-      ? new Date(profile.gym_checkin_at).getTime() > Date.now() - 2 * 60 * 60 * 1000
-      : false
-
-    const { data: workoutRecord, error: wErr } = await supabase
-      .from('workouts')
-      .insert({ user_id: user.id, workout_date: new Date().toISOString(), workout_type: workout.session_label, duration, completed: true, gym_verified: isGymVerified })
-      .select()
-      .single()
-    if (workoutRecord) setCurrentWorkoutId(workoutRecord.id as string)
-    setFeedbackRating(null)
-
-    if (wErr || !workoutRecord) { console.error('Workout save error:', wErr); navigate('/home'); return }
-
-    const allExercises = [
-      ...workout.main_work.map((ex, i) => ({ ex, key: `main_${i}` })),
-      ...workout.finisher.map((ex, i) => ({ ex, key: `finisher_${i}` })),
-    ]
-
-    const newPRs: string[] = []
-    let exercisesCompleted = 0
-    let totalVolume = 0
-
-    for (const { ex, key } of allExercises) {
-      const sets = completedSets[key] ?? 0
-      if (sets === 0) continue
-      exercisesCompleted++
-
-      const bw = isBodyweightExercise(ex)
-      const weight = bw ? 0 : getWeightForKey(key, sets, setWeights, ex.suggested_weight)
-      const reps = parseReps(ex.reps)
-      if (!bw && weight > 0) totalVolume += weight * reps * sets
-
-      await supabase.from('exercise_logs').insert({
-        workout_id: workoutRecord.id,
-        exercise_name: ex.exercise_name,
-        sets,
-        reps,
-        weight: Math.round(weight),
-        completed: true,
-      })
-
-      if (!bw && weight > 0) {
-        const { data: best } = await supabase
-          .from('personal_records')
-          .select('weight')
-          .eq('user_id', user.id)
-          .eq('exercise_name', ex.exercise_name)
-          .order('weight', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        if (!best || Math.round(weight) > best.weight) {
-          await supabase.from('personal_records').insert({
-            user_id: user.id,
-            exercise_name: ex.exercise_name,
-            weight: Math.round(weight),
-          })
-          newPRs.push(ex.exercise_name)
-        }
-      }
-    }
-
-    // Recalculate and persist all scores, XP, level, and streak
-    let xpGain = 50
-    let leveledUp = false
-    let newLevel = 1
+    if (!workout || finishing) return
+    setFinishing(true)
+    setFinishError(null)
     try {
-      const DEFAULT_BODYWEIGHT_KG = 80
+      const { data: { user }, error: authErr } = await supabase.auth.getUser()
+      if (authErr || !user) { navigate('/auth'); return }
 
-      const { data: allWorkoutIds } = await supabase
-        .from('workouts').select('id').eq('user_id', user.id).eq('completed', true)
-      const wids = (allWorkoutIds ?? []).map(w => w.id as string)
-      let strengthScore = 0
-      if (wids.length > 0) {
-        const { data: allLogs } = await supabase
-          .from('exercise_logs').select('exercise_name, weight').in('workout_id', wids).gt('weight', 0)
-        if (allLogs && allLogs.length > 0) {
-          const bestMap = new Map<string, number>()
-          for (const l of allLogs) {
-            const cur = bestMap.get(l.exercise_name as string) ?? 0
-            if ((l.weight as number) > cur) bestMap.set(l.exercise_name as string, l.weight as number)
+      const duration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 60000))
+
+      const { data: workoutRecord, error: wErr } = await supabase
+        .from('workouts')
+        .insert({ user_id: user.id, workout_date: new Date().toISOString(), workout_type: workout.session_label, duration, completed: true })
+        .select()
+        .single()
+      if (workoutRecord) setCurrentWorkoutId(workoutRecord.id as string)
+      setFeedbackRating(null)
+
+      if (wErr || !workoutRecord) {
+        console.error('Workout save error:', wErr)
+        setFinishError('Could not save your workout. Check your connection and try again.')
+        return
+      }
+
+      const allExercises = [
+        ...workout.main_work.map((ex, i) => ({ ex, key: `main_${i}` })),
+        ...workout.finisher.map((ex, i) => ({ ex, key: `finisher_${i}` })),
+      ]
+
+      const newPRs: string[] = []
+      let exercisesCompleted = 0
+      let totalVolume = 0
+
+      for (const { ex, key } of allExercises) {
+        const sets = completedSets[key] ?? 0
+        if (sets === 0) continue
+        exercisesCompleted++
+
+        const bw = isBodyweightExercise(ex)
+        const weight = bw ? 0 : getWeightForKey(key, sets, setWeights, ex.suggested_weight)
+        const reps = parseReps(ex.reps)
+        if (!bw && weight > 0) totalVolume += weight * reps * sets
+
+        const { error: logErr } = await supabase.from('exercise_logs').insert({
+          workout_id: workoutRecord.id,
+          exercise_name: ex.exercise_name,
+          sets,
+          reps,
+          weight: Math.round(weight),
+        })
+        if (logErr) console.error('Exercise log insert error:', logErr)
+
+        if (!bw && weight > 0) {
+          try {
+            const { data: best } = await supabase
+              .from('personal_records')
+              .select('weight')
+              .eq('user_id', user.id)
+              .eq('exercise_name', ex.exercise_name)
+              .order('weight', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+
+            if (!best || Math.round(weight) > best.weight) {
+              await supabase.from('personal_records').insert({
+                user_id: user.id,
+                exercise_name: ex.exercise_name,
+                weight: Math.round(weight),
+              })
+              newPRs.push(ex.exercise_name)
+            }
+          } catch (prErr) {
+            console.error('PR check/insert error:', prErr)
           }
-          strengthScore = calculateStrengthScoreFromLogs(
-            Array.from(bestMap.values()).map(w => ({ weight: w })),
-            DEFAULT_BODYWEIGHT_KG
-          )
         }
       }
 
-      const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-      const { count: count30 } = await supabase
-        .from('workouts').select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id).eq('completed', true).gte('workout_date', thirtyAgo)
-      const consistencyScore = calculateConsistencyScore(count30 ?? 0)
-
-      const { data: curScores } = await supabase
-        .from('user_scores').select('social_score, streak_days, xp, level').eq('user_id', user.id).maybeSingle()
-      const socialScore = curScores?.social_score ?? 0
-      const currentXP = curScores?.xp ?? 0
-      const currentLevel = curScores?.level ?? 1
-
-      // Streak with 2-day buffer — miss up to 2 days before losing your streak
-      const todayStr = new Date().toISOString().split('T')[0]
-      const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-      const twoDaysAgoStr = new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0]
-      const { data: prevWorkout } = await supabase
-        .from('workouts').select('workout_date').eq('user_id', user.id).eq('completed', true)
-        .neq('id', workoutRecord.id).order('workout_date', { ascending: false }).limit(1).maybeSingle()
-      let newStreakDays = 1
-      if (prevWorkout) {
-        const prevDate = (prevWorkout.workout_date as string).split('T')[0]
-        if (prevDate === todayStr || prevDate === yesterdayStr || prevDate === twoDaysAgoStr) {
-          newStreakDays = (curScores?.streak_days ?? 0) + 1
-        }
-      }
-
-      const ascendScore = calculateAscendScore(strengthScore, consistencyScore, socialScore, newStreakDays)
-
-      // XP and level
-      const isFirstWorkout = wids.length <= 1
-      xpGain = calculateXPGain(exercisesCompleted, newPRs.length, isFirstWorkout)
-      const newXP = currentXP + xpGain
-      newLevel = getLevelFromXP(newXP)
-      leveledUp = newLevel > currentLevel
-
-      await supabase.from('user_scores').upsert({
-        user_id: user.id,
-        strength_score: strengthScore,
-        consistency_score: consistencyScore,
-        ascend_score: ascendScore,
-        xp: newXP,
-        level: newLevel,
-        streak_days: newStreakDays,
-      }, { onConflict: 'user_id' })
-
-      // Track workout count for leaderboard eligibility gate (requires schema migration)
+      // Recalculate and persist all scores, XP, level, and streak
+      let xpGain = 50
+      let leveledUp = false
+      let newLevel = 1
+      let ascendScore = 0
+      let previousAscendScore = 0
       try {
-        await supabase.from('user_scores').update({ workouts_completed: wids.length }).eq('user_id', user.id)
-      } catch { /* column not yet added */ }
-    } catch (scoreErr) {
-      console.error('Score update error:', scoreErr)
-    }
+        const DEFAULT_BODYWEIGHT_KG = 80
 
-    setSummaryData({
-      sessionLabel: workout.session_label,
-      exercisesCompleted,
-      totalVolume: Math.round(totalVolume),
-      newPRs,
-      scoreChange: 5 + newPRs.length * 3,
-      xpGain,
-      leveledUp,
-      newLevel,
-    })
-    clearSession()
-    localStorage.setItem('ascend_home_badge', '1')
-    window.dispatchEvent(new CustomEvent('ascend-badge-update'))
-    setPhase('summary')
+        const { data: allWorkoutIds } = await supabase
+          .from('workouts').select('id').eq('user_id', user.id).eq('completed', true)
+        const wids = (allWorkoutIds ?? []).map(w => w.id as string)
+        let strengthScore = 0
+        if (wids.length > 0) {
+          const { data: allLogs } = await supabase
+            .from('exercise_logs').select('exercise_name, weight').in('workout_id', wids).gt('weight', 0)
+          if (allLogs && allLogs.length > 0) {
+            const bestMap = new Map<string, number>()
+            for (const l of allLogs) {
+              const cur = bestMap.get(l.exercise_name as string) ?? 0
+              if ((l.weight as number) > cur) bestMap.set(l.exercise_name as string, l.weight as number)
+            }
+            strengthScore = calculateStrengthScoreFromLogs(
+              Array.from(bestMap.values()).map(w => ({ weight: w })),
+              DEFAULT_BODYWEIGHT_KG
+            )
+          }
+        }
+
+        const monday = new Date()
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+        monday.setHours(0, 0, 0, 0)
+        const { count: weekCount } = await supabase
+          .from('workouts').select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id).eq('completed', true).gte('workout_date', monday.toISOString())
+        const consistencyScore = calculateConsistencyScore(weekCount ?? 0)
+
+        const { data: curScores } = await supabase
+          .from('user_scores').select('social_score, streak_days, xp, level, ascend_score').eq('user_id', user.id).maybeSingle()
+        const socialScore = curScores?.social_score ?? 0
+        const currentXP = curScores?.xp ?? 0
+        const currentLevel = curScores?.level ?? 1
+        previousAscendScore = curScores?.ascend_score ?? 0
+
+        const todayStr = new Date().toISOString().split('T')[0]
+        const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+        const twoDaysAgoStr = new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0]
+        const { data: prevWorkout } = await supabase
+          .from('workouts').select('workout_date').eq('user_id', user.id).eq('completed', true)
+          .neq('id', workoutRecord.id).order('workout_date', { ascending: false }).limit(1).maybeSingle()
+        let newStreakDays = 1
+        if (prevWorkout) {
+          const prevDate = (prevWorkout.workout_date as string).split('T')[0]
+          if (prevDate === todayStr || prevDate === yesterdayStr || prevDate === twoDaysAgoStr) {
+            newStreakDays = (curScores?.streak_days ?? 0) + 1
+          }
+        }
+
+        ascendScore = calculateAscendScore(strengthScore, consistencyScore, socialScore, newStreakDays)
+
+        const isFirstWorkout = wids.length <= 1
+        xpGain = calculateXPGain(exercisesCompleted, newPRs.length, isFirstWorkout)
+        const newXP = currentXP + xpGain
+        newLevel = getLevelFromXP(newXP)
+        leveledUp = newLevel > currentLevel
+
+        const { error: scoreUpdateErr } = await supabase.from('user_scores')
+          .update({
+            strength_score: strengthScore,
+            consistency_score: consistencyScore,
+            ascend_score: ascendScore,
+            xp: newXP,
+            level: newLevel,
+            streak_days: newStreakDays,
+          })
+          .eq('user_id', user.id)
+        if (scoreUpdateErr) console.error('user_scores update error:', scoreUpdateErr)
+
+        try {
+          await supabase.from('user_scores').update({ workouts_completed: wids.length }).eq('user_id', user.id)
+        } catch { /* column not yet added */ }
+      } catch (scoreErr) {
+        console.error('Score update error:', scoreErr)
+      }
+
+      setSummaryData({
+        sessionLabel: workout.session_label,
+        exercisesCompleted,
+        totalVolume: Math.round(totalVolume),
+        newPRs,
+        scoreChange: Math.max(0, ascendScore - previousAscendScore),
+        xpGain,
+        leveledUp,
+        newLevel,
+      })
+      clearSession()
+      localStorage.setItem('ascend_home_badge', '1')
+      window.dispatchEvent(new CustomEvent('ascend-badge-update'))
+      setPhase('summary')
+    } catch (err) {
+      console.error('Finish workout error:', err)
+      setFinishError('Something went wrong. Please try again.')
+    } finally {
+      setFinishing(false)
+    }
   }
 
   const anySetsDone = Object.values(completedSets).some(v => v > 0)
@@ -933,7 +960,7 @@ export default function Workout() {
   const METHOD_SLIDES = [
     {
       icon: '⚡',
-      title: 'AI-personalized, every session',
+      title: 'Personalized and optimized every session',
       body: 'The Ascend Method generates a unique program based on your history, recovery, and goals — not a generic plan everyone gets.',
     },
     {
@@ -1118,7 +1145,7 @@ export default function Workout() {
               {recoveryOptions.map(opt => (
                 <button
                   key={opt.score}
-                  onClick={() => handleGenerate(opt.score)}
+                  onClick={() => { setRecoveryScore(opt.score); setSoreMuscles([]); setInjuredMuscles([]); setPhase('soreness') }}
                   disabled={!profile}
                   style={{
                     background: '#0D1728', border: '1px solid #1A2A42',
@@ -1136,6 +1163,112 @@ export default function Workout() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Soreness screen ───────────────────────────────────────────────────────
+
+  if (phase === 'soreness') {
+    return (
+      <div className="app-shell">
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+          <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 24px' }}>
+            <button
+              onClick={() => setPhase('recovery')}
+              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+            >
+              ← Back
+            </button>
+            <p style={{ color: '#FBBF24', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
+              Optional
+            </p>
+            <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
+              Any soreness today?
+            </h1>
+            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 24px' }}>
+              We'll keep these muscles active but reduce the load.
+            </p>
+            <BodyDiagram
+              selected={soreMuscles}
+              onToggle={id => setSoreMuscles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+              accentColor="#FBBF24"
+              accentBg="rgba(251,191,36,0.15)"
+            />
+          </div>
+          <div style={{ padding: '12px 24px 88px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button
+              onClick={() => setPhase('injury')}
+              style={{
+                width: '100%', background: '#4A9EFF', color: '#FFFFFF',
+                fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              Continue →
+            </button>
+            <button
+              onClick={() => { setSoreMuscles([]); setPhase('injury') }}
+              style={{ width: '100%', background: 'none', border: 'none', color: '#3A5A7A', fontSize: 14, padding: '12px', cursor: 'pointer' }}
+            >
+              Skip →
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Injury screen ─────────────────────────────────────────────────────────
+
+  if (phase === 'injury') {
+    return (
+      <div className="app-shell">
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+          <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 24px' }}>
+            <button
+              onClick={() => setPhase('soreness')}
+              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+            >
+              ← Back
+            </button>
+            <p style={{ color: '#EF4444', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
+              Optional
+            </p>
+            <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
+              Any injuries?
+            </h1>
+            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 24px' }}>
+              We'll work around these completely.
+            </p>
+            <BodyDiagram
+              selected={injuredMuscles}
+              onToggle={id => setInjuredMuscles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+              accentColor="#EF4444"
+              accentBg="rgba(239,68,68,0.15)"
+            />
+          </div>
+          <div style={{ padding: '12px 24px 88px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button
+              onClick={() => handleGenerate()}
+              disabled={!profile}
+              style={{
+                width: '100%', background: '#4A9EFF', color: '#FFFFFF',
+                fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              Build My Workout →
+            </button>
+            <button
+              onClick={() => { setInjuredMuscles([]); handleGenerate() }}
+              disabled={!profile}
+              style={{ width: '100%', background: 'none', border: 'none', color: '#3A5A7A', fontSize: 14, padding: '12px', cursor: 'pointer' }}
+            >
+              Skip →
+            </button>
           </div>
         </div>
       </div>
@@ -1550,20 +1683,25 @@ export default function Workout() {
               See you tomorrow 💪
             </button>
           ) : (
-            <button
-              onClick={handleFinish}
-              disabled={!anySetsDone}
-              style={{
-                width: '100%',
-                background: anySetsDone ? '#4A9EFF' : '#1A2A42',
-                color: '#FFFFFF',
-                fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
-                border: 'none', cursor: anySetsDone ? 'pointer' : 'not-allowed',
-                marginTop: 16, marginBottom: 8, transition: 'background 0.2s',
-              }}
-            >
-              Finish Workout & Log Progress
-            </button>
+            <>
+              {finishError && (
+                <p style={{ color: '#E85D24', fontSize: 12, textAlign: 'center', margin: '0 0 8px', lineHeight: 1.4 }}>{finishError}</p>
+              )}
+              <button
+                onClick={handleFinish}
+                disabled={!anySetsDone || finishing}
+                style={{
+                  width: '100%',
+                  background: anySetsDone && !finishing ? '#4A9EFF' : '#1A2A42',
+                  color: anySetsDone && !finishing ? '#FFFFFF' : '#2E4A6A',
+                  fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
+                  border: 'none', cursor: anySetsDone && !finishing ? 'pointer' : 'not-allowed',
+                  marginTop: 16, marginBottom: 8, transition: 'background 0.2s',
+                }}
+              >
+                {finishing ? 'Saving…' : 'Finish Workout & Log Progress'}
+              </button>
+            </>
           )}
 
         </div>
@@ -1592,9 +1730,10 @@ export default function Workout() {
               </button>
               <button
                 onClick={() => { setShowTwoHourModal(false); handleFinish() }}
-                style={{ background: '#1A2A42', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+                disabled={finishing}
+                style={{ background: '#1A2A42', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: finishing ? 'not-allowed' : 'pointer' }}
               >
-                Finish Workout & Log Progress
+                {finishing ? 'Saving…' : 'Finish Workout & Log Progress'}
               </button>
             </div>
           </div>

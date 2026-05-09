@@ -723,8 +723,21 @@ export default function Compete() {
               <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Loading challenges…</p>
             </div>
           ) : computedChallenges.length === 0 ? (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>No active challenges right now.</p>
+            <div style={{
+              background: 'linear-gradient(135deg, #0D1728 0%, #0A1F3A 100%)',
+              border: '1px solid #1E3D6E',
+              borderRadius: 14,
+              padding: '28px 20px',
+              marginBottom: 20,
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🏆</div>
+              <p style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, margin: '0 0 6px' }}>
+                Competitions Coming Soon
+              </p>
+              <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+                Monthly competitions with real prizes on the line.{'\n'}Check back — challenges drop regularly.
+              </p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>

@@ -5,10 +5,10 @@ import OptionCard from '../../components/OptionCard'
 import type { Experience } from '../../types'
 
 const OPTIONS: { value: Experience; emoji: string; title: string; subtitle: string }[] = [
-  { value: 'beginner',    emoji: '🌱', title: 'Brand new',   subtitle: 'Never followed a program before' },
-  { value: 'some',        emoji: '📈', title: 'On and off',  subtitle: 'Some experience, under a year' },
-  { value: 'consistent',  emoji: '💪', title: 'Consistent',  subtitle: 'Training regularly, 1–3 years' },
-  { value: 'experienced', emoji: '🏆', title: 'Experienced', subtitle: 'Serious training, 3+ years' },
+  { value: 'beginner',    emoji: '🌱', title: 'Just starting out',  subtitle: 'Never followed a real program' },
+  { value: 'some',        emoji: '📈', title: 'Some experience',    subtitle: 'On and off, under a year' },
+  { value: 'consistent',  emoji: '💪', title: 'Consistent',         subtitle: 'Training regularly, 1–3 years' },
+  { value: 'experienced', emoji: '🏆', title: 'Experienced',        subtitle: 'Serious lifter, 3+ years' },
 ]
 
 export default function Step2() {
@@ -26,14 +26,12 @@ export default function Step2() {
   return (
     <OnboardingShell
       step={2}
-      eyebrow="STEP 2 OF 4"
       headline="How long have you been lifting?"
-      subheadline="There's no wrong answer — your program adapts as you improve."
-      showPrivacy
+      subheadline="No wrong answer — your plan adapts as you improve."
       onContinue={handleContinue}
       continueDisabled={!selected}
       onBack={() => navigate('/onboarding/step1')}
-      backLabel="Back"
+      backLabel="← Back"
     >
       {OPTIONS.map(opt => (
         <OptionCard

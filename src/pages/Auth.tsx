@@ -5,37 +5,29 @@ import type { Goal, Experience, Equipment } from '../types'
 
 type Mode = 'signup' | 'signin'
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  background: '#0D1728',
-  border: '1px solid #1A2A42',
-  borderRadius: 12,
-  padding: '14px 16px',
-  color: '#FFFFFF',
-  fontSize: 14,
-  outline: 'none',
-  fontFamily: 'inherit',
-  boxSizing: 'border-box',
-}
-
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string
-}
-
-function Field({ label, ...props }: InputProps) {
+function Field({
+  label,
+  ...props
+}: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   const [focused, setFocused] = useState(false)
   return (
-    <div style={{ marginBottom: 12 }}>
-      {label && (
-        <label style={{ color: '#5A7A9A', fontSize: 12, display: 'block', marginBottom: 6 }}>
-          {label}
-        </label>
-      )}
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ color: '#8895A7', fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+        {label}
+      </label>
       <input
         {...props}
         style={{
-          ...inputStyle,
-          border: `1px solid ${focused ? '#4A9EFF' : '#1A2A42'}`,
+          width: '100%',
+          background: 'transparent',
+          border: `1px solid ${focused ? '#4A9EFF' : '#1E2E44'}`,
+          borderRadius: 12,
+          padding: '14px 16px',
+          color: '#FFFFFF',
+          fontSize: 15,
+          outline: 'none',
+          fontFamily: 'inherit',
+          boxSizing: 'border-box',
           transition: 'border-color 0.15s',
         }}
         onFocus={() => setFocused(true)}
@@ -81,9 +73,6 @@ export default function Auth() {
 
       if (!user) throw new Error('Signup succeeded but no user was returned.')
 
-      // If session is null, Supabase requires email confirmation.
-      // RLS policies need auth.uid(), which is only set when a session exists.
-      // Fix: disable "Confirm email" in Supabase Dashboard → Authentication → Providers → Email.
       if (!session) {
         setError('Check your email and click the confirmation link, then sign in.')
         setLoading(false)
@@ -109,9 +98,7 @@ export default function Auth() {
         console.error('[Auth] public.users insert failed:', profileError.message, profileError.details, profileError.hint, profileError.code)
         throw new Error(`Profile save failed: ${profileError.message}`)
       }
-      console.log('[Auth] public.users insert — OK')
 
-      console.log('[Auth] Inserting into public.user_scores — user_id:', user.id)
       const { error: scoresError } = await supabase.from('user_scores').insert({
         user_id: user.id,
         ascend_score: 0,
@@ -123,12 +110,10 @@ export default function Auth() {
         streak_days: 0,
       })
       if (scoresError) {
-        console.error('[Auth] public.user_scores insert failed:', scoresError.message, scoresError.details, scoresError.hint, scoresError.code)
+        console.error('[Auth] public.user_scores insert failed:', scoresError.message)
         throw new Error(`Scores save failed: ${scoresError.message}`)
       }
-      console.log('[Auth] public.user_scores insert — OK')
 
-      // If user came straight to auth (skipped onboarding), send them there now
       const hasOnboarding = goal && experience_level && equipment
       navigate(hasOnboarding ? '/workout' : '/onboarding/step1')
     } catch (err: unknown) {
@@ -158,62 +143,72 @@ export default function Auth() {
     }
   }
 
+  const isSignup = mode === 'signup'
+
   return (
     <div className="app-shell">
-      <div className="app-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 24px' }}>
-        {/* Wordmark */}
-        <p style={{ color: '#4A9EFF', fontSize: 24, fontWeight: 700, letterSpacing: 4, textAlign: 'center', margin: '0 0 32px' }}>
-          ASCEND
-        </p>
+      <div className="app-content" style={{ display: 'flex', flexDirection: 'column', padding: '0 24px', minHeight: '100vh' }}>
+
+        {/* Brand header */}
+        <div style={{ paddingTop: 64, paddingBottom: 48 }}>
+          <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 800, letterSpacing: 5, margin: '0 0 6px' }}>
+            ASCEND
+          </p>
+          <p style={{ color: '#2E4A6A', fontSize: 14, margin: 0, letterSpacing: '0.3px' }}>
+            {isSignup ? 'Your gym. Your rank. Your community.' : 'Welcome back.'}
+          </p>
+        </div>
 
         {/* Headline */}
-        <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 6px' }}>
-          {mode === 'signup' ? 'Create your account' : 'Welcome back'}
+        <h1 style={{ color: '#FFFFFF', fontSize: 28, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.15, letterSpacing: '-0.5px' }}>
+          {isSignup
+            ? (signupStep === 1 ? 'Create your account' : 'Almost there')
+            : 'Sign in'}
         </h1>
-        <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 28px', lineHeight: 1.5 }}>
-          {mode === 'signup' ? 'Your progress, saved. Your rank, earned.' : 'Sign in to continue your journey.'}
+        <p style={{ color: '#8895A7', fontSize: 14, margin: '0 0 32px', lineHeight: 1.5 }}>
+          {isSignup
+            ? (signupStep === 1 ? 'Your progress. Your rank. Saved.' : 'Use your Penn email to join.')
+            : 'Continue your journey.'}
         </p>
 
-        {/* Fields */}
-        {mode === 'signup' ? (
+        {/* Form */}
+        {isSignup ? (
           signupStep === 1 ? (
             <>
-              <Field label="Full Name" type="text" placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} />
+              <Field label="Full Name" type="text" placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} autoFocus />
               <Field label="Username" type="text" placeholder="janesmith" value={username} onChange={e => setUsername(e.target.value)} />
             </>
           ) : (
             <>
-              <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => { setEmail(e.target.value); setEmailError(null) }} />
+              <Field label="Penn Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => { setEmail(e.target.value); setEmailError(null) }} autoFocus />
               {emailError && (
-                <p style={{ color: '#E85D24', fontSize: 13, marginBottom: 10, marginTop: -4 }}>{emailError}</p>
+                <p style={{ color: '#E85D24', fontSize: 12, margin: '-6px 0 14px', lineHeight: 1.4 }}>{emailError}</p>
               )}
               <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
             </>
           )
         ) : (
           <>
-            <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} />
+            <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} autoFocus />
             <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
           </>
         )}
 
-        {/* Error */}
         {error && (
-          <p style={{ color: '#FF6B6B', fontSize: 13, marginBottom: 12, marginTop: 0 }}>{error}</p>
+          <p style={{ color: '#E85D24', fontSize: 13, margin: '-4px 0 16px', lineHeight: 1.4 }}>{error}</p>
         )}
 
-        {/* Submit */}
+        {/* CTA */}
         <button
           onClick={() => {
-            if (mode === 'signup' && signupStep === 1) {
+            if (isSignup && signupStep === 1) {
               setError(null)
               if (!name.trim() || !username.trim()) { setError('Name and username are required.'); return }
               setSignupStep(2)
-            } else if (mode === 'signup') {
+            } else if (isSignup) {
               setEmailError(null)
-              const isPennEmail = email.endsWith('upenn.edu')
-              if (!isPennEmail) {
-                setEmailError('Ascend is currently in beta for Penn students only. Please use your Penn email to join.')
+              if (!email.endsWith('upenn.edu')) {
+                setEmailError('Ascend is currently in beta for Penn students only. Please use your Penn email.')
                 return
               }
               handleSignup()
@@ -224,37 +219,42 @@ export default function Auth() {
           disabled={loading}
           style={{
             width: '100%',
-            background: loading ? '#1A2A42' : '#4A9EFF',
-            color: '#FFFFFF',
+            background: loading ? '#131F35' : '#4A9EFF',
+            color: loading ? '#2E4A6A' : '#FFFFFF',
             fontSize: 16,
             fontWeight: 700,
             borderRadius: 14,
-            padding: '16px',
+            padding: '17px',
             border: 'none',
             cursor: loading ? 'not-allowed' : 'pointer',
-            marginTop: 4,
-            transition: 'background 0.2s',
+            marginTop: 8,
+            transition: 'all 0.2s',
+            letterSpacing: '0.2px',
           }}
         >
-          {loading ? 'One moment…' : mode === 'signup' ? (signupStep === 1 ? 'Continue →' : "Let's go →") : 'Sign in →'}
+          {loading
+            ? 'One moment…'
+            : isSignup
+              ? (signupStep === 1 ? 'Continue →' : 'Join Ascend →')
+              : 'Sign in →'}
         </button>
 
-        {/* Back button on signup step 2 */}
-        {mode === 'signup' && signupStep === 2 && (
+        {/* Back on step 2 of signup */}
+        {isSignup && signupStep === 2 && (
           <button
             onClick={() => { setSignupStep(1); setError(null) }}
-            style={{ width: '100%', background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, padding: '14px', cursor: 'pointer', marginTop: 4 }}
+            style={{ width: '100%', background: 'none', border: 'none', color: '#3A5A7A', fontSize: 14, padding: '15px', cursor: 'pointer', marginTop: 2 }}
           >
             ← Back
           </button>
         )}
 
-        {/* Toggle */}
-        <p style={{ color: '#5A7A9A', fontSize: 14, textAlign: 'center', marginTop: 20 }}>
-          {mode === 'signup' ? 'Already have an account? ' : "Don't have an account? "}
+        {/* Toggle mode */}
+        <p style={{ color: '#3A5A7A', fontSize: 14, textAlign: 'center', marginTop: 28 }}>
+          {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button
             onClick={() => {
-              if (mode === 'signup') {
+              if (isSignup) {
                 setMode('signin'); setSignupStep(1); setError(null); setEmailError(null)
               } else {
                 navigate('/onboarding/step1')
@@ -262,9 +262,10 @@ export default function Auth() {
             }}
             style={{ color: '#4A9EFF', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0 }}
           >
-            {mode === 'signup' ? 'Sign in' : 'Sign up'}
+            {isSignup ? 'Sign in →' : 'Sign up →'}
           </button>
         </p>
+
       </div>
     </div>
   )
