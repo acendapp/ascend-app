@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useTheme } from '../lib/theme'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -60,11 +61,17 @@ function initials(name: string): string {
 
 const RANK_COLORS: Record<number, string> = { 1: '#F5A623', 2: '#B0B8C4', 3: '#CD7F32' }
 
-function AdminBadge() {
+interface ThemeColors {
+  bg: string; surface: string; surfaceHigh: string; border: string; borderSub: string
+  text: string; textSub: string; textMuted: string; textFaint: string
+  accent: string; accentBg: string; accentBorder: string; inputBg: string; isDark: boolean
+}
+
+function AdminBadge({ c }: { c: ThemeColors }) {
   return (
     <span style={{
-      background: '#0D2E5A',
-      color: '#4A9EFF',
+      background: c.accentBg,
+      color: c.accent,
       fontSize: 10,
       fontWeight: 700,
       borderRadius: 6,
@@ -81,6 +88,7 @@ function AdminBadge() {
 
 export default function Groups() {
   const navigate = useNavigate()
+  const { colors: c } = useTheme()
   const [tab, setTab] = useState<Tab>('browse')
   const [userId, setUserId] = useState<string | null>(null)
   const [allGroups, setAllGroups] = useState<Group[]>([])
@@ -390,51 +398,51 @@ export default function Groups() {
   if (manageGroup) {
     return (
       <div className="app-shell">
-        <div className="app-content page-scroll">
+        <div className="app-content page-scroll" style={{ background: c.bg }}>
           <div style={{ padding: '52px 20px 0' }}>
             <button
               onClick={() => setManageGroup(null)}
-              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+              style={{ background: 'none', border: 'none', color: c.accent, fontSize: 13, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
             >
               ← Back
             </button>
 
-            <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>Admin</p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>{manageGroup.name}</h1>
-            <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 24px' }}>Pending join requests</p>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>Admin</p>
+            <h1 style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>{manageGroup.name}</h1>
+            <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 24px' }}>Pending join requests</p>
 
             {manageLoading ? (
-              <p style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</p>
+              <p style={{ color: c.textSub, fontSize: 14 }}>Loading…</p>
             ) : pendingRequests.length === 0 ? (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 28, textAlign: 'center' }}>
-                <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>No pending requests</p>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 28, textAlign: 'center' }}>
+                <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>No pending requests</p>
               </div>
             ) : (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 16px' }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 16px' }}>
                 {pendingRequests.map((req, i) => (
                   <div
                     key={req.membershipId}
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: i < pendingRequests.length - 1 ? '1px solid #1A2A42' : 'none' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: i < pendingRequests.length - 1 ? `1px solid ${c.border}` : 'none' }}
                   >
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1A2A42', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                       {initials(req.name)}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 600, margin: 0 }}>{req.name}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{req.username}</p>
+                      <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{req.name}</p>
+                      <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>@{req.username}</p>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
                         onClick={() => handleApprove(req)}
                         disabled={managingId === req.membershipId}
-                        style={{ background: '#4A9EFF', border: 'none', borderRadius: 8, padding: '6px 12px', color: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                        style={{ background: c.accent, border: 'none', borderRadius: 8, padding: '6px 12px', color: '#FFF', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => handleDeny(req)}
                         disabled={managingId === req.membershipId}
-                        style={{ background: 'transparent', border: '1px solid #1A2A42', borderRadius: 8, padding: '6px 10px', color: '#5A7A9A', fontSize: 12, cursor: 'pointer' }}
+                        style={{ background: 'transparent', border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 10px', color: c.textSub, fontSize: 12, cursor: 'pointer' }}
                       >
                         Deny
                       </button>
@@ -457,33 +465,33 @@ export default function Groups() {
 
     return (
       <div className="app-shell">
-        <div className="app-content page-scroll">
+        <div className="app-content page-scroll" style={{ background: c.bg }}>
           <div style={{ padding: '52px 20px 0' }}>
             <button
               onClick={() => { setDetailGroup(null); setMyMembership(null); setDetailMembers([]) }}
-              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+              style={{ background: 'none', border: 'none', color: c.accent, fontSize: 13, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
             >
               ← Back
             </button>
 
-            <p style={{ color: '#5A7A9A', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>
+            <p style={{ color: c.textSub, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>
               {detailGroup.category}
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 4px' }}>{detailGroup.name}</h1>
+            <h1 style={{ color: c.text, fontSize: 26, fontWeight: 700, margin: '0 0 4px' }}>{detailGroup.name}</h1>
             {detailGroup.formal_name && (
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 20px' }}>{detailGroup.formal_name}</p>
+              <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 20px' }}>{detailGroup.formal_name}</p>
             )}
             {!detailGroup.formal_name && <div style={{ marginBottom: 20 }} />}
 
             {/* Stats */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-              <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
-                <p style={{ color: '#5A7A9A', fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>Members</p>
-                <p style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 700, margin: 0 }}>{detailGroup.member_count}</p>
+              <div style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+                <p style={{ color: c.textSub, fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>Members</p>
+                <p style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: 0 }}>{detailGroup.member_count}</p>
               </div>
-              <div style={{ flex: 1, background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
-                <p style={{ color: '#5A7A9A', fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>Avg Score</p>
-                <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 700, margin: 0 }}>
+              <div style={{ flex: 1, background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+                <p style={{ color: c.textSub, fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>Avg Score</p>
+                <p style={{ color: c.accent, fontSize: 22, fontWeight: 700, margin: 0 }}>
                   {detailLoading ? '…' : detailAvgScore || '—'}
                 </p>
               </div>
@@ -495,36 +503,36 @@ export default function Groups() {
                 <button
                   onClick={handleJoin}
                   disabled={joinLoading}
-                  style={{ width: '100%', background: joinLoading ? '#1A2A42' : '#4A9EFF', color: '#FFF', fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: joinLoading ? 'not-allowed' : 'pointer' }}
+                  style={{ width: '100%', background: joinLoading ? c.border : c.accent, color: '#FFF', fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: joinLoading ? 'not-allowed' : 'pointer' }}
                 >
                   {joinLoading ? 'Requesting…' : 'Request to Join'}
                 </button>
               ) : memberStatus === 'pending' ? (
-                <div style={{ width: '100%', background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
-                  <span style={{ color: '#5A7A9A', fontSize: 16, fontWeight: 600 }}>Request Pending</span>
+                <div style={{ width: '100%', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '16px', textAlign: 'center' }}>
+                  <span style={{ color: c.textSub, fontSize: 16, fontWeight: 600 }}>Request Pending</span>
                 </div>
               ) : (
-                <div style={{ width: '100%', background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ width: '100%', background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ color: '#10B981', fontSize: 16, fontWeight: 700 }}>Member ✓</span>
-                  {memberRole === 'admin' && <AdminBadge />}
+                  {memberRole === 'admin' && <AdminBadge c={c} />}
                 </div>
               )}
             </div>
 
             {/* Member leaderboard */}
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
               Member Leaderboard
             </p>
             {detailLoading ? (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 28, textAlign: 'center' }}>
-                <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Loading…</p>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 28, textAlign: 'center' }}>
+                <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>Loading…</p>
               </div>
             ) : detailMembers.length === 0 ? (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 28, textAlign: 'center' }}>
-                <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>No members yet. Be the first to join.</p>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 28, textAlign: 'center' }}>
+                <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>No members yet. Be the first to join.</p>
               </div>
             ) : (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px' }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px' }}>
                 {detailMembers.map((member, i) => {
                   const isMe = member.user_id === userId
                   return (
@@ -532,20 +540,20 @@ export default function Groups() {
                       key={member.user_id}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0',
-                        borderBottom: i < detailMembers.length - 1 ? '1px solid #1A2A42' : 'none',
+                        borderBottom: i < detailMembers.length - 1 ? `1px solid ${c.border}` : 'none',
                       }}
                     >
-                      <span style={{ color: RANK_COLORS[i + 1] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
+                      <span style={{ color: RANK_COLORS[i + 1] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
                         {i + 1}
                       </span>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: isMe ? '1px solid #4A9EFF' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: c.border, border: isMe ? `1px solid ${c.accent}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                         {initials(member.name)}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <p style={{ color: isMe ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{member.name}</p>
-                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>@{member.username}</p>
+                        <p style={{ color: isMe ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{member.name}</p>
+                        <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>@{member.username}</p>
                       </div>
-                      <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{member.score}</span>
+                      <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{member.score}</span>
                     </div>
                   )
                 })}
@@ -561,27 +569,27 @@ export default function Groups() {
 
   return (
     <div className="app-shell">
-      <div className="app-content page-scroll">
+      <div className="app-content page-scroll" style={{ background: c.bg }}>
         <div style={{ padding: '52px 20px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: 0 }}>Groups</h1>
+            <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: 0 }}>Groups</h1>
             <button
               onClick={() => navigate('/compete')}
-              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: 0 }}
+              style={{ background: 'none', border: 'none', color: c.accent, fontSize: 13, cursor: 'pointer', padding: 0 }}
             >
               ← Compete
             </button>
           </div>
 
           {/* Tab toggle */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: '#0D1728', borderRadius: 10, padding: 4 }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: c.surface, borderRadius: 10, padding: 4 }}>
             {(['browse', 'my-groups'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 style={{
-                  flex: 1, background: tab === t ? '#4A9EFF' : 'transparent', border: 'none',
-                  borderRadius: 8, padding: '8px 0', color: tab === t ? '#FFFFFF' : '#5A7A9A',
+                  flex: 1, background: tab === t ? c.accent : 'transparent', border: 'none',
+                  borderRadius: 8, padding: '8px 0', color: tab === t ? '#FFFFFF' : c.textSub,
                   fontSize: 13, fontWeight: tab === t ? 700 : 400, cursor: 'pointer', transition: 'all 0.15s',
                 }}
               >
@@ -601,14 +609,14 @@ export default function Groups() {
                       key={cat}
                       onClick={() => { setSelectedCategory(selected ? null : cat); setSearchQuery('') }}
                       style={{
-                        background: '#0D1728',
-                        border: `1px solid ${selected ? '#4A9EFF' : '#1A2A42'}`,
+                        background: selected ? c.accentBg : c.surface,
+                        border: `1px solid ${selected ? c.accent : c.border}`,
                         borderRadius: 14, padding: '14px 12px', textAlign: 'left',
                         cursor: 'pointer', transition: 'border-color 0.15s',
                       }}
                     >
-                      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>{cat}</p>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{categoryCounts[cat] ?? 0} groups</p>
+                      <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>{cat}</p>
+                      <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{categoryCounts[cat] ?? 0} groups</p>
                     </button>
                   )
                 })}
@@ -620,12 +628,12 @@ export default function Groups() {
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     placeholder={`Search ${CATEGORY_PLURAL[selectedCategory].toLowerCase()}…`}
-                    style={{ width: '100%', background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px 16px', color: '#FFFFFF', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 10 }}
+                    style={{ width: '100%', background: c.inputBg, border: `1px solid ${c.border}`, borderRadius: 12, padding: '12px 16px', color: c.text, fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 10 }}
                   />
                   {filteredGroups.length === 0 ? (
-                    <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>No results</p>
+                    <p style={{ color: c.textSub, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>No results</p>
                   ) : (
-                    <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 16px' }}>
+                    <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 16px' }}>
                       {filteredGroups.map((group, i) => (
                         <button
                           key={group.id}
@@ -633,17 +641,17 @@ export default function Groups() {
                           style={{
                             width: '100%', display: 'flex', alignItems: 'center', gap: 12,
                             padding: '12px 0', background: 'none', border: 'none',
-                            borderBottom: i < filteredGroups.length - 1 ? '1px solid #1A2A42' : 'none',
+                            borderBottom: i < filteredGroups.length - 1 ? `1px solid ${c.border}` : 'none',
                             cursor: 'pointer', textAlign: 'left',
                           }}
                         >
                           <div style={{ flex: 1 }}>
-                            <p style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, margin: 0 }}>{group.name}</p>
+                            <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: 0 }}>{group.name}</p>
                             {group.formal_name && (
-                              <p style={{ color: '#5A7A9A', fontSize: 11, margin: '2px 0 0' }}>{group.formal_name}</p>
+                              <p style={{ color: c.textSub, fontSize: 11, margin: '2px 0 0' }}>{group.formal_name}</p>
                             )}
                           </div>
-                          <span style={{ color: '#5A7A9A', fontSize: 12, flexShrink: 0 }}>{group.member_count} members</span>
+                          <span style={{ color: c.textSub, fontSize: 12, flexShrink: 0 }}>{group.member_count} members</span>
                         </button>
                       ))}
                     </div>
@@ -657,13 +665,13 @@ export default function Groups() {
           {tab === 'my-groups' && (
             <>
               {myGroupsLoading ? (
-                <p style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</p>
+                <p style={{ color: c.textSub, fontSize: 14 }}>Loading…</p>
               ) : myGroups.length === 0 ? (
-                <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 28, textAlign: 'center' }}>
-                  <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 10px' }}>You haven't joined any groups yet.</p>
+                <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 28, textAlign: 'center' }}>
+                  <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 10px' }}>You haven't joined any groups yet.</p>
                   <button
                     onClick={() => setTab('browse')}
-                    style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: 0 }}
+                    style={{ background: 'none', border: 'none', color: c.accent, fontSize: 13, cursor: 'pointer', padding: 0 }}
                   >
                     Browse groups →
                   </button>
@@ -673,39 +681,39 @@ export default function Groups() {
                   {myGroups.map(m => (
                     <div
                       key={m.membershipId}
-                      style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px' }}
+                      style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                            <span style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 700 }}>{m.group.name}</span>
-                            {m.role === 'admin' && <AdminBadge />}
+                            <span style={{ color: c.text, fontSize: 15, fontWeight: 700 }}>{m.group.name}</span>
+                            {m.role === 'admin' && <AdminBadge c={c} />}
                           </div>
-                          <span style={{ color: '#5A7A9A', fontSize: 11 }}>{m.group.category}</span>
+                          <span style={{ color: c.textSub, fontSize: 11 }}>{m.group.category}</span>
                         </div>
                         {m.role === 'admin' && (
                           <button
                             onClick={() => setManageGroup(m.group)}
-                            style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 8, padding: '5px 12px', color: '#4A9EFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+                            style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 8, padding: '5px 12px', color: c.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
                           >
                             Manage
                           </button>
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <div style={{ flex: 1, background: '#080E1C', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-                          <p style={{ color: '#5A7A9A', fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', margin: '0 0 3px' }}>Members</p>
-                          <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: 0 }}>{m.group.member_count}</p>
+                        <div style={{ flex: 1, background: c.bg, borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+                          <p style={{ color: c.textSub, fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', margin: '0 0 3px' }}>Members</p>
+                          <p style={{ color: c.text, fontSize: 16, fontWeight: 700, margin: 0 }}>{m.group.member_count}</p>
                         </div>
-                        <div style={{ flex: 1, background: '#080E1C', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-                          <p style={{ color: '#5A7A9A', fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', margin: '0 0 3px' }}>Avg Score</p>
-                          <p style={{ color: '#4A9EFF', fontSize: 16, fontWeight: 700, margin: 0 }}>{m.avgScore || '—'}</p>
+                        <div style={{ flex: 1, background: c.bg, borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+                          <p style={{ color: c.textSub, fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', margin: '0 0 3px' }}>Avg Score</p>
+                          <p style={{ color: c.accent, fontSize: 16, fontWeight: 700, margin: 0 }}>{m.avgScore || '—'}</p>
                         </div>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                         <button
                           onClick={() => setLeaveConfirm(m)}
-                          style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 12, cursor: 'pointer', padding: 0 }}
+                          style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 12, cursor: 'pointer', padding: 0 }}
                         >
                           Leave group
                         </button>
@@ -721,19 +729,19 @@ export default function Groups() {
 
       {/* Leave group confirmation modal */}
       {leaveConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(8,14,28,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
-          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: '24px 20px', width: '100%', maxWidth: 342 }}>
-            <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: c.isDark ? 'rgba(8,14,28,0.85)' : 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 16, padding: '24px 20px', width: '100%', maxWidth: 342 }}>
+            <p style={{ color: c.text, fontSize: 16, fontWeight: 700, margin: '0 0 10px' }}>
               Leave {leaveConfirm.group.name}?
             </p>
-            <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 22px', lineHeight: 1.5 }}>
+            <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 22px', lineHeight: 1.5 }}>
               Are you sure you want to leave {leaveConfirm.group.name}? This cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => setLeaveConfirm(null)}
                 disabled={leaveLoading}
-                style={{ flex: 1, background: 'transparent', border: '1px solid #1A2A42', borderRadius: 12, padding: '12px', color: '#5A7A9A', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+                style={{ flex: 1, background: 'transparent', border: `1px solid ${c.border}`, borderRadius: 12, padding: '12px', color: c.textSub, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
               >
                 Cancel
               </button>

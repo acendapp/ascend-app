@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTheme } from '../lib/theme'
 
 interface Zone {
   id: string
@@ -39,6 +40,38 @@ const FRONT_ZONES: Zone[] = [
     shapes: [
       { cx: 55, cy: 200, rx: 19, ry: 28 },
       { cx: 105, cy: 200, rx: 19, ry: 28 },
+    ],
+  },
+  {
+    id: 'knees',
+    label: 'Knees',
+    shapes: [
+      { cx: 56, cy: 232, rx: 13, ry: 9 },
+      { cx: 104, cy: 232, rx: 13, ry: 9 },
+    ],
+  },
+  {
+    id: 'elbows',
+    label: 'Elbows',
+    shapes: [
+      { cx: 21, cy: 106, rx: 10, ry: 8 },
+      { cx: 139, cy: 106, rx: 10, ry: 8 },
+    ],
+  },
+  {
+    id: 'wrists',
+    label: 'Wrists',
+    shapes: [
+      { cx: 22, cy: 146, rx: 9, ry: 7 },
+      { cx: 138, cy: 146, rx: 9, ry: 7 },
+    ],
+  },
+  {
+    id: 'ankles_feet',
+    label: 'Ankles / Feet',
+    shapes: [
+      { cx: 56, cy: 281, rx: 13, ry: 8 },
+      { cx: 104, cy: 281, rx: 13, ry: 8 },
     ],
   },
 ]
@@ -83,28 +116,58 @@ const BACK_ZONES: Zone[] = [
       { cx: 105, cy: 259, rx: 16, ry: 22 },
     ],
   },
+  {
+    id: 'knees',
+    label: 'Knees',
+    shapes: [
+      { cx: 56, cy: 232, rx: 13, ry: 9 },
+      { cx: 104, cy: 232, rx: 13, ry: 9 },
+    ],
+  },
+  {
+    id: 'elbows',
+    label: 'Elbows',
+    shapes: [
+      { cx: 21, cy: 106, rx: 10, ry: 8 },
+      { cx: 139, cy: 106, rx: 10, ry: 8 },
+    ],
+  },
+  {
+    id: 'wrists',
+    label: 'Wrists',
+    shapes: [
+      { cx: 22, cy: 146, rx: 9, ry: 7 },
+      { cx: 138, cy: 146, rx: 9, ry: 7 },
+    ],
+  },
+  {
+    id: 'ankles_feet',
+    label: 'Ankles / Feet',
+    shapes: [
+      { cx: 56, cy: 281, rx: 13, ry: 8 },
+      { cx: 104, cy: 281, rx: 13, ry: 8 },
+    ],
+  },
 ]
 
 // The same geometric body silhouette used for both front and back views.
 // Zones are overlaid on top as interactive ellipses.
-function BodySilhouette() {
-  const fill = '#0A1525'
-  const stroke = '#1E2E44'
+function BodySilhouette({ silFill, silStroke }: { silFill: string; silStroke: string }) {
   const sw = 1.5
   return (
     <g>
-      <circle cx={80} cy={24} r={18} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={73} y={42} width={14} height={12} rx={3} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={36} y={54} width={88} height={95} rx={10} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={12} y={54} width={24} height={52} rx={8} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={124} y={54} width={24} height={52} rx={8} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={13} y={106} width={20} height={42} rx={7} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={127} y={106} width={20} height={42} rx={7} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={38} y={149} width={84} height={20} rx={7} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={38} y={169} width={35} height={62} rx={8} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={87} y={169} width={35} height={62} rx={8} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={41} y={231} width={29} height={57} rx={8} fill={fill} stroke={stroke} strokeWidth={sw} />
-      <rect x={90} y={231} width={29} height={57} rx={8} fill={fill} stroke={stroke} strokeWidth={sw} />
+      <circle cx={80} cy={24} r={18} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={73} y={42} width={14} height={12} rx={3} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={36} y={54} width={88} height={95} rx={10} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={12} y={54} width={24} height={52} rx={8} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={124} y={54} width={24} height={52} rx={8} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={13} y={106} width={20} height={42} rx={7} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={127} y={106} width={20} height={42} rx={7} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={38} y={149} width={84} height={20} rx={7} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={38} y={169} width={35} height={62} rx={8} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={87} y={169} width={35} height={62} rx={8} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={41} y={231} width={29} height={57} rx={8} fill={silFill} stroke={silStroke} strokeWidth={sw} />
+      <rect x={90} y={231} width={29} height={57} rx={8} fill={silFill} stroke={silStroke} strokeWidth={sw} />
     </g>
   )
 }
@@ -119,6 +182,7 @@ interface BodyDiagramProps {
 const ALL_ZONES = [...FRONT_ZONES, ...BACK_ZONES]
 
 export default function BodyDiagram({ selected, onToggle, accentColor, accentBg }: BodyDiagramProps) {
+  const { colors: c } = useTheme()
   const [view, setView] = useState<'front' | 'back'>('front')
   const zones = view === 'front' ? FRONT_ZONES : BACK_ZONES
 
@@ -126,13 +190,21 @@ export default function BodyDiagram({ selected, onToggle, accentColor, accentBg 
     .map(id => ALL_ZONES.find(z => z.id === id)?.label)
     .filter(Boolean) as string[]
 
+  // Deduplicate labels (front/back share same zones)
+  const uniqueLabels = [...new Set(selectedLabels)]
+
+  const silFill = c.isDark ? '#0A1525' : '#E8EEF8'
+  const silStroke = c.isDark ? '#1E2E44' : '#C8D8E8'
+  const ellipseInactiveFill = c.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'
+  const ellipseInactiveStroke = c.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)'
+
   return (
     <div>
       {/* Front / Back toggle */}
       <div style={{
         display: 'flex',
-        background: '#080E1C',
-        border: '1px solid #1E2E44',
+        background: c.bg,
+        border: `1px solid ${c.border}`,
         borderRadius: 10,
         padding: 3,
         marginBottom: 20,
@@ -143,11 +215,11 @@ export default function BodyDiagram({ selected, onToggle, accentColor, accentBg 
             onClick={() => setView(v)}
             style={{
               flex: 1,
-              background: view === v ? '#1A2A42' : 'transparent',
+              background: view === v ? c.surface : 'transparent',
               border: 'none',
               borderRadius: 7,
               padding: '9px',
-              color: view === v ? '#FFFFFF' : '#3A5A7A',
+              color: view === v ? c.text : c.textMuted,
               fontSize: 13,
               fontWeight: view === v ? 700 : 400,
               cursor: 'pointer',
@@ -168,7 +240,7 @@ export default function BodyDiagram({ selected, onToggle, accentColor, accentBg 
           height={318}
           style={{ display: 'block', overflow: 'visible' }}
         >
-          <BodySilhouette />
+          <BodySilhouette silFill={silFill} silStroke={silStroke} />
 
           {zones.map(zone =>
             zone.shapes.map((s, si) => {
@@ -180,8 +252,8 @@ export default function BodyDiagram({ selected, onToggle, accentColor, accentBg 
                   cy={s.cy}
                   rx={s.rx}
                   ry={s.ry}
-                  fill={active ? accentBg : 'rgba(255,255,255,0.04)'}
-                  stroke={active ? accentColor : 'rgba(255,255,255,0.1)'}
+                  fill={active ? accentBg : ellipseInactiveFill}
+                  stroke={active ? accentColor : ellipseInactiveStroke}
                   strokeWidth={active ? 1.8 : 1}
                   onClick={() => onToggle(zone.id)}
                   style={{ cursor: 'pointer', transition: 'fill 0.18s, stroke 0.18s' }}
@@ -194,7 +266,7 @@ export default function BodyDiagram({ selected, onToggle, accentColor, accentBg 
 
       {/* Selected muscle tags — or hint when nothing selected */}
       <div style={{ minHeight: 32, display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
-        {selectedLabels.length > 0 ? selectedLabels.map(label => (
+        {uniqueLabels.length > 0 ? uniqueLabels.map(label => (
           <span
             key={label}
             style={{
@@ -210,7 +282,7 @@ export default function BodyDiagram({ selected, onToggle, accentColor, accentBg 
             {label}
           </span>
         )) : (
-          <p style={{ color: '#2E4A6A', fontSize: 13, margin: 0, textAlign: 'center' }}>
+          <p style={{ color: c.textFaint, fontSize: 13, margin: 0, textAlign: 'center' }}>
             Tap any area to select
           </p>
         )}

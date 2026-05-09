@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { ThemeProvider } from './lib/theme'
 import AscendBolt from './components/AscendBolt'
 import BottomNav from './components/BottomNav'
+import Step0 from './pages/onboarding/Step0'
 import Step1 from './pages/onboarding/Step1'
 import Step2 from './pages/onboarding/Step2'
 import Step3 from './pages/onboarding/Step3'
@@ -57,6 +59,7 @@ function AppRoutes() {
           <Routes>
             <Route path="/" element={authed ? <Navigate to="/home" replace /> : <Navigate to="/welcome" replace />} />
             <Route path="/welcome" element={authed ? <Navigate to="/home" replace /> : <Landing />} />
+            <Route path="/onboarding/step0" element={<Step0 />} />
             <Route path="/onboarding/step1" element={<Step1 />} />
             <Route path="/onboarding/step2" element={<Step2 />} />
             <Route path="/onboarding/step3" element={<Step3 />} />
@@ -108,8 +111,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </ThemeProvider>
   )
 }

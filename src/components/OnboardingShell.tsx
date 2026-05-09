@@ -1,3 +1,5 @@
+import { useTheme } from '../lib/theme'
+
 interface OnboardingShellProps {
   step: number
   totalSteps?: number
@@ -28,9 +30,11 @@ export default function OnboardingShell({
   continueDisabled = false,
   footer,
 }: OnboardingShellProps) {
+  const { colors: c } = useTheme()
+
   return (
     <div className="app-shell">
-      <div className="app-content onboarding-scroll">
+      <div className="app-content onboarding-scroll" style={{ background: c.bg }}>
 
         {/* Progress segments */}
         <div style={{ display: 'flex', gap: 5, marginBottom: 40, margin: '-16px -20px 36px' }}>
@@ -40,7 +44,7 @@ export default function OnboardingShell({
               style={{
                 flex: 1,
                 height: 3,
-                background: i <= step ? '#4A9EFF' : '#1A2A42',
+                background: i <= step ? c.accent : c.border,
                 transition: 'background 0.3s',
               }}
             />
@@ -48,24 +52,24 @@ export default function OnboardingShell({
         </div>
 
         {/* Step count — minimal */}
-        <p style={{ color: '#2E4A6A', fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', margin: '0 0 16px', textTransform: 'uppercase' }}>
+        <p style={{ color: c.textFaint, fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', margin: '0 0 16px', textTransform: 'uppercase' }}>
           {step} / {totalSteps}
         </p>
 
         {/* Headline */}
-        <h1 style={{ color: '#FFFFFF', fontSize: 30, fontWeight: 800, margin: '0 0 12px', lineHeight: 1.15, letterSpacing: '-0.5px' }}>
+        <h1 style={{ color: c.text, fontSize: 30, fontWeight: 800, margin: '0 0 12px', lineHeight: 1.15, letterSpacing: '-0.5px' }}>
           {headline}
         </h1>
 
         {/* Subheadline */}
-        <p style={{ color: '#8895A7', fontSize: 15, margin: '0 0 32px', lineHeight: 1.6 }}>
+        <p style={{ color: c.textSub, fontSize: 15, margin: '0 0 32px', lineHeight: 1.6 }}>
           {subheadline}
         </p>
 
         {showPrivacy && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24 }}>
             <span style={{ fontSize: 11 }}>🔒</span>
-            <span style={{ color: '#3A5A7A', fontSize: 11 }}>Private — only used to personalize your program</span>
+            <span style={{ color: c.textMuted, fontSize: 11 }}>Private — only used to personalize your program</span>
           </div>
         )}
 
@@ -78,8 +82,8 @@ export default function OnboardingShell({
           disabled={continueDisabled}
           style={{
             width: '100%',
-            background: continueDisabled ? '#131F35' : '#4A9EFF',
-            color: continueDisabled ? '#2E4A6A' : '#FFFFFF',
+            background: continueDisabled ? c.border : c.accent,
+            color: continueDisabled ? c.textMuted : '#FFFFFF',
             fontSize: 16,
             fontWeight: 700,
             borderRadius: 14,
@@ -100,7 +104,7 @@ export default function OnboardingShell({
               width: '100%',
               background: 'transparent',
               border: 'none',
-              color: '#3A5A7A',
+              color: c.textMuted,
               fontSize: 14,
               padding: '15px',
               cursor: 'pointer',

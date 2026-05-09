@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import OnboardingShell from '../../components/OnboardingShell'
 import OptionCard from '../../components/OptionCard'
+import { useTheme } from '../../lib/theme'
 import type { Goal } from '../../types'
 
 const OPTIONS: { value: Goal; emoji: string; title: string; subtitle: string }[] = [
@@ -13,6 +14,7 @@ const OPTIONS: { value: Goal; emoji: string; title: string; subtitle: string }[]
 
 export default function Step1() {
   const navigate = useNavigate()
+  const { colors: c } = useTheme()
   const saved = localStorage.getItem('onboarding_goal') as Goal | null
   const [selected, setSelected] = useState<Goal | null>(saved)
 
@@ -23,11 +25,6 @@ export default function Step1() {
     }
   }
 
-  function handleSkip() {
-    localStorage.removeItem('onboarding_goal')
-    navigate('/onboarding/step2')
-  }
-
   return (
     <OnboardingShell
       step={1}
@@ -36,14 +33,14 @@ export default function Step1() {
       showPrivacy
       onContinue={handleContinue}
       continueDisabled={!selected}
-      onBack={handleSkip}
-      backLabel="Not sure yet — just build me something"
+      onBack={() => navigate('/onboarding/step0')}
+      backLabel="← Back"
       footer={
-        <p style={{ color: '#2E4A6A', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
+        <p style={{ color: c.textFaint, fontSize: 13, textAlign: 'center', marginTop: 8 }}>
           Already have an account?{' '}
           <button
             onClick={() => navigate('/auth', { state: { mode: 'signin' } })}
-            style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, cursor: 'pointer', padding: 0, fontWeight: 600 }}
+            style={{ background: 'none', border: 'none', color: c.accent, fontSize: 13, cursor: 'pointer', padding: 0, fontWeight: 600 }}
           >
             Sign in →
           </button>

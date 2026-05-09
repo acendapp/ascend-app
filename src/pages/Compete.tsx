@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useTheme } from '../lib/theme'
 import type { UserScores } from '../types'
 
 // ── Local types ───────────────────────────────────────────────────────────────
@@ -81,9 +82,15 @@ function tierBadge(level: number): { label: string; bg: string; color: string } 
   return { label: `Lv ${level}`, bg: '#1A2A42', color: '#5A7A9A' }
 }
 
-function AvatarCircle({ avatarUrl, ini, highlight }: { avatarUrl: string | null; ini: string; highlight: boolean }) {
+interface ThemeColors {
+  bg: string; surface: string; surfaceHigh: string; border: string; borderSub: string
+  text: string; textSub: string; textMuted: string; textFaint: string
+  accent: string; accentBg: string; accentBorder: string; inputBg: string; isDark: boolean
+}
+
+function AvatarCircle({ avatarUrl, ini, highlight, c }: { avatarUrl: string | null; ini: string; highlight: boolean; c: ThemeColors }) {
   return (
-    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1A2A42', border: highlight ? '1px solid #4A9EFF' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A9EFF', fontSize: 11, fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
+    <div style={{ width: 32, height: 32, borderRadius: '50%', background: c.border, border: highlight ? `1px solid ${c.accent}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 11, fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
       {avatarUrl
         ? <img src={avatarUrl} alt={ini} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : ini}
@@ -140,14 +147,14 @@ interface LiveChallenge {
   daysLabel: string
 }
 
-function SectionHeader({ title, onAction }: { title: string; onAction?: () => void }) {
+function SectionHeader({ title, onAction, c }: { title: string; onAction?: () => void; c: ThemeColors }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-      <span style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700 }}>{title}</span>
+      <span style={{ color: c.text, fontSize: 13, fontWeight: 700 }}>{title}</span>
       {onAction && (
         <button
           onClick={onAction}
-          style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, cursor: 'pointer', padding: 0 }}
+          style={{ background: 'none', border: 'none', color: c.accent, fontSize: 12, cursor: 'pointer', padding: 0 }}
         >
           See all →
         </button>
@@ -156,11 +163,11 @@ function SectionHeader({ title, onAction }: { title: string; onAction?: () => vo
   )
 }
 
-function LockedCard({ hint }: { hint: string }) {
+function LockedCard({ hint, c }: { hint: string; c: ThemeColors }) {
   return (
     <div style={{
-      background: 'linear-gradient(135deg, #0D1728 0%, #0A1F3A 100%)',
-      border: '1px solid #1E3D6E',
+      background: c.surface,
+      border: `1px solid ${c.accentBorder}`,
       borderRadius: 14,
       padding: '28px 20px',
       marginBottom: 20,
@@ -168,14 +175,14 @@ function LockedCard({ hint }: { hint: string }) {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      <div style={{ position: 'absolute', top: -24, left: '50%', transform: 'translateX(-50%)', width: 80, height: 80, borderRadius: '50%', background: 'rgba(74,158,255,0.07)', filter: 'blur(18px)', pointerEvents: 'none' }} />
-      <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#0A1F3A', border: '1px solid #1E3D6E', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 18, position: 'relative' }}>
+      <div style={{ position: 'absolute', top: -24, left: '50%', transform: 'translateX(-50%)', width: 80, height: 80, borderRadius: '50%', background: c.accentBg, filter: 'blur(18px)', pointerEvents: 'none' }} />
+      <div style={{ width: 42, height: 42, borderRadius: '50%', background: c.surfaceHigh, border: `1px solid ${c.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 18, position: 'relative' }}>
         🔒
       </div>
-      <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 5px', position: 'relative' }}>
+      <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 5px', position: 'relative' }}>
         Unlocks after 3 workouts
       </p>
-      <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0, lineHeight: 1.5, position: 'relative' }}>
+      <p style={{ color: c.textSub, fontSize: 12, margin: 0, lineHeight: 1.5, position: 'relative' }}>
         {hint}
       </p>
     </div>
@@ -257,6 +264,7 @@ async function computeChallengeRankings(
 
 export default function Compete() {
   const navigate = useNavigate()
+  const { colors: c } = useTheme()
 
   const [userId, setUserId] = useState<string | null>(null)
   const [scores, setScores] = useState<UserScores | null>(null)
@@ -638,8 +646,8 @@ export default function Compete() {
   if (loading) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-          <div style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</div>
+        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: c.bg }}>
+          <div style={{ color: c.textSub, fontSize: 14 }}>Loading…</div>
         </div>
       </div>
     )
@@ -653,15 +661,15 @@ export default function Compete() {
 
   return (
     <div className="app-shell">
-      <div className="app-content page-scroll">
+      <div className="app-content page-scroll" style={{ background: c.bg }}>
         <div style={{ padding: '52px 20px 0' }}>
 
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: 0 }}>Compete</h1>
+            <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: 0 }}>Compete</h1>
             <button
               onClick={() => navigate('/groups')}
-              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              style={{ background: 'none', border: 'none', color: c.accent, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
             >
               My Groups →
             </button>
@@ -669,73 +677,73 @@ export default function Compete() {
 
           {/* 3-workout gate banner */}
           {userWorkoutsCompleted < 3 && (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>Unlock the leaderboard</p>
-                <span style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700 }}>{userWorkoutsCompleted}/3</span>
+                <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>Unlock the leaderboard</p>
+                <span style={{ color: c.accent, fontSize: 13, fontWeight: 700 }}>{userWorkoutsCompleted}/3</span>
               </div>
-              <div style={{ background: '#1A2A42', borderRadius: 4, height: 4, overflow: 'hidden', marginBottom: 8 }}>
-                <div style={{ background: '#4A9EFF', height: '100%', width: `${(userWorkoutsCompleted / 3) * 100}%`, borderRadius: 4, transition: 'width 0.4s ease' }} />
+              <div style={{ background: c.border, borderRadius: 4, height: 4, overflow: 'hidden', marginBottom: 8 }}>
+                <div style={{ background: c.accent, height: '100%', width: `${(userWorkoutsCompleted / 3) * 100}%`, borderRadius: 4, transition: 'width 0.4s ease' }} />
               </div>
-              <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
+              <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>
                 Complete {3 - userWorkoutsCompleted} more workout{3 - userWorkoutsCompleted !== 1 ? 's' : ''} to appear on the leaderboard and join challenges.
               </p>
             </div>
           )}
 
           {/* Personal rank card */}
-          <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: 16, marginBottom: 20 }}>
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+          <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: 16, marginBottom: 20 }}>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
               YOUR RANK
             </p>
             {userWorkoutsCompleted < 3 ? (
-              <p style={{ color: '#5A7A9A', fontSize: 22, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
+              <p style={{ color: c.textSub, fontSize: 22, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
                 Locked until 3 workouts
               </p>
             ) : (
-              <p style={{ color: '#4A9EFF', fontSize: 36, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
+              <p style={{ color: c.accent, fontSize: 36, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
                 #{campusRank > 0 ? campusRank : '—'}
               </p>
             )}
-            <p style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 600, margin: '0 0 6px' }}>
+            <p style={{ color: c.text, fontSize: 18, fontWeight: 600, margin: '0 0 6px' }}>
               Ascend Score: {ascendScore}
             </p>
             {userWorkoutsCompleted >= 3 && (
-              <p style={{ color: '#4A9EFF', fontSize: 13, margin: 0 }}>↑ Keep climbing</p>
+              <p style={{ color: c.accent, fontSize: 13, margin: 0 }}>↑ Keep climbing</p>
             )}
             {myGroupIds.size > 0 && groupsLeaderboard.length > 0 && (() => {
               const myGroup = groupsLeaderboard.find(g => myGroupIds.has(g.groupId))
               return myGroup ? (
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '6px 0 0' }}>
-                  {myGroup.name} is ranked <span style={{ color: '#FFFFFF' }}>#{myGroup.rank}</span> among Penn groups
+                <p style={{ color: c.textSub, fontSize: 12, margin: '6px 0 0' }}>
+                  {myGroup.name} is ranked <span style={{ color: c.text }}>#{myGroup.rank}</span> among Penn groups
                 </p>
               ) : null
             })()}
           </div>
 
           {/* Challenges */}
-          <SectionHeader title="Challenges" />
+          <SectionHeader title="Challenges" c={c} />
 
           {userWorkoutsCompleted < 3 ? (
-            <LockedCard hint="Monthly competitions with real prizes on the line" />
+            <LockedCard hint="Monthly competitions with real prizes on the line" c={c} />
           ) : challengeLoading ? (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Loading challenges…</p>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
+              <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>Loading challenges…</p>
             </div>
           ) : computedChallenges.length === 0 ? (
             <div style={{
-              background: 'linear-gradient(135deg, #0D1728 0%, #0A1F3A 100%)',
-              border: '1px solid #1E3D6E',
+              background: c.surface,
+              border: `1px solid ${c.accentBorder}`,
               borderRadius: 14,
               padding: '28px 20px',
               marginBottom: 20,
               textAlign: 'center',
             }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>🏆</div>
-              <p style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, margin: '0 0 6px' }}>
+              <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 6px' }}>
                 Competitions Coming Soon
               </p>
-              <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+              <p style={{ color: c.textSub, fontSize: 12, margin: 0, lineHeight: 1.6 }}>
                 Monthly competitions with real prizes on the line.{'\n'}Check back — challenges drop regularly.
               </p>
             </div>
@@ -744,26 +752,26 @@ export default function Compete() {
 
               {/* Joined challenges */}
               {joinedChallenges.map(cc => (
-                <div key={cc.challenge.id} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px' }}>
+                <div key={cc.challenge.id} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div style={{ flex: 1, marginRight: 10 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, margin: '0 0 3px' }}>{cc.challenge.title}</p>
+                      <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 3px' }}>{cc.challenge.title}</p>
                       {cc.challenge.description && (
-                        <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{cc.challenge.description}</p>
+                        <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>{cc.challenge.description}</p>
                       )}
                     </div>
-                    <span style={{ background: '#0D2E5A', color: '#4A9EFF', fontSize: 11, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
+                    <span style={{ background: c.accentBg, color: c.accent, fontSize: 11, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
                       {cc.daysRemaining}d left
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: '#4A9EFF', fontSize: 20, fontWeight: 700 }}>#{cc.userRank}</span>
-                    <span style={{ color: '#5A7A9A', fontSize: 11 }}>of {cc.totalParticipants}</span>
+                    <span style={{ color: c.accent, fontSize: 20, fontWeight: 700 }}>#{cc.userRank}</span>
+                    <span style={{ color: c.textSub, fontSize: 11 }}>of {cc.totalParticipants}</span>
                   </div>
                   {cc.userRank === 1 ? (
-                    <p style={{ color: '#5A7A9A', fontSize: 12, margin: '6px 0 0' }}>You're leading! 🏆</p>
+                    <p style={{ color: c.textSub, fontSize: 12, margin: '6px 0 0' }}>You're leading! 🏆</p>
                   ) : cc.aboveName ? (
-                    <p style={{ color: '#5A7A9A', fontSize: 12, margin: '6px 0 0' }}>
+                    <p style={{ color: c.textSub, fontSize: 12, margin: '6px 0 0' }}>
                       You're {ordinal(cc.userRank)}. {cc.aboveName} is {ordinal(cc.userRank - 1)}.
                     </p>
                   ) : null}
@@ -772,26 +780,26 @@ export default function Compete() {
 
               {/* Available challenges */}
               {availableChallenges.map(cc => (
-                <div key={cc.challenge.id} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px' }}>
+                <div key={cc.challenge.id} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div style={{ flex: 1, marginRight: 10 }}>
-                      <p style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, margin: '0 0 3px' }}>{cc.challenge.title}</p>
+                      <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 3px' }}>{cc.challenge.title}</p>
                       {cc.challenge.description && (
-                        <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{cc.challenge.description}</p>
+                        <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>{cc.challenge.description}</p>
                       )}
                     </div>
-                    <span style={{ background: '#0D2E5A', color: '#4A9EFF', fontSize: 11, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
+                    <span style={{ background: c.accentBg, color: c.accent, fontSize: 11, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
                       {cc.daysRemaining}d left
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#5A7A9A', fontSize: 12 }}>
+                    <span style={{ color: c.textSub, fontSize: 12 }}>
                       {cc.totalParticipants} participant{cc.totalParticipants !== 1 ? 's' : ''}
                     </span>
                     <button
                       onClick={() => userWorkoutsCompleted >= 3 && handleJoin(cc.challenge.id)}
                       disabled={joiningId === cc.challenge.id || userWorkoutsCompleted < 3}
-                      style={{ background: 'none', border: 'none', color: userWorkoutsCompleted < 3 ? '#5A7A9A' : '#4A9EFF', fontSize: 13, fontWeight: 600, cursor: userWorkoutsCompleted < 3 ? 'not-allowed' : 'pointer', padding: 0 }}
+                      style={{ background: 'none', border: 'none', color: userWorkoutsCompleted < 3 ? c.textSub : c.accent, fontSize: 13, fontWeight: 600, cursor: userWorkoutsCompleted < 3 ? 'not-allowed' : 'pointer', padding: 0 }}
                       title={userWorkoutsCompleted < 3 ? 'Complete 3 workouts to join challenges' : undefined}
                     >
                       {joiningId === cc.challenge.id ? 'Joining…' : userWorkoutsCompleted < 3 ? 'Locked 🔒' : 'Join →'}
@@ -805,31 +813,31 @@ export default function Compete() {
           {/* Campus Standings — always-live computed competitions */}
           {liveChallenges.length > 0 && userWorkoutsCompleted >= 3 && (
             <>
-              <SectionHeader title="Campus Standings" />
+              <SectionHeader title="Campus Standings" c={c} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
                 {liveChallenges.map(lc => (
-                  <div key={lc.title} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px' }}>
+                  <div key={lc.title} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                       <div>
-                        <p style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>
+                        <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>
                           {lc.icon} {lc.title}
                         </p>
-                        <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                        <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
                           {lc.userValue.toLocaleString()} {lc.valueLabel}
                         </p>
                       </div>
-                      <span style={{ background: '#0D2E5A', color: '#4A9EFF', fontSize: 11, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
+                      <span style={{ background: c.accentBg, color: c.accent, fontSize: 11, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
                         {lc.daysLabel}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ color: '#4A9EFF', fontSize: 20, fontWeight: 700 }}>#{lc.userRank}</span>
-                      <span style={{ color: '#5A7A9A', fontSize: 11 }}>of {lc.totalParticipants}</span>
+                      <span style={{ color: c.accent, fontSize: 20, fontWeight: 700 }}>#{lc.userRank}</span>
+                      <span style={{ color: c.textSub, fontSize: 11 }}>of {lc.totalParticipants}</span>
                     </div>
                     {lc.userRank === 1 ? (
-                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: '6px 0 0' }}>You're leading! 🏆</p>
+                      <p style={{ color: c.textSub, fontSize: 12, margin: '6px 0 0' }}>You're leading! 🏆</p>
                     ) : lc.aboveName && lc.aboveValue !== null ? (
-                      <p style={{ color: '#5A7A9A', fontSize: 12, margin: '6px 0 0' }}>
+                      <p style={{ color: c.textSub, fontSize: 12, margin: '6px 0 0' }}>
                         {lc.aboveName} is {ordinal(lc.userRank - 1)} with {lc.aboveValue.toLocaleString()} {lc.valueLabel}.
                       </p>
                     ) : null}
@@ -840,15 +848,15 @@ export default function Compete() {
           )}
 
           {/* Friends leaderboard — top 3 snapshot */}
-          <SectionHeader title="Friends" onAction={userWorkoutsCompleted >= 3 && hasFriends ? () => setShowFullModal('friends') : undefined} />
+          <SectionHeader title="Friends" onAction={userWorkoutsCompleted >= 3 && hasFriends ? () => setShowFullModal('friends') : undefined} c={c} />
           {userWorkoutsCompleted < 3 ? (
-            <LockedCard hint="See how you stack up against your friends" />
+            <LockedCard hint="See how you stack up against your friends" c={c} />
           ) : !hasFriends ? (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: 0 }}>Add friends on your profile to compete</p>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
+              <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>Add friends on your profile to compete</p>
             </div>
           ) : (
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
               {topThreePeople(friendsLeaderboard).map((row, idx) => {
                 const isUser = !row.isPlaceholder && row.userId === userId
                 return (
@@ -857,27 +865,27 @@ export default function Compete() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '12px 0',
-                      borderBottom: idx < 2 ? '1px solid #1A2A42' : 'none',
+                      borderBottom: idx < 2 ? `1px solid ${c.border}` : 'none',
                       opacity: row.isPlaceholder ? 0.35 : 1,
-                      background: isUser ? '#0D2E5A' : 'transparent',
+                      background: isUser ? c.accentBg : 'transparent',
                       borderRadius: isUser ? 8 : 0,
                       margin: isUser ? '2px -4px' : 0,
                       paddingLeft: isUser ? 8 : 0,
                       paddingRight: isUser ? 8 : 0,
                     }}
                   >
-                    <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
+                    <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
                       {row.rank}
                     </span>
-                    <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} />
+                    <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                        <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
                         {!row.isPlaceholder && (() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                       </div>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
+                      <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                     </div>
-                    <span style={{ color: row.isPlaceholder ? '#5A7A9A' : '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
+                    <span style={{ color: row.isPlaceholder ? c.textSub : c.accent, fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
                   </div>
                 )
               })}
@@ -885,11 +893,11 @@ export default function Compete() {
           )}
 
           {/* Groups leaderboard — top 3 snapshot */}
-          <SectionHeader title="Groups" onAction={userWorkoutsCompleted >= 3 ? () => setShowFullModal('groups') : undefined} />
+          <SectionHeader title="Groups" onAction={userWorkoutsCompleted >= 3 ? () => setShowFullModal('groups') : undefined} c={c} />
           {userWorkoutsCompleted < 3 ? (
-            <LockedCard hint="See which Penn group reigns supreme" />
+            <LockedCard hint="See which Penn group reigns supreme" c={c} />
           ) : (
-          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
             {topThreeGroups(groupsLeaderboard).map((row, idx) => {
               const isMyGroup = !row.isPlaceholder && myGroupIds.has(row.groupId)
               return (
@@ -898,25 +906,25 @@ export default function Compete() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '12px 0',
-                    borderBottom: idx < 2 ? '1px solid #1A2A42' : 'none',
+                    borderBottom: idx < 2 ? `1px solid ${c.border}` : 'none',
                     opacity: row.isPlaceholder ? 0.35 : 1,
-                    background: isMyGroup ? '#0D2E5A' : 'transparent',
+                    background: isMyGroup ? c.accentBg : 'transparent',
                     borderRadius: isMyGroup ? 8 : 0,
                     margin: isMyGroup ? '2px -4px' : 0,
                     paddingLeft: isMyGroup ? 8 : 0,
                     paddingRight: isMyGroup ? 8 : 0,
                   }}
                 >
-                  <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
+                  <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
                     {row.rank}
                   </span>
                   <div style={{ flex: 1 }}>
-                    <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
+                    <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                    <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>
                       {row.isPlaceholder ? 'Placeholder' : `${row.category} · ${row.memberCount} members`}
                     </p>
                   </div>
-                  <span style={{ color: row.isPlaceholder ? '#5A7A9A' : '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.avgScore}</span>
+                  <span style={{ color: row.isPlaceholder ? c.textSub : c.accent, fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.avgScore}</span>
                 </div>
               )
             })}
@@ -924,11 +932,11 @@ export default function Compete() {
           )}
 
           {/* Campus leaderboard — top 3 snapshot */}
-          <SectionHeader title="Campus" onAction={userWorkoutsCompleted >= 3 ? () => setShowFullModal('campus') : undefined} />
+          <SectionHeader title="Campus" onAction={userWorkoutsCompleted >= 3 ? () => setShowFullModal('campus') : undefined} c={c} />
           {userWorkoutsCompleted < 3 ? (
-            <LockedCard hint="See where you rank among all Penn students" />
+            <LockedCard hint="See where you rank among all Penn students" c={c} />
           ) : (
-          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
             {topThreePeople(campusLeaderboard).map((row, idx) => {
               const isUser = !row.isPlaceholder && row.userId === userId
               return (
@@ -937,27 +945,27 @@ export default function Compete() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '12px 0',
-                    borderBottom: idx < 2 ? '1px solid #1A2A42' : 'none',
+                    borderBottom: idx < 2 ? `1px solid ${c.border}` : 'none',
                     opacity: row.isPlaceholder ? 0.35 : 1,
-                    background: isUser ? '#0D2E5A' : 'transparent',
+                    background: isUser ? c.accentBg : 'transparent',
                     borderRadius: isUser ? 8 : 0,
                     margin: isUser ? '2px -4px' : 0,
                     paddingLeft: isUser ? 8 : 0,
                     paddingRight: isUser ? 8 : 0,
                   }}
                 >
-                  <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
+                  <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
                     {row.rank}
                   </span>
-                  <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} />
+                  <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} />
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                      <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
                       {!row.isPlaceholder && (() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                     </div>
-                    <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
+                    <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                   </div>
-                  <span style={{ color: row.isPlaceholder ? '#5A7A9A' : '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
+                  <span style={{ color: row.isPlaceholder ? c.textSub : c.accent, fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
                 </div>
               )
             })}
@@ -969,15 +977,15 @@ export default function Compete() {
 
       {/* Full leaderboard modal */}
       {showFullModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#080E1C', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: c.bg, display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
-          <div style={{ padding: '52px 20px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1A2A42', flexShrink: 0 }}>
-            <h2 style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 700, margin: 0 }}>
+          <div style={{ padding: '52px 20px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${c.border}`, flexShrink: 0 }}>
+            <h2 style={{ color: c.text, fontSize: 18, fontWeight: 700, margin: 0 }}>
               {showFullModal === 'friends' ? 'Friends' : showFullModal === 'campus' ? 'Campus' : 'Groups'} Leaderboard
             </h2>
             <button
               onClick={() => setShowFullModal(null)}
-              style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              style={{ background: 'none', border: 'none', color: c.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: 0 }}
             >
               Done
             </button>
@@ -988,23 +996,23 @@ export default function Compete() {
 
             {/* Friends full list */}
             {showFullModal === 'friends' && (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginTop: 12 }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginTop: 12 }}>
                 {friendsLeaderboard.length === 0 ? (
-                  <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>No friends with scores yet.</p>
+                  <p style={{ color: c.textSub, fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>No friends with scores yet.</p>
                 ) : friendsLeaderboard.map((row, idx) => {
                   const isUser = row.userId === userId
                   return (
-                    <div key={row.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < friendsLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none', background: isUser ? '#0D2E5A' : 'transparent', borderRadius: isUser ? 8 : 0, margin: isUser ? '2px -4px' : 0, paddingLeft: isUser ? 8 : 0, paddingRight: isUser ? 8 : 0 }}>
-                      <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
-                      <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} />
+                    <div key={row.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < friendsLeaderboard.length - 1 ? `1px solid ${c.border}` : 'none', background: isUser ? c.accentBg : 'transparent', borderRadius: isUser ? 8 : 0, margin: isUser ? '2px -4px' : 0, paddingLeft: isUser ? 8 : 0, paddingRight: isUser ? 8 : 0 }}>
+                      <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
+                      <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} />
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                          <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
                           {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                         </div>
-                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
+                        <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                       </div>
-                      <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.score}</span>
+                      <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{row.score}</span>
                     </div>
                   )
                 })}
@@ -1013,19 +1021,19 @@ export default function Compete() {
 
             {/* Groups full list */}
             {showFullModal === 'groups' && (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginTop: 12 }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginTop: 12 }}>
                 {groupsLeaderboard.length === 0 ? (
-                  <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>No groups on the leaderboard yet.</p>
+                  <p style={{ color: c.textSub, fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>No groups on the leaderboard yet.</p>
                 ) : groupsLeaderboard.map((row, idx) => {
                   const isMyGroup = myGroupIds.has(row.groupId)
                   return (
-                    <div key={row.groupId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < groupsLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none', background: isMyGroup ? '#0D2E5A' : 'transparent', borderRadius: isMyGroup ? 8 : 0, margin: isMyGroup ? '2px -4px' : 0, paddingLeft: isMyGroup ? 8 : 0, paddingRight: isMyGroup ? 8 : 0 }}>
-                      <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
+                    <div key={row.groupId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < groupsLeaderboard.length - 1 ? `1px solid ${c.border}` : 'none', background: isMyGroup ? c.accentBg : 'transparent', borderRadius: isMyGroup ? 8 : 0, margin: isMyGroup ? '2px -4px' : 0, paddingLeft: isMyGroup ? 8 : 0, paddingRight: isMyGroup ? 8 : 0 }}>
+                      <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
                       <div style={{ flex: 1 }}>
-                        <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.category} · {row.memberCount} members</p>
+                        <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                        <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.category} · {row.memberCount} members</p>
                       </div>
-                      <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.avgScore}</span>
+                      <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{row.avgScore}</span>
                     </div>
                   )
                 })}
@@ -1034,24 +1042,24 @@ export default function Compete() {
 
             {/* Campus full list */}
             {showFullModal === 'campus' && (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 14px', marginTop: 12 }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginTop: 12 }}>
                 {campusLeaderboard.length === 0 ? (
-                  <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>No users on the leaderboard yet.</p>
+                  <p style={{ color: c.textSub, fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>No users on the leaderboard yet.</p>
                 ) : campusLeaderboard.map((row, idx) => {
                   const isUser = row.userId === userId
                   return (
-                    <div key={row.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < campusLeaderboard.length - 1 ? '1px solid #1A2A42' : 'none', background: isUser ? '#0D2E5A' : 'transparent', borderRadius: isUser ? 8 : 0, margin: isUser ? '2px -4px' : 0, paddingLeft: isUser ? 8 : 0, paddingRight: isUser ? 8 : 0 }}>
-                      <span style={{ color: RANK_COLORS[row.rank] ?? '#5A7A9A', fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
-                      <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} />
+                    <div key={row.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < campusLeaderboard.length - 1 ? `1px solid ${c.border}` : 'none', background: isUser ? c.accentBg : 'transparent', borderRadius: isUser ? 8 : 0, margin: isUser ? '2px -4px' : 0, paddingLeft: isUser ? 8 : 0, paddingRight: isUser ? 8 : 0 }}>
+                      <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
+                      <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} />
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <p style={{ color: isUser ? '#4A9EFF' : '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                          <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
                           {(() => { const t = tierBadge(row.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                         </div>
-                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{row.subtitle}</p>
+                        <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{row.score}</span>
+                        <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{row.score}</span>
                         {rankChanges[row.userId] !== undefined && (
                           <span style={{ fontSize: 10, color: rankChanges[row.userId] > 0 ? '#3BF0A0' : '#FF6B6B' }}>
                             {rankChanges[row.userId] > 0 ? `↑${rankChanges[row.userId]}` : `↓${Math.abs(rankChanges[row.userId])}`}
@@ -1064,18 +1072,18 @@ export default function Compete() {
                 {/* Pinned row for users outside the fetched top 15 */}
                 {pinnedRow && !campusLeaderboard.some(r => r.userId === userId) && (
                   <>
-                    <div style={{ padding: '6px 0', textAlign: 'center', color: '#5A7A9A', fontSize: 11 }}>· · ·</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 8px', background: '#0D2E5A', borderRadius: 8, margin: '2px -4px' }}>
-                      <span style={{ color: '#5A7A9A', fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{pinnedRow.rank}</span>
-                      <AvatarCircle avatarUrl={pinnedRow.avatarUrl} ini={pinnedRow.initials} highlight={true} />
+                    <div style={{ padding: '6px 0', textAlign: 'center', color: c.textSub, fontSize: 11 }}>· · ·</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 8px', background: c.accentBg, borderRadius: 8, margin: '2px -4px' }}>
+                      <span style={{ color: c.textSub, fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{pinnedRow.rank}</span>
+                      <AvatarCircle avatarUrl={pinnedRow.avatarUrl} ini={pinnedRow.initials} highlight={true} c={c} />
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <p style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700, margin: 0 }}>{pinnedRow.name}</p>
+                          <p style={{ color: c.accent, fontSize: 13, fontWeight: 700, margin: 0 }}>{pinnedRow.name}</p>
                           {(() => { const t = tierBadge(pinnedRow.level); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
                         </div>
-                        <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{pinnedRow.subtitle}</p>
+                        <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{pinnedRow.subtitle}</p>
                       </div>
-                      <span style={{ color: '#4A9EFF', fontSize: 14, fontWeight: 700 }}>{pinnedRow.score}</span>
+                      <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{pinnedRow.score}</span>
                     </div>
                   </>
                 )}

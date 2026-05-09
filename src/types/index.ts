@@ -22,6 +22,7 @@ export interface UserProfile {
   avatar_url: string | null
   gym_checkin_at: string | null
   created_at: string
+  sex?: string
 }
 
 export interface UserScores {

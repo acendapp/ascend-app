@@ -39,6 +39,7 @@ export interface WorkoutInput {
   firstSessionType?: string
   sore_muscles?: string[]
   injured_muscles?: string[]
+  sex?: string
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -242,7 +243,7 @@ function mainExerciseCount(durationMin: number): number {
 }
 
 export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWorkout> {
-  const { userId, goal, experience_level, equipment, recovery_score, workoutDuration, firstSessionType, sore_muscles, injured_muscles } = input
+  const { userId, goal, experience_level, equipment, recovery_score, workoutDuration, firstSessionType, sore_muscles, injured_muscles, sex } = input
   const totalMin = workoutDuration ?? 60
   const mainCount = mainExerciseCount(totalMin)
 
@@ -283,6 +284,7 @@ export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWor
 
 Goal: ${goal ?? 'general fitness'}
 Experience: ${experience_level ?? 'beginner'}
+Sex: ${sex ?? 'not specified'}
 Equipment: ${equipment ?? 'full gym'}
 Weekly split: ${splitType}
 Recovery score today: ${recovery_score}/10
