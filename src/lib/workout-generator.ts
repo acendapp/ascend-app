@@ -36,6 +36,8 @@ export interface WorkoutInput {
   equipment: string | null
   recovery_score: number
   firstSessionType?: string
+  sore_muscles?: string[]
+  injured_muscles?: string[]
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -69,8 +71,9 @@ function getSplitDescription(experience: string | null): string {
 }
 
 export function parseReps(reps: string | number): number {
-  if (typeof reps === 'number') return reps
-  const m = reps.match(/\d+/)
+  if (typeof reps === 'number') return isNaN(reps) ? 10 : reps
+  if (!reps) return 10
+  const m = String(reps).match(/\d+/)
   return m ? parseInt(m[0]) : 10
 }
 
@@ -231,7 +234,7 @@ function parseJSON<T>(raw: string): T {
 const FIRST_SESSION_INSIGHT = "Welcome to your first Ascend workout. We've built this session around your goal and will personalize it further as you log more sessions."
 
 export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWorkout> {
-  const { userId, goal, experience_level, equipment, recovery_score, firstSessionType } = input
+  const { userId, goal, experience_level, equipment, recovery_score, firstSessionType, sore_muscles, injured_muscles } = input
 
   const [hoursSince, previousWeights, detailedHistory] = await Promise.all([
     getRecentMuscleHoursSince(userId),
@@ -259,6 +262,13 @@ export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWor
     ? `STRICTLY AVOID these muscle groups — not yet recovered (upper body needs 48 h, legs need 72 h): ${avoidMuscles.join(', ')}.`
     : 'All muscle groups are fully recovered and available.'
 
+  const soreConstraint = sore_muscles?.length
+    ? `\nSORE muscles (keep in workout but cap at 2 sets max, reduce suggested_weight by 15%): ${sore_muscles.join(', ')}`
+    : ''
+  const injuryConstraint = injured_muscles?.length
+    ? `\nINJURED muscles (COMPLETELY EXCLUDE — zero exercises targeting these): ${injured_muscles.join(', ')}`
+    : ''
+
   const prompt = `Design a 60-minute workout for this athlete:
 
 Goal: ${goal ?? 'general fitness'}
@@ -267,7 +277,7 @@ Equipment: ${equipment ?? 'full gym'}
 Weekly split: ${splitType}
 Recovery score today: ${recovery_score}/10
 Muscle groups available (recovered and due): ${musclesDue.join(', ') || 'all groups'}
-RECOVERY CONSTRAINT: ${muscleConstraint}
+RECOVERY CONSTRAINT: ${muscleConstraint}${soreConstraint}${injuryConstraint}
 ${historyContext}
 
 Goal modifiers:

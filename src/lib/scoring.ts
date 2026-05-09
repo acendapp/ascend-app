@@ -47,7 +47,7 @@ if (Math.abs(weightSum - 1.0) > 0.001) {
   console.error(`SCORE_WEIGHTS must sum to 1.0, currently ${weightSum}`)
 }
 
-const MONTHLY_TARGET = 16 // 4 sessions/week × 4 weeks
+const WEEKLY_TARGET = 5 // 5 sessions/week, allows ~2 rest days
 
 // IPF GL formula constants
 const IPF_GL_COEFFICIENTS = {
@@ -99,16 +99,18 @@ export function calculateStrengthScoreFromLogs(
 }
 
 /**
- * Consistency score: (workouts in last 30 days / 16 target) * 100, capped at 100.
- * @param completed30Days  Number of completed workouts in the last 30-day window
- * @param monthlyTarget    Target workouts per 30 days (default 16 = 4/week × 4 weeks)
+ * Consistency score: pace-based weekly model.
+ * Target is 5 workouts/week (Mon–Fri), allowing ~2 rest days.
+ * Expected workouts adjust for how far into the week it is, so doing
+ * your workout each day keeps you at 100%. One rest day costs ~20 pts.
+ * @param workoutsThisWeek  Completed workouts since Monday 00:00 local time
  */
-export function calculateConsistencyScore(
-  completed30Days: number,
-  monthlyTarget: number = MONTHLY_TARGET
-): number {
-  if (monthlyTarget <= 0) return 0
-  return Math.min(Math.round((completed30Days / monthlyTarget) * 100), 100)
+export function calculateConsistencyScore(workoutsThisWeek: number): number {
+  const dayOfWeek = new Date().getDay() // 0=Sun,1=Mon,...,6=Sat
+  const weekdayIndex = dayOfWeek === 0 ? 7 : dayOfWeek // Sun → 7
+  const expectedByNow = Math.min(weekdayIndex, WEEKLY_TARGET)
+  if (expectedByNow <= 0) return workoutsThisWeek > 0 ? 100 : 0
+  return Math.min(Math.round((workoutsThisWeek / expectedByNow) * 100), 100)
 }
 
 function getStreakBonus(streakDays: number): number {

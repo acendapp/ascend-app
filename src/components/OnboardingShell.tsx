@@ -1,7 +1,7 @@
 interface OnboardingShellProps {
   step: number
   totalSteps?: number
-  eyebrow: string
+  eyebrow?: string
   headline: string
   subheadline: string
   showPrivacy?: boolean
@@ -17,13 +17,12 @@ interface OnboardingShellProps {
 export default function OnboardingShell({
   step,
   totalSteps = 4,
-  eyebrow,
   headline,
   subheadline,
   showPrivacy = false,
   children,
   onContinue,
-  continueLabel = 'Continue',
+  continueLabel = 'Continue →',
   onBack,
   backLabel = 'Back',
   continueDisabled = false,
@@ -32,15 +31,15 @@ export default function OnboardingShell({
   return (
     <div className="app-shell">
       <div className="app-content onboarding-scroll">
-        {/* Progress pills */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
+
+        {/* Progress segments */}
+        <div style={{ display: 'flex', gap: 5, marginBottom: 40, margin: '-16px -20px 36px' }}>
           {Array.from({ length: totalSteps }, (_, i) => i + 1).map(i => (
             <div
               key={i}
               style={{
                 flex: 1,
                 height: 3,
-                borderRadius: 99,
                 background: i <= step ? '#4A9EFF' : '#1A2A42',
                 transition: 'background 0.3s',
               }}
@@ -48,70 +47,69 @@ export default function OnboardingShell({
           ))}
         </div>
 
-        {/* Eyebrow */}
-        <p style={{ color: '#4A9EFF', fontSize: 10, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 10px' }}>
-          {eyebrow}
+        {/* Step count — minimal */}
+        <p style={{ color: '#2E4A6A', fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', margin: '0 0 16px', textTransform: 'uppercase' }}>
+          {step} / {totalSteps}
         </p>
 
         {/* Headline */}
-        <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 8px', lineHeight: 1.2 }}>
+        <h1 style={{ color: '#FFFFFF', fontSize: 30, fontWeight: 800, margin: '0 0 12px', lineHeight: 1.15, letterSpacing: '-0.5px' }}>
           {headline}
         </h1>
 
         {/* Subheadline */}
-        <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 12px', lineHeight: 1.5 }}>
+        <p style={{ color: '#8895A7', fontSize: 15, margin: '0 0 32px', lineHeight: 1.6 }}>
           {subheadline}
         </p>
 
         {showPrivacy && (
-          <p style={{ color: '#3A5A3A', background: '#0A1F0A', border: '1px solid #1A3A1A', borderRadius: 8, fontSize: 11, padding: '6px 10px', margin: '0 0 20px', display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span>🔒</span>
-            <span style={{ color: '#5A9A5A' }}>Private — only used to personalize your plan</span>
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24 }}>
+            <span style={{ fontSize: 11 }}>🔒</span>
+            <span style={{ color: '#3A5A7A', fontSize: 11 }}>Private — only used to personalize your program</span>
+          </div>
         )}
 
-        {/* Option cards */}
         {children}
 
-        {/* Spacer */}
-        <div style={{ height: 24 }} />
+        <div style={{ height: 32 }} />
 
-        {/* Continue button */}
         <button
           onClick={onContinue}
           disabled={continueDisabled}
           style={{
             width: '100%',
-            background: continueDisabled ? '#1A2A42' : '#4A9EFF',
-            color: '#FFFFFF',
+            background: continueDisabled ? '#131F35' : '#4A9EFF',
+            color: continueDisabled ? '#2E4A6A' : '#FFFFFF',
             fontSize: 16,
             fontWeight: 700,
             borderRadius: 14,
-            padding: '16px',
+            padding: '17px',
             border: 'none',
             cursor: continueDisabled ? 'not-allowed' : 'pointer',
-            transition: 'background 0.2s',
+            transition: 'all 0.2s',
+            letterSpacing: '0.2px',
           }}
         >
           {continueLabel}
         </button>
 
-        {/* Ghost button */}
-        <button
-          onClick={onBack}
-          style={{
-            width: '100%',
-            background: 'transparent',
-            border: 'none',
-            color: '#5A7A9A',
-            fontSize: 14,
-            padding: '14px',
-            cursor: 'pointer',
-            marginTop: 4,
-          }}
-        >
-          {backLabel}
-        </button>
+        {onBack && (
+          <button
+            onClick={onBack}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              color: '#3A5A7A',
+              fontSize: 14,
+              padding: '15px',
+              cursor: 'pointer',
+              marginTop: 2,
+            }}
+          >
+            {backLabel}
+          </button>
+        )}
 
         {footer}
       </div>

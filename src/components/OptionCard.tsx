@@ -14,48 +14,31 @@ export default function OptionCard({ emoji, title, subtitle, selected, onSelect 
         width: '100%',
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        background: selected ? '#0D1F3A' : '#0D1728',
-        border: `1px solid ${selected ? '#4A9EFF' : '#1A2A42'}`,
+        gap: 16,
+        background: selected ? 'rgba(74,158,255,0.07)' : 'transparent',
+        border: `1px solid ${selected ? '#4A9EFF' : '#1E2E44'}`,
+        borderLeft: `${selected ? 3 : 1}px solid ${selected ? '#4A9EFF' : '#1E2E44'}`,
         borderRadius: 14,
-        padding: '16px 18px',
+        padding: '18px 20px',
         marginBottom: 10,
         cursor: 'pointer',
         textAlign: 'left',
         transition: 'all 0.15s',
       }}
     >
-      {/* Icon container */}
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: selected ? '#0D2E5A' : '#1A2A42',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 18,
-          flexShrink: 0,
-          transition: 'background 0.15s',
-        }}
-      >
-        {emoji}
-      </div>
+      <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>{emoji}</span>
 
-      {/* Text */}
       <div style={{ flex: 1 }}>
-        <div style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, marginBottom: 2 }}>{title}</div>
-        <div style={{ color: '#5A7A9A', fontSize: 12 }}>{subtitle}</div>
+        <div style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{title}</div>
+        <div style={{ color: '#6B7E96', fontSize: 12 }}>{subtitle}</div>
       </div>
 
-      {/* Radio */}
       <div
         style={{
-          width: 20,
-          height: 20,
+          width: 22,
+          height: 22,
           borderRadius: '50%',
-          border: `1.5px solid ${selected ? '#4A9EFF' : '#1A2A42'}`,
+          border: `2px solid ${selected ? '#4A9EFF' : '#2A3A52'}`,
           background: selected ? '#4A9EFF' : 'transparent',
           display: 'flex',
           alignItems: 'center',
@@ -65,7 +48,9 @@ export default function OptionCard({ emoji, title, subtitle, selected, onSelect 
         }}
       >
         {selected && (
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#FFFFFF' }} />
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+            <path d="M1 4L3.5 6.5L9 1" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         )}
       </div>
     </button>
