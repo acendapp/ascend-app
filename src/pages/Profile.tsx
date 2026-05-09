@@ -7,6 +7,7 @@ import {
   displayGoal, displayExperience, displayEquipment,
   GOAL_OPTIONS, EXPERIENCE_OPTIONS, EQUIPMENT_OPTIONS, SCHOOL_YEAR_OPTIONS,
 } from '../lib/display'
+import { calculateConsistencyScore } from '../lib/scoring'
 import type { UserProfile, UserScores, FriendshipWithProfile, FriendProfile } from '../types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -268,6 +269,7 @@ export default function Profile() {
   const [totalWorkouts, setTotalWorkouts] = useState(0)
   const [totalVolume, setTotalVolume] = useState(0)
   const [workoutsLast30Days, setWorkoutsLast30Days] = useState(0)
+  const [workoutsThisWeek, setWorkoutsThisWeek] = useState(0)
 
   const [campusRank, setCampusRank] = useState(0)
   const [shareCopied, setShareCopied] = useState(false)
@@ -392,6 +394,10 @@ export default function Profile() {
           })
           setWeekDays(filled)
           setWorkoutsLast30Days(recentWorkoutsRes.data.length)
+          const monday = new Date()
+          monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+          monday.setHours(0, 0, 0, 0)
+          setWorkoutsThisWeek(recentWorkoutsRes.data.filter(w => new Date(w.workout_date) >= monday).length)
         }
 
         // Total volume
@@ -587,7 +593,7 @@ export default function Profile() {
   }
 
   const strengthScore = scores?.strength_score ?? 0
-  const consistencyScore = scores?.consistency_score ?? 0
+  const consistencyScore = calculateConsistencyScore(workoutsThisWeek)
   const ascendScore = scores?.ascend_score ?? 0
   const weeksActive = Math.max(1, Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1)
   const avatarIni = initials(profile.name)
