@@ -7,7 +7,6 @@ import {
   displayGoal, displayExperience, displayEquipment,
   GOAL_OPTIONS, EXPERIENCE_OPTIONS, EQUIPMENT_OPTIONS, SCHOOL_YEAR_OPTIONS,
 } from '../lib/display'
-import { calculateConsistencyScore } from '../lib/scoring'
 import type { UserProfile, UserScores, FriendshipWithProfile, FriendProfile } from '../types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -588,7 +587,7 @@ export default function Profile() {
   }
 
   const strengthScore = scores?.strength_score ?? 0
-  const consistencyScore = calculateConsistencyScore(workoutsLast30Days)
+  const consistencyScore = scores?.consistency_score ?? 0
   const ascendScore = scores?.ascend_score ?? 0
   const weeksActive = Math.max(1, Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1)
   const avatarIni = initials(profile.name)

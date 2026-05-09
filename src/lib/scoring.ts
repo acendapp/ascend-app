@@ -47,7 +47,8 @@ if (Math.abs(weightSum - 1.0) > 0.001) {
   console.error(`SCORE_WEIGHTS must sum to 1.0, currently ${weightSum}`)
 }
 
-const WEEKLY_TARGET = 5 // 5 sessions/week, allows ~2 rest days
+const WEEKLY_TARGET = 5   // 5 sessions/week
+const REST_DAYS_ALLOWED = 2 // off days per week with zero penalty
 
 // IPF GL formula constants
 const IPF_GL_COEFFICIENTS = {
@@ -99,17 +100,16 @@ export function calculateStrengthScoreFromLogs(
 }
 
 /**
- * Consistency score: pace-based weekly model.
- * Target is 5 workouts/week (Mon–Fri), allowing ~2 rest days.
- * Expected workouts adjust for how far into the week it is, so doing
- * your workout each day keeps you at 100%. One rest day costs ~20 pts.
+ * Consistency score: pace-based weekly model with 2 free rest days.
+ * Score stays at 100% as long as you're on pace after accounting for
+ * the 2 allowed rest days. Penalty only kicks in beyond that.
  * @param workoutsThisWeek  Completed workouts since Monday 00:00 local time
  */
 export function calculateConsistencyScore(workoutsThisWeek: number): number {
   const dayOfWeek = new Date().getDay() // 0=Sun,1=Mon,...,6=Sat
   const weekdayIndex = dayOfWeek === 0 ? 7 : dayOfWeek // Sun → 7
-  const expectedByNow = Math.min(weekdayIndex, WEEKLY_TARGET)
-  if (expectedByNow <= 0) return workoutsThisWeek > 0 ? 100 : 0
+  const expectedByNow = Math.max(0, Math.min(weekdayIndex - REST_DAYS_ALLOWED, WEEKLY_TARGET))
+  if (expectedByNow <= 0) return 100
   return Math.min(Math.round((workoutsThisWeek / expectedByNow) * 100), 100)
 }
 
