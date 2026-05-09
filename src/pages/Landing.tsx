@@ -4,18 +4,18 @@ import AscendBolt from '../components/AscendBolt'
 const FEATURES = [
   {
     icon: '⚡',
-    title: 'AI-built workouts, every session',
-    sub: 'Adapts to your recovery, history, and goals — not a generic template.',
+    title: 'Smart workouts, every session',
+    sub: 'Built around your recovery, history, and goals — not a generic template.',
   },
   {
-    icon: '🏆',
-    title: 'Compete with your Penn network',
-    sub: 'Leaderboards, challenges, and real rivalries with people you know.',
+    icon: '🤝',
+    title: 'Grow with your Penn community',
+    sub: 'Leaderboards, challenges, and real motivation from people you know.',
   },
   {
     icon: '📈',
     title: 'Track every PR and streak',
-    sub: 'Your Ascend Score rises with consistency, strength, and social pull.',
+    sub: 'Your Ascend Score rises with consistency, strength, and community.',
   },
 ]
 
@@ -57,8 +57,8 @@ export default function Landing() {
             letterSpacing: '-1px',
           }}>
             Train smarter.<br />
-            <span style={{ color: '#4A9EFF' }}>Outcompete</span> your<br />
-            Penn network.
+            <span style={{ color: '#4A9EFF' }}>Rise together</span><br />
+            at Penn.
           </h1>
 
           <p style={{
@@ -68,7 +68,7 @@ export default function Landing() {
             margin: '0 0 40px',
             maxWidth: 300,
           }}>
-            AI-personalized workouts, live leaderboards, and a community built to push you — all in one place.
+            Personalized workouts, live leaderboards, and a community built to push you — all in one place.
           </p>
 
           {/* Feature list */}
