@@ -12,13 +12,14 @@ interface RecentTemplate {
 
 const LAST_TYPE_KEY = 'ascend_last_workout_type'
 
-const WORKOUT_TYPES = [
+const WORKOUT_TYPE_DEFS = [
   {
     id: 'ascend',
     title: 'Ascend Method',
     subtitle: 'Personalized for you and your goals',
     emoji: '⚡',
-    accent: '#4A9EFF',
+    accentDynamic: true,
+    staticAccent: '',
     path: '/workout/ascend',
   },
   {
@@ -26,7 +27,8 @@ const WORKOUT_TYPES = [
     title: 'Custom Workout',
     subtitle: 'Build your own or repeat a saved session',
     emoji: '✏️',
-    accent: '#3BF0A0',
+    accentDynamic: false,
+    staticAccent: '#3BF0A0',
     path: '/workout/custom',
   },
   {
@@ -34,7 +36,8 @@ const WORKOUT_TYPES = [
     title: 'Class Workout',
     subtitle: 'Pilates, yoga, spin, HIIT, and more',
     emoji: '🏃',
-    accent: '#F5A623',
+    accentDynamic: false,
+    staticAccent: '#F5A623',
     path: '/workout/class',
   },
 ]
@@ -169,15 +172,16 @@ export default function WorkoutTypeSelector() {
           </h1>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {WORKOUT_TYPES.map(opt => {
+            {WORKOUT_TYPE_DEFS.map(opt => {
               const isLast = lastType === opt.id
+              const typeAccent = opt.accentDynamic ? c.accent : opt.staticAccent
               return (
                 <button
                   key={opt.id}
                   onClick={() => selectType(opt.id, opt.path)}
                   style={{
                     background: c.surface,
-                    border: `1.5px solid ${isLast ? opt.accent : c.border}`,
+                    border: `1.5px solid ${isLast ? typeAccent : c.border}`,
                     borderRadius: 18,
                     padding: '18px 20px',
                     display: 'flex', alignItems: 'center', gap: 16,
@@ -193,7 +197,7 @@ export default function WorkoutTypeSelector() {
                   {isLast && (
                     <span style={{
                       position: 'absolute', top: 10, right: 14,
-                      background: opt.accent + '22', color: opt.accent,
+                      background: typeAccent + '22', color: typeAccent,
                       fontSize: 9, fontWeight: 700, borderRadius: 4,
                       padding: '2px 6px', letterSpacing: 1,
                     }}>
@@ -236,7 +240,7 @@ export default function WorkoutTypeSelector() {
                           : ''}
                       </p>
                     </div>
-                    <span style={{ color: '#3BF0A0', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Start →</span>
+                    <span style={{ color: c.accent, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Start →</span>
                   </button>
                 ))}
               </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs, calculateConsistencyScore, calculateAscendScore } from '../lib/scoring'
+import { useTheme } from '../lib/theme'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ function fmtTime(totalSecs: number): string {
 export default function CustomWorkout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { colors: c } = useTheme()
   const directTemplateId = (location.state as { templateId?: string } | null)?.templateId ?? null
   const isPreview = !!(location.state as { preview?: boolean } | null)?.preview
 
@@ -381,8 +383,8 @@ export default function CustomWorkout() {
   if (phase === 'loading') {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-          <div style={{ color: '#5A7A9A', fontSize: 14 }}>Loading…</div>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <div style={{ color: c.textSub, fontSize: 14 }}>Loading…</div>
         </div>
       </div>
     )
@@ -393,41 +395,41 @@ export default function CustomWorkout() {
   if (phase === 'template-list') {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 24px' }}>
 
             <button
               onClick={() => navigate('/workout')}
-              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 20px', display: 'block' }}
+              style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 14, cursor: 'pointer', padding: '0 0 20px', display: 'block' }}
             >
               ← Back
             </button>
 
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <div>
-                <p style={{ color: '#3BF0A0', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>
+                <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>
                   Custom Workouts
                 </p>
-                <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: 0 }}>Your Workouts</h1>
+                <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: 0 }}>Your Workouts</h1>
               </div>
               <button
                 onClick={() => openBuilder()}
-                style={{ background: '#3BF0A0', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+                style={{ background: c.accent, border: 'none', borderRadius: 10, padding: '10px 18px', color: '#FFFFFF', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
               >
                 + New
               </button>
             </div>
 
             {templates.length === 0 ? (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: '36px 24px', textAlign: 'center' }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 16, padding: '36px 24px', textAlign: 'center' }}>
                 <p style={{ fontSize: 36, margin: '0 0 12px' }}>✏️</p>
-                <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>No saved workouts yet</p>
-                <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 24px', lineHeight: 1.5 }}>
+                <p style={{ color: c.text, fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>No saved workouts yet</p>
+                <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 24px', lineHeight: 1.5 }}>
                   Build a custom workout once, repeat it forever.
                 </p>
                 <button
                   onClick={() => openBuilder()}
-                  style={{ background: '#3BF0A0', border: 'none', borderRadius: 12, padding: '12px 28px', color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ background: c.accent, border: 'none', borderRadius: 12, padding: '12px 28px', color: '#FFFFFF', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
                 >
                   Create My First Workout
                 </button>
@@ -437,14 +439,14 @@ export default function CustomWorkout() {
                 {templates.map(t => (
                   <div
                     key={t.id}
-                    style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 16, padding: '16px' }}
+                    style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 16, padding: '16px' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 700, margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {t.name}
                         </p>
-                        <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>
+                        <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
                           {t.exercises.length} exercise{t.exercises.length !== 1 ? 's' : ''}
                           {t.last_used_at
                             ? ` · Last: ${new Date(t.last_used_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
@@ -461,7 +463,7 @@ export default function CustomWorkout() {
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(null)}
-                            style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 8, color: '#5A7A9A', fontSize: 12, cursor: 'pointer', padding: '6px 12px', flexShrink: 0 }}
+                            style={{ background: 'none', border: `1px solid ${c.border}`, borderRadius: 8, color: c.textSub, fontSize: 12, cursor: 'pointer', padding: '6px 12px', flexShrink: 0 }}
                           >
                             Keep
                           </button>
@@ -470,19 +472,19 @@ export default function CustomWorkout() {
                         <>
                           <button
                             onClick={() => openBuilder(t)}
-                            style={{ background: 'none', border: '1px solid #1A2A42', borderRadius: 8, color: '#5A7A9A', fontSize: 12, cursor: 'pointer', padding: '6px 12px', flexShrink: 0 }}
+                            style={{ background: 'none', border: `1px solid ${c.border}`, borderRadius: 8, color: c.textSub, fontSize: 12, cursor: 'pointer', padding: '6px 12px', flexShrink: 0 }}
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => startWorkout(t)}
-                            style={{ background: '#3BF0A0', border: 'none', borderRadius: 10, padding: '8px 18px', color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+                            style={{ background: c.accent, border: 'none', borderRadius: 10, padding: '8px 18px', color: '#FFFFFF', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
                           >
                             Start →
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(t.id)}
-                            style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 18, cursor: 'pointer', padding: '2px 6px', flexShrink: 0, lineHeight: 1 }}
+                            style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 18, cursor: 'pointer', padding: '2px 6px', flexShrink: 0, lineHeight: 1 }}
                           >
                             ×
                           </button>
@@ -491,7 +493,7 @@ export default function CustomWorkout() {
                     </div>
 
                     {t.exercises.length > 0 && (
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: '8px 0 0', lineHeight: 1.4 }}>
+                      <p style={{ color: c.textSub, fontSize: 11, margin: '8px 0 0', lineHeight: 1.4 }}>
                         {t.exercises.slice(0, 3).map(e => e.exercise_name).join(' · ')}
                         {t.exercises.length > 3 ? ` +${t.exercises.length - 3} more` : ''}
                       </p>
@@ -512,17 +514,17 @@ export default function CustomWorkout() {
     const canStart = templateName.trim().length > 0 && exercises.some(e => e.exercise_name.trim())
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 24px' }}>
 
             <button
               onClick={() => setPhase('template-list')}
-              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 20px', display: 'block' }}
+              style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 14, cursor: 'pointer', padding: '0 0 20px', display: 'block' }}
             >
               ← Back
             </button>
 
-            <h1 style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 700, margin: '0 0 20px' }}>
+            <h1 style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: '0 0 20px' }}>
               {editingTemplate ? 'Edit Workout' : 'New Workout'}
             </h1>
 
@@ -532,19 +534,19 @@ export default function CustomWorkout() {
               onChange={e => setTemplateName(e.target.value)}
               placeholder="Workout name (e.g., Push Day)"
               style={{
-                width: '100%', background: '#0D1728', border: '1px solid #4A9EFF',
-                borderRadius: 12, padding: '14px 16px', color: '#FFFFFF', fontSize: 16, fontWeight: 700,
+                width: '100%', background: c.inputBg, border: `1px solid ${c.accent}`,
+                borderRadius: 12, padding: '14px 16px', color: c.text, fontSize: 16, fontWeight: 700,
                 outline: 'none', marginBottom: 24, boxSizing: 'border-box',
               }}
             />
 
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>
               Exercises
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
               {exercises.map((ex, idx) => (
-                <div key={idx} style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px' }}>
+                <div key={idx} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px' }}>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                     <input
@@ -553,13 +555,13 @@ export default function CustomWorkout() {
                       onChange={e => updateExercise(idx, 'exercise_name', e.target.value)}
                       placeholder={`Exercise ${idx + 1}`}
                       style={{
-                        flex: 1, background: '#0A1828', border: '1px solid #1A2A42',
-                        borderRadius: 8, padding: '8px 12px', color: '#FFFFFF', fontSize: 14, outline: 'none',
+                        flex: 1, background: c.inputBg, border: `1px solid ${c.border}`,
+                        borderRadius: 8, padding: '8px 12px', color: c.text, fontSize: 14, outline: 'none',
                       }}
                     />
                     <button
                       onClick={() => removeExercise(idx)}
-                      style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1, flexShrink: 0 }}
+                      style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1, flexShrink: 0 }}
                     >
                       ×
                     </button>
@@ -567,38 +569,38 @@ export default function CustomWorkout() {
 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <div>
-                      <p style={{ color: '#5A7A9A', fontSize: 10, margin: '0 0 4px' }}>Sets</p>
+                      <p style={{ color: c.textSub, fontSize: 10, margin: '0 0 4px' }}>Sets</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <button
                           onClick={() => updateExercise(idx, 'sets', Math.max(1, ex.sets - 1))}
-                          style={{ width: 28, height: 28, borderRadius: 6, background: '#1A2A42', border: 'none', color: '#FFFFFF', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ width: 28, height: 28, borderRadius: 6, background: c.border, border: 'none', color: c.text, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >−</button>
-                        <span style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 700, minWidth: 22, textAlign: 'center' }}>{ex.sets}</span>
+                        <span style={{ color: c.text, fontSize: 14, fontWeight: 700, minWidth: 22, textAlign: 'center' }}>{ex.sets}</span>
                         <button
                           onClick={() => updateExercise(idx, 'sets', Math.min(10, ex.sets + 1))}
-                          style={{ width: 28, height: 28, borderRadius: 6, background: '#1A2A42', border: 'none', color: '#FFFFFF', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ width: 28, height: 28, borderRadius: 6, background: c.border, border: 'none', color: c.text, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >+</button>
                       </div>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ color: '#5A7A9A', fontSize: 10, margin: '0 0 4px' }}>Reps</p>
+                      <p style={{ color: c.textSub, fontSize: 10, margin: '0 0 4px' }}>Reps</p>
                       <input
                         type="text"
                         value={ex.reps}
                         onChange={e => updateExercise(idx, 'reps', e.target.value)}
                         placeholder="8-10"
-                        style={{ width: '100%', background: '#0A1828', border: '1px solid #1A2A42', borderRadius: 8, padding: '6px 8px', color: '#FFFFFF', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                        style={{ width: '100%', background: c.inputBg, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 8px', color: c.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ color: '#5A7A9A', fontSize: 10, margin: '0 0 4px' }}>Weight (lb)</p>
+                      <p style={{ color: c.textSub, fontSize: 10, margin: '0 0 4px' }}>Weight (lb)</p>
                       <input
                         type="number"
                         inputMode="decimal"
                         value={ex.weight || ''}
                         onChange={e => updateExercise(idx, 'weight', parseFloat(e.target.value) || 0)}
                         placeholder="0 = BW"
-                        style={{ width: '100%', background: '#0A1828', border: '1px solid #1A2A42', borderRadius: 8, padding: '6px 8px', color: '#FFFFFF', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                        style={{ width: '100%', background: c.inputBg, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 8px', color: c.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                       />
                     </div>
                   </div>
@@ -609,8 +611,8 @@ export default function CustomWorkout() {
             <button
               onClick={addExercise}
               style={{
-                background: 'none', border: '1px dashed #1A2A42', borderRadius: 12, padding: '12px',
-                width: '100%', color: '#5A7A9A', fontSize: 13, cursor: 'pointer', marginBottom: 24,
+                background: 'none', border: `1px dashed ${c.border}`, borderRadius: 12, padding: '12px',
+                width: '100%', color: c.textSub, fontSize: 13, cursor: 'pointer', marginBottom: 24,
               }}
             >
               + Add Exercise
@@ -624,8 +626,8 @@ export default function CustomWorkout() {
               disabled={!canStart || savingTemplate}
               style={{
                 width: '100%',
-                background: canStart ? '#3BF0A0' : '#1A2A42',
-                color: canStart ? '#000000' : '#5A7A9A',
+                background: canStart ? c.accent : c.surface,
+                color: canStart ? '#FFFFFF' : c.textSub,
                 fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
                 border: 'none', cursor: canStart ? 'pointer' : 'not-allowed',
               }}
@@ -644,24 +646,24 @@ export default function CustomWorkout() {
     const anyDone = Object.values(completedSets).some(v => v > 0)
     return (
       <div className="app-shell">
-        <div className="app-content page-scroll">
+        <div className="app-content page-scroll" style={{ background: c.bg }}>
 
-          <div style={{ position: 'fixed', top: 16, right: 20, zIndex: 50, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 8, padding: '4px 10px' }}>
-            <span style={{ color: '#3BF0A0', fontSize: 13, fontWeight: 700 }}>{fmtTime(elapsedSeconds)}</span>
+          <div style={{ position: 'fixed', top: 16, right: 20, zIndex: 50, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 8, padding: '4px 10px' }}>
+            <span style={{ color: c.accent, fontSize: 13, fontWeight: 700 }}>{fmtTime(elapsedSeconds)}</span>
           </div>
 
           <div style={{ padding: '52px 20px 0' }}>
 
             {isPreview && (
-              <div style={{ background: '#0D2E5A', border: '1px solid #1E3D6E', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 14 }}>👁️</span>
-                <p style={{ color: '#4A9EFF', fontSize: 12, fontWeight: 600, margin: 0 }}>Preview mode — come back tomorrow to log</p>
+                <p style={{ color: c.accent, fontSize: 12, fontWeight: 600, margin: 0 }}>Preview mode — come back tomorrow to log</p>
               </div>
             )}
-            <p style={{ color: '#3BF0A0', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 4px' }}>
               Custom Workout
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 700, margin: '0 0 20px', lineHeight: 1.2 }}>
+            <h1 style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: '0 0 20px', lineHeight: 1.2 }}>
               {activeTemplate.name}
             </h1>
 
@@ -675,17 +677,17 @@ export default function CustomWorkout() {
                   <div
                     key={exIdx}
                     style={{
-                      background: allDone ? '#0A1F3A' : '#0D1728',
-                      border: `1px solid ${allDone ? '#1E3D6E' : '#1A2A42'}`,
+                      background: allDone ? c.accentBg : c.surface,
+                      border: `1px solid ${allDone ? c.accentBorder : c.border}`,
                       borderRadius: 14, padding: '14px 16px',
                       opacity: allDone ? 0.75 : 1, transition: 'opacity 0.2s',
                     }}
                   >
                     <div style={{ marginBottom: 10 }}>
-                      <p style={{ color: allDone ? '#4A9EFF' : '#FFFFFF', fontSize: 14, fontWeight: 700, margin: '0 0 2px', textDecoration: allDone ? 'line-through' : 'none' }}>
+                      <p style={{ color: allDone ? c.accent : c.text, fontSize: 14, fontWeight: 700, margin: '0 0 2px', textDecoration: allDone ? 'line-through' : 'none' }}>
                         {ex.exercise_name}
                       </p>
-                      <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
+                      <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>
                         {ex.sets} × {ex.reps}{ex.weight > 0 ? ` · ${ex.weight} lb` : ''}
                       </p>
                     </div>
@@ -701,9 +703,9 @@ export default function CustomWorkout() {
                             disabled={!isCurrent || allDone}
                             style={{
                               width: 30, height: 30, borderRadius: '50%',
-                              background: isDone ? '#3BF0A0' : isCurrent ? '#0D2E1A' : 'transparent',
-                              border: `2px solid ${isDone ? '#3BF0A0' : isCurrent ? '#3BF0A0' : '#1A2A42'}`,
-                              color: isDone ? '#000' : isCurrent ? '#3BF0A0' : '#5A7A9A',
+                              background: isDone ? c.accent : isCurrent ? c.accentBg : 'transparent',
+                              border: `2px solid ${isDone ? c.accent : isCurrent ? c.accent : c.border}`,
+                              color: isDone ? '#FFF' : isCurrent ? c.accent : c.textSub,
                               fontSize: 11, fontWeight: 700,
                               cursor: isCurrent && !allDone ? 'pointer' : 'default',
                               transition: 'all 0.15s',
@@ -713,13 +715,13 @@ export default function CustomWorkout() {
                           </button>
                         )
                       })}
-                      <span style={{ color: '#5A7A9A', fontSize: 11, marginLeft: 4 }}>
+                      <span style={{ color: c.textSub, fontSize: 11, marginLeft: 4 }}>
                         {done}/{ex.sets}
                       </span>
                     </div>
 
                     {isPending && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 0', borderTop: '1px solid #1A2A42', marginTop: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 0', borderTop: `1px solid ${c.border}`, marginTop: 10 }}>
                         <input
                           type="number"
                           inputMode="decimal"
@@ -729,21 +731,21 @@ export default function CustomWorkout() {
                           autoFocus
                           placeholder={ex.weight > 0 ? String(ex.weight) : 'Weight'}
                           style={{
-                            width: 80, background: '#0A1F3A', border: '1px solid #3BF0A0',
-                            borderRadius: 8, color: '#FFFFFF', fontSize: 16, fontWeight: 700,
+                            width: 80, background: c.accentBg, border: `1px solid ${c.accent}`,
+                            borderRadius: 8, color: c.text, fontSize: 16, fontWeight: 700,
                             padding: '6px 10px', outline: 'none',
                           }}
                         />
-                        <span style={{ color: '#5A7A9A', fontSize: 12 }}>lb</span>
+                        <span style={{ color: c.textSub, fontSize: 12 }}>lb</span>
                         <button
                           onClick={confirmWeight}
-                          style={{ background: '#3BF0A0', border: 'none', borderRadius: 8, color: '#000', fontSize: 13, fontWeight: 700, padding: '6px 14px', cursor: 'pointer' }}
+                          style={{ background: c.accent, border: 'none', borderRadius: 8, color: '#FFFFFF', fontSize: 13, fontWeight: 700, padding: '6px 14px', cursor: 'pointer' }}
                         >
                           Done
                         </button>
                         <button
                           onClick={() => { setPendingExIdx(null); setPendingWeight('') }}
-                          style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 11, cursor: 'pointer', padding: 0 }}
+                          style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 11, cursor: 'pointer', padding: 0 }}
                         >
                           Cancel
                         </button>
@@ -757,7 +759,7 @@ export default function CustomWorkout() {
             {isPreview ? (
               <button
                 onClick={() => navigate('/home')}
-                style={{ width: '100%', background: '#1A2A42', color: '#5A7A9A', fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: '1px solid #1E3D6E', cursor: 'pointer', marginBottom: 8 }}
+                style={{ width: '100%', background: c.surface, color: c.textSub, fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: `1px solid ${c.border}`, cursor: 'pointer', marginBottom: 8 }}
               >
                 See you tomorrow 💪
               </button>
@@ -767,8 +769,8 @@ export default function CustomWorkout() {
                 disabled={!anyDone || finishing}
                 style={{
                   width: '100%',
-                  background: anyDone ? '#3BF0A0' : '#1A2A42',
-                  color: anyDone ? '#000000' : '#5A7A9A',
+                  background: anyDone ? c.accent : c.surface,
+                  color: anyDone ? '#FFFFFF' : c.textSub,
                   fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
                   border: 'none', cursor: anyDone ? 'pointer' : 'not-allowed',
                   marginBottom: 8, transition: 'background 0.2s',
@@ -789,34 +791,34 @@ export default function CustomWorkout() {
   if (phase === 'summary' && summaryData) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
           <div style={{ textAlign: 'center', width: '100%' }}>
-            <p style={{ color: '#3BF0A0', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Workout Complete
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 700, margin: '0 0 24px', lineHeight: 1.2 }}>
+            <h1 style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: '0 0 24px', lineHeight: 1.2 }}>
               {summaryData.templateName}
             </h1>
 
             <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-              <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 16 }}>
-                <p style={{ color: '#3BF0A0', fontSize: 26, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.totalSets}</p>
-                <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Total Sets</p>
+              <div style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 16 }}>
+                <p style={{ color: c.accent, fontSize: 26, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.totalSets}</p>
+                <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>Total Sets</p>
               </div>
-              <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 16 }}>
-                <p style={{ color: '#3BF0A0', fontSize: 26, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.totalVolume.toLocaleString()}</p>
-                <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Total lbs</p>
+              <div style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 16 }}>
+                <p style={{ color: c.accent, fontSize: 26, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.totalVolume.toLocaleString()}</p>
+                <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>Total lbs</p>
               </div>
             </div>
 
-            <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: 16, marginBottom: 24 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 4px' }}>XP Earned</p>
-              <p style={{ color: '#4A9EFF', fontSize: 26, fontWeight: 700, margin: 0 }}>+{summaryData.xpGain} XP</p>
+            <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: 16, marginBottom: 24 }}>
+              <p style={{ color: c.textSub, fontSize: 12, margin: '0 0 4px' }}>XP Earned</p>
+              <p style={{ color: c.accent, fontSize: 26, fontWeight: 700, margin: 0 }}>+{summaryData.xpGain} XP</p>
             </div>
 
             <button
               onClick={() => navigate('/home')}
-              style={{ width: '100%', background: '#3BF0A0', border: 'none', borderRadius: 14, padding: '16px', color: '#000', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}
+              style={{ width: '100%', background: c.accent, border: 'none', borderRadius: 14, padding: '16px', color: '#FFFFFF', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}
             >
               Done 💪
             </button>

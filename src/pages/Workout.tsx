@@ -14,6 +14,7 @@ import {
   getLevelFromXP,
 } from '../lib/scoring'
 import { notificationPermission, requestPushPermission } from '../lib/notifications'
+import { useTheme } from '../lib/theme'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,7 @@ function RestTimerRing({
   total: number
   onSkip: () => void
 }) {
+  const { colors: c } = useTheme()
   const r = 18
   const circumference = 2 * Math.PI * r
   const progress = total > 0 ? timeLeft / total : 0
@@ -144,24 +146,24 @@ function RestTimerRing({
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
       <div style={{ position: 'relative', width: 44, height: 44, flexShrink: 0 }}>
         <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx="22" cy="22" r={r} fill="none" stroke="#1A2A42" strokeWidth="4" />
+          <circle cx="22" cy="22" r={r} fill="none" stroke={c.border} strokeWidth="4" />
           <circle
             cx="22" cy="22" r={r}
-            fill="none" stroke="#4A9EFF" strokeWidth="4"
+            fill="none" stroke={c.accent} strokeWidth="4"
             strokeDasharray={`${circumference}`}
             strokeDashoffset={`${dashOffset}`}
             strokeLinecap="round"
           />
         </svg>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ color: '#4A9EFF', fontSize: 10, fontWeight: 700 }}>{display}</span>
+          <span style={{ color: c.accent, fontSize: 10, fontWeight: 700 }}>{display}</span>
         </div>
       </div>
       <div>
-        <p style={{ color: '#7AAAD4', fontSize: 12, margin: '0 0 2px', fontWeight: 600 }}>Rest</p>
+        <p style={{ color: c.textSub, fontSize: 12, margin: '0 0 2px', fontWeight: 600 }}>Rest</p>
         <button
           onClick={onSkip}
-          style={{ color: '#5A7A9A', fontSize: 11, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+          style={{ color: c.textSub, fontSize: 11, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
         >
           Skip →
         </button>
@@ -205,6 +207,7 @@ function ExerciseCard({
   onSwap: () => void
   onEditSet: (setIdx: number, weight: number) => void
 }) {
+  const { colors: c } = useTheme()
   const done = completedSets >= exercise.sets
   const isResting = activeRestKey === exerciseKey
 
@@ -278,8 +281,8 @@ function ExerciseCard({
   return (
     <div
       style={{
-        background: done ? '#0A1F3A' : '#0D1728',
-        border: `1px solid ${done ? '#1E3D6E' : '#1A2A42'}`,
+        background: done ? c.accentBg : c.surface,
+        border: `1px solid ${done ? c.accentBorder : c.border}`,
         borderRadius: 14,
         padding: '14px 16px',
         marginBottom: 8,
@@ -290,28 +293,28 @@ function ExerciseCard({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ flex: 1 }}>
-          <p style={{ color: done ? '#4A9EFF' : '#FFFFFF', fontSize: 14, fontWeight: 700, margin: '0 0 2px', textDecoration: done ? 'line-through' : 'none' }}>
+          <p style={{ color: done ? c.accent : c.text, fontSize: 14, fontWeight: 700, margin: '0 0 2px', textDecoration: done ? 'line-through' : 'none' }}>
             {swapping ? 'Finding substitute…' : exercise.exercise_name}
           </p>
-          <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>{exercise.muscle_group}</p>
+          <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{exercise.muscle_group}</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <div style={{ background: '#1A2A42', borderRadius: 6, padding: '4px 10px', color: '#FFFFFF', fontSize: 11, fontWeight: 700 }}>
+            <div style={{ background: c.border, borderRadius: 6, padding: '4px 10px', color: c.text, fontSize: 11, fontWeight: 700 }}>
               {exercise.sets} × {exercise.reps}
             </div>
             {/* RPE badge + tooltip */}
             <div ref={rpeRef} style={{ position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <div style={{ background: '#1A2A42', borderRadius: 6, padding: '4px 10px', color: '#5A7A9A', fontSize: 11 }}>
+                <div style={{ background: c.border, borderRadius: 6, padding: '4px 10px', color: c.textSub, fontSize: 11 }}>
                   RPE {exercise.rpe_target}
                 </div>
                 <button
                   onClick={e => { e.stopPropagation(); setShowRpeTooltip(v => !v) }}
                   style={{
                     width: 16, height: 16, borderRadius: '50%',
-                    background: '#1A2A42', border: 'none',
-                    color: '#5A7A9A', fontSize: 9, fontWeight: 700,
+                    background: c.border, border: 'none',
+                    color: c.textSub, fontSize: 9, fontWeight: 700,
                     cursor: 'pointer', display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                     padding: 0, flexShrink: 0,
@@ -323,25 +326,25 @@ function ExerciseCard({
               {showRpeTooltip && (
                 <div style={{
                   position: 'absolute', top: '100%', right: 0, marginTop: 4,
-                  zIndex: 100, background: '#0D1728', border: '1px solid #1A2A42',
+                  zIndex: 100, background: c.surface, border: `1px solid ${c.border}`,
                   borderRadius: 10, padding: '10px 12px', width: 200,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
                 }}>
-                  <p style={{ color: '#7AAAD4', fontSize: 11, lineHeight: 1.5, margin: 0 }}>
+                  <p style={{ color: c.textSub, fontSize: 11, lineHeight: 1.5, margin: 0 }}>
                     RPE measures effort. 6 = comfortable, 7 = moderate, 8 = challenging, 9 = very hard, 10 = max.
                   </p>
                 </div>
               )}
             </div>
           </div>
-          <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>
+          <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>
             {isBodyweight ? 'Bodyweight' : `${currentWeight} lb`}
           </p>
         </div>
       </div>
 
       {/* Coaching tip */}
-      <p style={{ color: '#5A7A9A', fontSize: 11, lineHeight: 1.4, margin: '0 0 10px', fontStyle: 'italic' }}>
+      <p style={{ color: c.textSub, fontSize: 11, lineHeight: 1.4, margin: '0 0 10px', fontStyle: 'italic' }}>
         {exercise.coaching_tip}
       </p>
 
@@ -358,9 +361,9 @@ function ExerciseCard({
                 disabled={!isNext || done}
                 style={{
                   width: 30, height: 30, borderRadius: '50%',
-                  background: isDone ? '#4A9EFF' : isNext ? '#0D2E5A' : 'transparent',
-                  border: `2px solid ${isDone ? '#4A9EFF' : isNext ? '#4A9EFF' : '#1A2A42'}`,
-                  color: isDone ? '#FFF' : isNext ? '#4A9EFF' : '#5A7A9A',
+                  background: isDone ? c.accent : isNext ? c.accentBg : 'transparent',
+                  border: `2px solid ${isDone ? c.accent : isNext ? c.accent : c.border}`,
+                  color: isDone ? '#FFF' : isNext ? c.accent : c.textSub,
                   fontSize: 11, fontWeight: 700,
                   cursor: isNext && !done ? 'pointer' : 'default',
                   transition: 'all 0.15s',
@@ -375,18 +378,18 @@ function ExerciseCard({
                   style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }}
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#5A7A9A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={c.textSub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={c.textSub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </button>
               )}
             </div>
           )
         })}
-        <span style={{ color: '#5A7A9A', fontSize: 11, marginLeft: 4, marginTop: 8 }}>
+        <span style={{ color: c.textSub, fontSize: 11, marginLeft: 4, marginTop: 8 }}>
           {completedSets}/{exercise.sets} sets
         </span>
-        <span style={{ color: '#5A7A9A', fontSize: 10, marginLeft: 4, marginTop: 8 }}>
+        <span style={{ color: c.textSub, fontSize: 10, marginLeft: 4, marginTop: 8 }}>
           · {Math.round(exercise.rest_seconds / 60)}m rest
         </span>
         {completedSets > 0 && !isPreview && (
@@ -395,9 +398,9 @@ function ExerciseCard({
             title="Undo last set"
             style={{
               marginLeft: 'auto', marginTop: 4,
-              background: 'none', border: '1px solid #1A2A42',
+              background: 'none', border: `1px solid ${c.border}`,
               borderRadius: 6, padding: '2px 8px',
-              color: '#5A7A9A', fontSize: 11, cursor: 'pointer',
+              color: c.textSub, fontSize: 11, cursor: 'pointer',
             }}
           >
             undo
@@ -407,7 +410,7 @@ function ExerciseCard({
 
       {/* Inline weight input — new set */}
       {pendingSetIdx !== null && !isBodyweight && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: '1px solid #1A2A42' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: `1px solid ${c.border}` }}>
           <input
             type="number"
             inputMode="decimal"
@@ -418,21 +421,21 @@ function ExerciseCard({
             placeholder={String(exercise.suggested_weight)}
             style={{
               width: 80,
-              background: '#0A1F3A',
-              border: '1px solid #4A9EFF',
+              background: c.accentBg,
+              border: `1px solid ${c.accent}`,
               borderRadius: 8,
-              color: '#FFFFFF',
+              color: c.text,
               fontSize: 16,
               fontWeight: 700,
               padding: '6px 10px',
               outline: 'none',
             }}
           />
-          <span style={{ color: '#5A7A9A', fontSize: 12 }}>lb</span>
+          <span style={{ color: c.textSub, fontSize: 12 }}>lb</span>
           <button
             onClick={() => confirmWeight()}
             style={{
-              background: '#4A9EFF', border: 'none', borderRadius: 8,
+              background: c.accent, border: 'none', borderRadius: 8,
               color: '#FFFFFF', fontSize: 13, fontWeight: 700,
               padding: '6px 14px', cursor: 'pointer',
             }}
@@ -441,7 +444,7 @@ function ExerciseCard({
           </button>
           <button
             onClick={() => { setPendingSetIdx(null); setPendingWeight(''); setPlausibilityWeight(null) }}
-            style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 11, cursor: 'pointer', padding: 0 }}
+            style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 11, cursor: 'pointer', padding: 0 }}
           >
             Cancel
           </button>
@@ -464,7 +467,7 @@ function ExerciseCard({
             </button>
             <button
               onClick={() => setPlausibilityWeight(null)}
-              style={{ flex: 1, background: 'transparent', border: '1px solid #1A2A42', borderRadius: 8, padding: '7px', color: '#5A7A9A', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              style={{ flex: 1, background: 'transparent', border: `1px solid ${c.border}`, borderRadius: 8, padding: '7px', color: c.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
             >
               Cancel
             </button>
@@ -474,8 +477,8 @@ function ExerciseCard({
 
       {/* Inline weight input — edit done set */}
       {editingSetIdx !== null && !isBodyweight && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: '1px solid #1A2A42' }}>
-          <span style={{ color: '#5A7A9A', fontSize: 11, flexShrink: 0 }}>Set {editingSetIdx + 1}:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: `1px solid ${c.border}` }}>
+          <span style={{ color: c.textSub, fontSize: 11, flexShrink: 0 }}>Set {editingSetIdx + 1}:</span>
           <input
             type="number"
             inputMode="decimal"
@@ -485,21 +488,21 @@ function ExerciseCard({
             autoFocus
             style={{
               width: 80,
-              background: '#0A1F3A',
-              border: '1px solid #4A9EFF',
+              background: c.accentBg,
+              border: `1px solid ${c.accent}`,
               borderRadius: 8,
-              color: '#FFFFFF',
+              color: c.text,
               fontSize: 16,
               fontWeight: 700,
               padding: '6px 10px',
               outline: 'none',
             }}
           />
-          <span style={{ color: '#5A7A9A', fontSize: 12 }}>lb</span>
+          <span style={{ color: c.textSub, fontSize: 12 }}>lb</span>
           <button
             onClick={confirmEdit}
             style={{
-              background: '#4A9EFF', border: 'none', borderRadius: 8,
+              background: c.accent, border: 'none', borderRadius: 8,
               color: '#FFFFFF', fontSize: 13, fontWeight: 700,
               padding: '6px 14px', cursor: 'pointer',
             }}
@@ -508,7 +511,7 @@ function ExerciseCard({
           </button>
           <button
             onClick={() => { setEditingSetIdx(null); setEditWeight('') }}
-            style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 11, cursor: 'pointer', padding: 0 }}
+            style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 11, cursor: 'pointer', padding: 0 }}
           >
             Cancel
           </button>
@@ -531,7 +534,7 @@ function ExerciseCard({
           onClick={onSwap}
           disabled={swapping}
           style={{
-            background: 'none', border: 'none', color: '#5A7A9A',
+            background: 'none', border: 'none', color: c.textSub,
             fontSize: 11, cursor: swapping ? 'default' : 'pointer',
             padding: '6px 0 0', display: 'block',
           }}
@@ -548,6 +551,7 @@ function ExerciseCard({
 export default function Workout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { colors: c } = useTheme()
   const isPreview = !!(location.state as { preview?: boolean } | null)?.preview
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -1023,28 +1027,28 @@ export default function Workout() {
     const isLast = introSlide === METHOD_SLIDES.length - 1
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 32px' }}>
             <button
               onClick={() => navigate('/workout')}
-              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 32px', alignSelf: 'flex-start', display: 'block' }}
+              style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 14, cursor: 'pointer', padding: '0 0 32px', alignSelf: 'flex-start', display: 'block' }}
             >
               ← Back
             </button>
             <span style={{ fontSize: 56, display: 'block', marginBottom: 24 }}>{slide.icon}</span>
-            <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 10px' }}>
               The Ascend Method
             </p>
-            <h2 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 14px', lineHeight: 1.25 }}>
+            <h2 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: '0 0 14px', lineHeight: 1.25 }}>
               {slide.title}
             </h2>
-            <p style={{ color: '#5A7A9A', fontSize: 15, margin: '0 0 40px', lineHeight: 1.65 }}>
+            <p style={{ color: c.textSub, fontSize: 15, margin: '0 0 40px', lineHeight: 1.65 }}>
               {slide.body}
             </p>
             {/* Dots */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
               {METHOD_SLIDES.map((_, i) => (
-                <div key={i} style={{ width: i === introSlide ? 20 : 6, height: 6, borderRadius: 3, background: i === introSlide ? '#4A9EFF' : '#1A2A42', transition: 'all 0.2s' }} />
+                <div key={i} style={{ width: i === introSlide ? 20 : 6, height: 6, borderRadius: 3, background: i === introSlide ? c.accent : c.border, transition: 'all 0.2s' }} />
               ))}
             </div>
           </div>
@@ -1052,7 +1056,7 @@ export default function Workout() {
             {introSlide > 0 && (
               <button
                 onClick={() => setIntroSlide(i => i - 1)}
-                style={{ flex: 1, background: '#1A2A42', color: '#FFFFFF', fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: 'pointer' }}
+                style={{ flex: 1, background: c.surface, color: c.text, fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: 'pointer' }}
               >
                 ← Back
               </button>
@@ -1066,7 +1070,7 @@ export default function Workout() {
                   setIntroSlide(i => i + 1)
                 }
               }}
-              style={{ flex: 2, background: '#4A9EFF', color: '#FFFFFF', fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: 'pointer' }}
+              style={{ flex: 2, background: c.accent, color: '#FFFFFF', fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: 'none', cursor: 'pointer' }}
             >
               {isLast ? 'Start Training →' : 'Next →'}
             </button>
@@ -1086,21 +1090,21 @@ export default function Workout() {
     ]
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 16px' }}>
             <button
               onClick={() => navigate('/workout')}
-              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+              style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
             >
               ← Back
             </button>
-            <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Welcome to Ascend
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 8px', lineHeight: 1.2 }}>
+            <h1 style={{ color: c.text, fontSize: 26, fontWeight: 700, margin: '0 0 8px', lineHeight: 1.2 }}>
               How do you want to start?
             </h1>
-            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 32px' }}>
+            <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 32px' }}>
               We'll build your first session around this focus.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1111,8 +1115,8 @@ export default function Workout() {
                     key={opt.value}
                     onClick={() => setFirstSessionType(opt.value)}
                     style={{
-                      background: selected ? '#0D1F3A' : '#0D1728',
-                      border: `2px solid ${selected ? '#4A9EFF' : '#1A2A42'}`,
+                      background: selected ? c.accentBg : c.surface,
+                      border: `2px solid ${selected ? c.accent : c.border}`,
                       borderRadius: 16,
                       padding: '20px',
                       display: 'flex',
@@ -1124,7 +1128,7 @@ export default function Workout() {
                     }}
                   >
                     <span style={{ fontSize: 32 }}>{opt.emoji}</span>
-                    <span style={{ color: selected ? '#FFFFFF' : '#BBCDE0', fontSize: 18, fontWeight: 700 }}>
+                    <span style={{ color: selected ? c.accent : c.text, fontSize: 18, fontWeight: 700 }}>
                       {opt.label}
                     </span>
                   </button>
@@ -1141,7 +1145,7 @@ export default function Workout() {
               disabled={!firstSessionType}
               style={{
                 width: '100%',
-                background: firstSessionType ? '#4A9EFF' : '#1A2A42',
+                background: firstSessionType ? c.accent : c.surface,
                 color: '#FFFFFF',
                 fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
                 border: 'none',
@@ -1167,21 +1171,21 @@ export default function Workout() {
     ]
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 24px' }}>
             <button
               onClick={() => navigate('/workout')}
-              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+              style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
             >
               ← Back
             </button>
-            <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Quick check
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
+            <h1 style={{ color: c.text, fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
               How are you feeling?
             </h1>
-            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 36px' }}>
+            <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 36px' }}>
               Your workout adapts in real time.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1191,7 +1195,7 @@ export default function Workout() {
                   onClick={() => { setRecoveryScore(opt.score); setSoreMuscles([]); setInjuredMuscles([]); setPhase('soreness') }}
                   disabled={!profile}
                   style={{
-                    background: '#0D1728', border: '1px solid #1A2A42',
+                    background: c.surface, border: `1px solid ${c.border}`,
                     borderRadius: 16, padding: '18px 20px',
                     display: 'flex', alignItems: 'center', gap: 16,
                     cursor: 'pointer', textAlign: 'left', width: '100%',
@@ -1200,8 +1204,8 @@ export default function Workout() {
                 >
                   <span style={{ fontSize: 32, lineHeight: 1 }}>{opt.emoji}</span>
                   <div>
-                    <p style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700, margin: '0 0 2px' }}>{opt.label}</p>
-                    <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>{opt.sub}</p>
+                    <p style={{ color: c.text, fontSize: 16, fontWeight: 700, margin: '0 0 2px' }}>{opt.label}</p>
+                    <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>{opt.sub}</p>
                   </div>
                 </button>
               ))}
@@ -1217,21 +1221,21 @@ export default function Workout() {
   if (phase === 'soreness') {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 24px' }}>
             <button
               onClick={() => setPhase('recovery')}
-              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+              style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
             >
               ← Back
             </button>
             <p style={{ color: '#FBBF24', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Optional
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
+            <h1 style={{ color: c.text, fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
               Any soreness today?
             </h1>
-            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 24px' }}>
+            <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 24px' }}>
               We'll keep these muscles active but reduce the load.
             </p>
             <BodyDiagram
@@ -1245,7 +1249,7 @@ export default function Workout() {
             <button
               onClick={() => setPhase('injury')}
               style={{
-                width: '100%', background: '#4A9EFF', color: '#FFFFFF',
+                width: '100%', background: c.accent, color: '#FFFFFF',
                 fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
                 border: 'none', cursor: 'pointer',
               }}
@@ -1254,7 +1258,7 @@ export default function Workout() {
             </button>
             <button
               onClick={() => { setSoreMuscles([]); setPhase('injury') }}
-              style={{ width: '100%', background: 'none', border: 'none', color: '#3A5A7A', fontSize: 14, padding: '12px', cursor: 'pointer' }}
+              style={{ width: '100%', background: 'none', border: 'none', color: c.textMuted, fontSize: 14, padding: '12px', cursor: 'pointer' }}
             >
               Skip →
             </button>
@@ -1269,21 +1273,21 @@ export default function Workout() {
   if (phase === 'injury') {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 24px' }}>
             <button
               onClick={() => setPhase('soreness')}
-              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
+              style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 14, cursor: 'pointer', padding: '0 0 16px', display: 'block' }}
             >
               ← Back
             </button>
             <p style={{ color: '#EF4444', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Optional
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
+            <h1 style={{ color: c.text, fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
               Any injuries?
             </h1>
-            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 24px' }}>
+            <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 24px' }}>
               We'll work around these completely.
             </p>
             <BodyDiagram
@@ -1298,7 +1302,7 @@ export default function Workout() {
               onClick={() => handleGenerate()}
               disabled={!profile}
               style={{
-                width: '100%', background: '#4A9EFF', color: '#FFFFFF',
+                width: '100%', background: c.accent, color: '#FFFFFF',
                 fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
                 border: 'none', cursor: 'pointer',
               }}
@@ -1308,7 +1312,7 @@ export default function Workout() {
             <button
               onClick={() => { setInjuredMuscles([]); handleGenerate() }}
               disabled={!profile}
-              style={{ width: '100%', background: 'none', border: 'none', color: '#3A5A7A', fontSize: 14, padding: '12px', cursor: 'pointer' }}
+              style={{ width: '100%', background: 'none', border: 'none', color: c.textMuted, fontSize: 14, padding: '12px', cursor: 'pointer' }}
             >
               Skip →
             </button>
@@ -1323,20 +1327,20 @@ export default function Workout() {
   if (phase === 'loading') {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 24 }}>
-          <p style={{ color: '#4A9EFF', fontSize: 24, fontWeight: 700, letterSpacing: 4 }}>ASCEND</p>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 24 }}>
+          <p style={{ color: c.accent, fontSize: 24, fontWeight: 700, letterSpacing: 4 }}>ASCEND</p>
           <div style={{ display: 'flex', gap: 6 }}>
             {[0, 1, 2].map(i => (
               <div
                 key={i}
                 style={{
-                  width: 8, height: 8, borderRadius: '50%', background: '#4A9EFF',
+                  width: 8, height: 8, borderRadius: '50%', background: c.accent,
                   animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.3,
                 }}
               />
             ))}
           </div>
-          <p style={{ color: '#5A7A9A', fontSize: 14, textAlign: 'center', margin: 0 }}>
+          <p style={{ color: c.textSub, fontSize: 14, textAlign: 'center', margin: 0 }}>
             {LOADING_MESSAGES[loadingMsgIdx]}
           </p>
           <style>{`@keyframes pulse { 0%,100%{opacity:0.3;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }`}</style>
@@ -1350,12 +1354,12 @@ export default function Workout() {
   if (phase === 'error') {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '0 24px' }}>
-          <p style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Couldn't build your program</p>
-          <p style={{ color: '#5A7A9A', fontSize: 13, textAlign: 'center', marginBottom: 24 }}>{errorMsg}</p>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '0 24px' }}>
+          <p style={{ color: c.text, fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Couldn't build your program</p>
+          <p style={{ color: c.textSub, fontSize: 13, textAlign: 'center', marginBottom: 24 }}>{errorMsg}</p>
           <button
             onClick={() => setPhase('recovery')}
-            style={{ background: '#4A9EFF', color: '#FFF', border: 'none', borderRadius: 12, padding: '14px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+            style={{ background: c.accent, color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '14px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
           >
             Try again
           </button>
@@ -1369,7 +1373,7 @@ export default function Workout() {
   if (phase === 'pr-celebration' && summaryData) {
     return (
       <div style={{
-        minHeight: '100vh', background: '#080E1C',
+        minHeight: '100vh', background: c.bg,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         padding: '0 32px', gap: 0,
@@ -1380,13 +1384,13 @@ export default function Workout() {
         <p style={{ color: '#F5A623', fontSize: 13, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
           New Personal Record{summaryData.newPRs.length > 1 ? 's' : ''}
         </p>
-        <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 28px', textAlign: 'center' }}>
+        <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 28px', textAlign: 'center' }}>
           You're stronger than ever.
         </p>
         <div style={{ width: '100%', marginBottom: 32 }}>
           {summaryData.newPRs.map(pr => (
-            <div key={pr} style={{ background: '#0A1F3A', border: '1px solid #4A9EFF', borderRadius: 12, padding: '14px 18px', marginBottom: 8, textAlign: 'center' }}>
-              <span style={{ color: '#FFFFFF', fontSize: 16, fontWeight: 700 }}>{pr}</span>
+            <div key={pr} style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 12, padding: '14px 18px', marginBottom: 8, textAlign: 'center' }}>
+              <span style={{ color: c.text, fontSize: 16, fontWeight: 700 }}>{pr}</span>
             </div>
           ))}
         </div>
@@ -1401,14 +1405,14 @@ export default function Workout() {
                   })
                 } catch { /* cancelled */ }
               }}
-              style={{ background: '#1A2A42', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+              style={{ background: c.surface, border: 'none', borderRadius: 14, padding: '14px', color: c.text, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
             >
               Share Your PR 📤
             </button>
           )}
           <button
             onClick={() => setPhase('celebration')}
-            style={{ background: '#4A9EFF', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+            style={{ background: c.accent, border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
           >
             Continue →
           </button>
@@ -1428,14 +1432,14 @@ export default function Workout() {
   if (phase === 'celebration' && summaryData) {
     return (
       <div style={{
-        minHeight: '100vh', background: '#080E1C',
+        minHeight: '100vh', background: c.bg,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 20,
       }}>
         <div style={{ animation: 'celebScale 0.6s cubic-bezier(0.175,0.885,0.32,1.275) forwards' }}>
           <AscendBolt size={120} />
         </div>
-        <p style={{ color: '#4A9EFF', fontSize: 26, fontWeight: 700, margin: 0, animation: 'celebFade 0.5s ease 0.3s both' }}>
+        <p style={{ color: c.accent, fontSize: 26, fontWeight: 700, margin: 0, animation: 'celebFade 0.5s ease 0.3s both' }}>
           +{summaryData.scoreChange} Ascend points
         </p>
         <style>{`
@@ -1457,7 +1461,7 @@ export default function Workout() {
   if (phase === 'summary' && summaryData) {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '60px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ marginBottom: 12 }}><AscendBolt size={72} /></div>
             <div style={{
@@ -1467,46 +1471,46 @@ export default function Workout() {
             }}>
               <span style={{ color: '#22C55E', fontSize: 11, fontWeight: 700 }}>✓ Saved to your history</span>
             </div>
-            <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Workout Complete
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 700, margin: '0 0 28px', textAlign: 'center', lineHeight: 1.3 }}>
+            <h1 style={{ color: c.text, fontSize: 20, fontWeight: 700, margin: '0 0 28px', textAlign: 'center', lineHeight: 1.3 }}>
               {summaryData.sessionLabel}
             </h1>
 
             <div style={{ display: 'flex', gap: 12, width: '100%', marginBottom: 14 }}>
-              <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 16, textAlign: 'center' }}>
-                <p style={{ color: '#4A9EFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.exercisesCompleted}</p>
-                <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Exercises</p>
+              <div style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 16, textAlign: 'center' }}>
+                <p style={{ color: c.accent, fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.exercisesCompleted}</p>
+                <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>Exercises</p>
               </div>
-              <div style={{ flex: 1, background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: 16, textAlign: 'center' }}>
-                <p style={{ color: '#4A9EFF', fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.totalVolume.toLocaleString()}</p>
-                <p style={{ color: '#5A7A9A', fontSize: 11, margin: 0 }}>Total lbs</p>
+              <div style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 16, textAlign: 'center' }}>
+                <p style={{ color: c.accent, fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.totalVolume.toLocaleString()}</p>
+                <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>Total lbs</p>
               </div>
             </div>
 
-            <div style={{ width: '100%', background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 14, padding: 16, marginBottom: 14, textAlign: 'center' }}>
-              <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 6px' }}>Ascend Score</p>
-              <p style={{ color: '#4A9EFF', fontSize: 32, fontWeight: 700, margin: 0 }}>+{summaryData.scoreChange} pts</p>
+            <div style={{ width: '100%', background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: 16, marginBottom: 14, textAlign: 'center' }}>
+              <p style={{ color: c.textSub, fontSize: 12, margin: '0 0 6px' }}>Ascend Score</p>
+              <p style={{ color: c.accent, fontSize: 32, fontWeight: 700, margin: 0 }}>+{summaryData.scoreChange} pts</p>
             </div>
 
             {/* XP gain + level-up */}
-            <div style={{ width: '100%', background: '#0D1728', border: `1px solid ${summaryData.leveledUp ? '#4A9EFF' : '#1A2A42'}`, borderRadius: 14, padding: 16, marginBottom: 14, textAlign: 'center' }}>
+            <div style={{ width: '100%', background: c.surface, border: `1px solid ${summaryData.leveledUp ? c.accentBorder : c.border}`, borderRadius: 14, padding: 16, marginBottom: 14, textAlign: 'center' }}>
               {summaryData.leveledUp ? (
                 <>
                   <p style={{ color: '#F5A623', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>Level Up! 🎉</p>
-                  <p style={{ color: '#4A9EFF', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Level {summaryData.newLevel}</p>
+                  <p style={{ color: c.accent, fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Level {summaryData.newLevel}</p>
                 </>
               ) : null}
-              <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>+{summaryData.xpGain} XP earned</p>
+              <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>+{summaryData.xpGain} XP earned</p>
             </div>
 
             {summaryData.newPRs.length > 0 && (
               <div style={{ width: '100%', marginBottom: 14 }}>
-                <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 8px' }}>🏆 New Personal Records</p>
+                <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 8px' }}>🏆 New Personal Records</p>
                 {summaryData.newPRs.map(pr => (
-                  <div key={pr} style={{ background: '#0A1F3A', border: '1px solid #4A9EFF', borderRadius: 10, padding: '8px 12px', marginBottom: 6 }}>
-                    <span style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 600 }}>{pr}</span>
+                  <div key={pr} style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 10, padding: '8px 12px', marginBottom: 6 }}>
+                    <span style={{ color: c.accent, fontSize: 13, fontWeight: 600 }}>{pr}</span>
                   </div>
                 ))}
               </div>
@@ -1516,8 +1520,8 @@ export default function Workout() {
           <div style={{ padding: '12px 24px 88px' }}>
             {/* Workout feedback */}
             {feedbackRating === null ? (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
-                <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 12px', textAlign: 'center' }}>How was today's workout?</p>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+                <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 12px', textAlign: 'center' }}>How was today's workout?</p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {([
                     { rating: 1, emoji: '😴', label: 'Too easy' },
@@ -1527,26 +1531,26 @@ export default function Workout() {
                     <button
                       key={opt.rating}
                       onClick={() => handleFeedback(opt.rating)}
-                      style={{ flex: 1, background: '#1A2A42', border: 'none', borderRadius: 10, padding: '12px 4px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}
+                      style={{ flex: 1, background: c.border, border: 'none', borderRadius: 10, padding: '12px 4px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}
                     >
                       <span style={{ fontSize: 24 }}>{opt.emoji}</span>
-                      <span style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 600 }}>{opt.label}</span>
+                      <span style={{ color: c.text, fontSize: 10, fontWeight: 600 }}>{opt.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
             ) : (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '12px 16px', marginBottom: 12, textAlign: 'center' }}>
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: 0 }}>Thanks for the feedback — we'll adjust your next session.</p>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 12, textAlign: 'center' }}>
+                <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>Thanks for the feedback — we'll adjust your next session.</p>
               </div>
             )}
             {/* Notification opt-in — shown once, at the highest motivation moment */}
             {notifPermState === 'default' && (
-              <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
-                <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+                <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>
                   Never miss a workout
                 </p>
-                <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 12px' }}>
+                <p style={{ color: c.textSub, fontSize: 12, margin: '0 0 12px' }}>
                   Get a nudge when your next session is ready and when friends train.
                 </p>
                 <button
@@ -1555,7 +1559,7 @@ export default function Workout() {
                     await requestPushPermission(profile.id)
                     setNotifPermState(notificationPermission())
                   }}
-                  style={{ background: '#4A9EFF', border: 'none', borderRadius: 10, padding: '8px 18px', color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ background: c.accent, border: 'none', borderRadius: 10, padding: '8px 18px', color: '#FFFFFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
                 >
                   Enable notifications →
                 </button>
@@ -1564,7 +1568,7 @@ export default function Workout() {
             <button
               onClick={() => setPhase(summaryData.newPRs.length > 0 ? 'pr-celebration' : 'celebration')}
               style={{
-                width: '100%', background: '#4A9EFF', color: '#FFFFFF',
+                width: '100%', background: c.accent, color: '#FFFFFF',
                 fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
                 border: 'none', cursor: 'pointer',
               }}
@@ -1585,25 +1589,25 @@ export default function Workout() {
 
   return (
     <div className="app-shell">
-      <div className="app-content page-scroll">
+      <div className="app-content page-scroll" style={{ background: c.bg }}>
 
         {/* Fixed workout timer + end early */}
         <div style={{ position: 'fixed', top: 16, right: 20, zIndex: 50, display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={() => setShowEndEarly(true)}
             style={{
-              background: '#0D1728', border: '1px solid #1A2A42',
+              background: c.surface, border: `1px solid ${c.border}`,
               borderRadius: 8, padding: '4px 10px',
-              color: '#5A7A9A', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              color: c.textSub, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}
           >
             End early
           </button>
           <div style={{
-            background: '#0D1728', border: '1px solid #1A2A42',
+            background: c.surface, border: `1px solid ${c.border}`,
             borderRadius: 8, padding: '4px 10px',
           }}>
-            <span style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 700 }}>{fmtTime(elapsedSeconds)}</span>
+            <span style={{ color: c.accent, fontSize: 13, fontWeight: 700 }}>{fmtTime(elapsedSeconds)}</span>
           </div>
         </div>
 
@@ -1614,14 +1618,14 @@ export default function Workout() {
             background: 'rgba(0,0,0,0.7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
           }}>
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 20, padding: 28, width: '100%', maxWidth: 320 }}>
-              <p style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 700, margin: '0 0 8px', textAlign: 'center' }}>End workout early?</p>
-              <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 24px', textAlign: 'center', lineHeight: 1.5 }}>All completed sets will be saved and counted toward your score.</p>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 20, padding: 28, width: '100%', maxWidth: 320 }}>
+              <p style={{ color: c.text, fontSize: 17, fontWeight: 700, margin: '0 0 8px', textAlign: 'center' }}>End workout early?</p>
+              <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 24px', textAlign: 'center', lineHeight: 1.5 }}>All completed sets will be saved and counted toward your score.</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <button
                   onClick={() => { setShowEndEarly(false); handleFinish() }}
                   style={{
-                    background: '#4A9EFF', border: 'none', borderRadius: 12,
+                    background: c.accent, border: 'none', borderRadius: 12,
                     padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer',
                   }}
                 >
@@ -1630,8 +1634,8 @@ export default function Workout() {
                 <button
                   onClick={() => setShowEndEarly(false)}
                   style={{
-                    background: 'none', border: '1px solid #1A2A42', borderRadius: 12,
-                    padding: '14px', color: '#5A7A9A', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                    background: 'none', border: `1px solid ${c.border}`, borderRadius: 12,
+                    padding: '14px', color: c.textSub, fontSize: 15, fontWeight: 600, cursor: 'pointer',
                   }}
                 >
                   Keep going
@@ -1645,8 +1649,8 @@ export default function Workout() {
 
           {/* Preview mode banner */}
           {isPreview && (
-            <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'center' }}>
-              <p style={{ color: '#4A9EFF', fontSize: 13, fontWeight: 600, margin: 0 }}>
+            <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'center' }}>
+              <p style={{ color: c.accent, fontSize: 13, fontWeight: 600, margin: 0 }}>
                 Preview mode — come back tomorrow to train
               </p>
             </div>
@@ -1655,50 +1659,50 @@ export default function Workout() {
           {sessionPRs.map(name => (
             <div
               key={name}
-              style={{ background: '#0A1F3A', border: '1px solid #4A9EFF', borderRadius: 14, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}
+              style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}
             >
               <span style={{ fontSize: 20 }}>🏆</span>
-              <p style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 700, margin: 0 }}>New PR — {name}</p>
+              <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>New PR — {name}</p>
             </div>
           ))}
 
-          <p style={{ color: '#4A9EFF', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 6px' }}>
+          <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 6px' }}>
             Today's session
           </p>
-          <h1 style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
+          <h1 style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: '0 0 6px', lineHeight: 1.2 }}>
             {workout.session_label}
           </h1>
-          <p style={{ color: '#5A7A9A', fontSize: 13, margin: '0 0 16px' }}>
+          <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 16px' }}>
             {workout.main_work.length + workout.finisher.length} exercises · Est. {parseInt(localStorage.getItem('onboarding_workout_duration') ?? '60', 10) || 60} min
           </p>
 
-          <div style={{ background: '#0A1F3A', border: '1px solid #1E3D6E', borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 24 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4A9EFF', flexShrink: 0, marginTop: 4 }} />
-            <p style={{ color: '#7AAAD4', fontSize: 12, lineHeight: 1.5, margin: 0 }}>{workout.ai_insight}</p>
+          <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 24 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.accent, flexShrink: 0, marginTop: 4 }} />
+            <p style={{ color: c.textSub, fontSize: 12, lineHeight: 1.5, margin: 0 }}>{workout.ai_insight}</p>
           </div>
 
           {/* Warm-up */}
-          <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
             Warm-up · 5 min
           </p>
-          <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '4px 16px', marginBottom: 24 }}>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 16px', marginBottom: 24 }}>
             {workout.warmup.map((item, i) => (
               <div
                 key={i}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: i < workout.warmup.length - 1 ? '1px solid #1A2A42' : 'none', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: i < workout.warmup.length - 1 ? `1px solid ${c.border}` : 'none', cursor: 'pointer' }}
                 onClick={() => setWarmupChecked(prev => { const n = [...prev]; n[i] = !n[i]; return n })}
               >
-                <div style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${warmupChecked[i] ? '#4A9EFF' : '#1A2A42'}`, background: warmupChecked[i] ? '#4A9EFF' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
+                <div style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${warmupChecked[i] ? c.accent : c.border}`, background: warmupChecked[i] ? c.accent : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
                   {warmupChecked[i] && <span style={{ color: '#FFF', fontSize: 10, fontWeight: 700 }}>✓</span>}
                 </div>
-                <span style={{ flex: 1, color: warmupChecked[i] ? '#5A7A9A' : '#FFFFFF', fontSize: 13, textDecoration: warmupChecked[i] ? 'line-through' : 'none' }}>{item.movement}</span>
-                <span style={{ color: '#5A7A9A', fontSize: 11 }}>{item.duration}</span>
+                <span style={{ flex: 1, color: warmupChecked[i] ? c.textSub : c.text, fontSize: 13, textDecoration: warmupChecked[i] ? 'line-through' : 'none' }}>{item.movement}</span>
+                <span style={{ color: c.textSub, fontSize: 11 }}>{item.duration}</span>
               </div>
             ))}
           </div>
 
           {/* Main work */}
-          <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
             Main Work · {Math.max(5, (parseInt(localStorage.getItem('onboarding_workout_duration') ?? '60', 10) || 60) - 20)} min
           </p>
           {workout.main_work.map((ex, i) => {
@@ -1727,12 +1731,12 @@ export default function Workout() {
 
           {/* Finisher */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0 6px' }}>
-            <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: 0 }}>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: 0 }}>
               Finisher · 15 min
             </p>
             <button
               onClick={() => setFinisherExpanded(v => !v)}
-              style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 11, cursor: 'pointer', padding: 0 }}
+              style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 11, cursor: 'pointer', padding: 0 }}
             >
               {finisherExpanded ? 'Skip finisher' : 'Add finisher'}
             </button>
@@ -1740,7 +1744,7 @@ export default function Workout() {
 
           {finisherExpanded && (
             <>
-              <p style={{ color: '#4A9EFF', fontSize: 11, margin: '0 0 10px' }}>Optional — but worth it.</p>
+              <p style={{ color: c.accent, fontSize: 11, margin: '0 0 10px' }}>Optional — but worth it.</p>
               {workout.finisher.map((ex, i) => {
                 const key = `finisher_${i}`
                 return (
@@ -1771,7 +1775,7 @@ export default function Workout() {
             <button
               onClick={() => navigate('/home')}
               style={{
-                width: '100%', background: '#1A2A42', color: '#5A7A9A',
+                width: '100%', background: c.surface, color: c.textSub,
                 fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
                 border: 'none', cursor: 'pointer',
                 marginTop: 16, marginBottom: 8,
@@ -1789,8 +1793,8 @@ export default function Workout() {
                 disabled={!anySetsDone || finishing}
                 style={{
                   width: '100%',
-                  background: anySetsDone && !finishing ? '#4A9EFF' : '#1A2A42',
-                  color: anySetsDone && !finishing ? '#FFFFFF' : '#2E4A6A',
+                  background: anySetsDone && !finishing ? c.accent : c.surface,
+                  color: anySetsDone && !finishing ? '#FFFFFF' : c.textFaint,
                   fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px',
                   border: 'none', cursor: anySetsDone && !finishing ? 'pointer' : 'not-allowed',
                   marginTop: 16, marginBottom: 8, transition: 'background 0.2s',
@@ -1808,27 +1812,27 @@ export default function Workout() {
       {showTwoHourModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 200,
-          background: 'rgba(8,14,28,0.92)',
+          background: 'rgba(0,0,0,0.85)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '0 24px',
         }}>
-          <div style={{ background: '#0D1728', border: '1px solid #1E3D6E', borderRadius: 20, padding: 28, width: '100%', maxWidth: 360, textAlign: 'center' }}>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 20, padding: 28, width: '100%', maxWidth: 360, textAlign: 'center' }}>
             <p style={{ fontSize: 40, margin: '0 0 12px' }}>⏱️</p>
-            <h2 style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>Still training?</h2>
-            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 24px', lineHeight: 1.5 }}>
+            <h2 style={{ color: c.text, fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>Still training?</h2>
+            <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 24px', lineHeight: 1.5 }}>
               You've been in this workout for 2 hours. Did you forget to tap Finish Workout?
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button
                 onClick={() => setShowTwoHourModal(false)}
-                style={{ background: '#4A9EFF', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+                style={{ background: c.accent, border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
               >
                 Still going — dismiss
               </button>
               <button
                 onClick={() => { setShowTwoHourModal(false); handleFinish() }}
                 disabled={finishing}
-                style={{ background: '#1A2A42', border: 'none', borderRadius: 14, padding: '14px', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: finishing ? 'not-allowed' : 'pointer' }}
+                style={{ background: c.border, border: 'none', borderRadius: 14, padding: '14px', color: c.text, fontSize: 15, fontWeight: 700, cursor: finishing ? 'not-allowed' : 'pointer' }}
               >
                 {finishing ? 'Saving…' : 'Finish Workout & Log Progress'}
               </button>

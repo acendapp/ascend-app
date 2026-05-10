@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { calculateXPGain, getLevelFromXP, calculateConsistencyScore, calculateAscendScore } from '../lib/scoring'
+import { useTheme } from '../lib/theme'
 
 const CLASS_TYPES = [
   { label: 'Pilates',   emoji: '🧘' },
@@ -29,6 +30,7 @@ type Phase = 'log' | 'summary'
 export default function ClassWorkout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { colors: c } = useTheme()
   const isPreview = !!(location.state as { preview?: boolean } | null)?.preview
 
   const [phase, setPhase] = useState<Phase>('log')
@@ -108,31 +110,31 @@ export default function ClassWorkout() {
     }
   }
 
-  const classEmoji = CLASS_TYPES.find(c => c.label === selectedClass)?.emoji ?? '⭐'
+  const classEmoji = CLASS_TYPES.find(ct => ct.label === selectedClass)?.emoji ?? '⭐'
 
   // ── Summary ────────────────────────────────────────────────────────────────
 
   if (phase === 'summary') {
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
           <div style={{ textAlign: 'center', width: '100%' }}>
             <p style={{ fontSize: 64, margin: '0 0 16px', lineHeight: 1 }}>{classEmoji}</p>
-            <p style={{ color: '#F5A623', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
               Class Logged
             </p>
-            <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 6px' }}>{classLabel}</h1>
-            <p style={{ color: '#5A7A9A', fontSize: 14, margin: '0 0 32px' }}>
+            <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: '0 0 6px' }}>{classLabel}</h1>
+            <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 32px' }}>
               {duration} min · {intensity}
               {studio.trim() ? ` · ${studio.trim()}` : ''}
             </p>
-            <div style={{ background: '#0D1728', border: '1px solid #1A2A42', borderRadius: 14, padding: '16px 20px', marginBottom: 24 }}>
-              <p style={{ color: '#5A7A9A', fontSize: 12, margin: '0 0 4px' }}>XP Earned</p>
-              <p style={{ color: '#4A9EFF', fontSize: 28, fontWeight: 700, margin: 0 }}>+{xpGain} XP</p>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '16px 20px', marginBottom: 24 }}>
+              <p style={{ color: c.textSub, fontSize: 12, margin: '0 0 4px' }}>XP Earned</p>
+              <p style={{ color: c.accent, fontSize: 28, fontWeight: 700, margin: 0 }}>+{xpGain} XP</p>
             </div>
             <button
               onClick={() => navigate('/home')}
-              style={{ width: '100%', background: '#F5A623', border: 'none', borderRadius: 14, padding: '16px', color: '#000', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}
+              style={{ width: '100%', background: c.accent, border: 'none', borderRadius: 14, padding: '16px', color: '#FFFFFF', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}
             >
               Done 💪
             </button>
@@ -146,48 +148,48 @@ export default function ClassWorkout() {
 
   return (
     <div className="app-shell">
-      <div className="app-content" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <div style={{ flex: 1, overflow: 'auto', padding: '56px 24px 16px' }}>
 
           <button
             onClick={() => navigate('/workout')}
-            style={{ background: 'none', border: 'none', color: '#5A7A9A', fontSize: 14, cursor: 'pointer', padding: '0 0 20px', display: 'block' }}
+            style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 14, cursor: 'pointer', padding: '0 0 20px', display: 'block' }}
           >
             ← Back
           </button>
 
           {isPreview && (
-            <div style={{ background: '#0D2E5A', border: '1px solid #1E3D6E', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 14 }}>👁️</span>
-              <p style={{ color: '#4A9EFF', fontSize: 12, fontWeight: 600, margin: 0 }}>Preview mode — come back tomorrow to log</p>
+              <p style={{ color: c.accent, fontSize: 12, fontWeight: 600, margin: 0 }}>Preview mode — come back tomorrow to log</p>
             </div>
           )}
-          <p style={{ color: '#F5A623', fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 6px' }}>
+          <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 6px' }}>
             Class Workout
           </p>
-          <h1 style={{ color: '#FFFFFF', fontSize: 24, fontWeight: 700, margin: '0 0 24px' }}>
+          <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: '0 0 24px' }}>
             {isPreview ? 'Plan your class for tomorrow' : 'What class did you take?'}
           </h1>
 
           {/* Class type grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 24 }}>
-            {CLASS_TYPES.map(c => {
-              const active = selectedClass === c.label
+            {CLASS_TYPES.map(ct => {
+              const active = selectedClass === ct.label
               return (
                 <button
-                  key={c.label}
-                  onClick={() => { setSelectedClass(c.label); if (c.label !== 'Other') setCustomClass('') }}
+                  key={ct.label}
+                  onClick={() => { setSelectedClass(ct.label); if (ct.label !== 'Other') setCustomClass('') }}
                   style={{
-                    background: active ? '#2D1F00' : '#0D1728',
-                    border: `1.5px solid ${active ? '#F5A623' : '#1A2A42'}`,
+                    background: active ? c.accentBg : c.surface,
+                    border: `1.5px solid ${active ? c.accent : c.border}`,
                     borderRadius: 12, padding: '10px 4px',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                     cursor: 'pointer',
                   }}
                 >
-                  <span style={{ fontSize: 22, lineHeight: 1 }}>{c.emoji}</span>
-                  <span style={{ color: active ? '#F5A623' : '#BBCDE0', fontSize: 10, fontWeight: active ? 700 : 400 }}>
-                    {c.label}
+                  <span style={{ fontSize: 22, lineHeight: 1 }}>{ct.emoji}</span>
+                  <span style={{ color: active ? c.accent : c.text, fontSize: 10, fontWeight: active ? 700 : 400 }}>
+                    {ct.label}
                   </span>
                 </button>
               )
@@ -202,15 +204,15 @@ export default function ClassWorkout() {
               placeholder="Enter class name…"
               autoFocus
               style={{
-                width: '100%', background: '#0D1728', border: '1px solid #F5A623',
-                borderRadius: 12, padding: '12px 16px', color: '#FFFFFF', fontSize: 15,
+                width: '100%', background: c.inputBg, border: `1px solid ${c.accent}`,
+                borderRadius: 12, padding: '12px 16px', color: c.text, fontSize: 15,
                 outline: 'none', boxSizing: 'border-box', marginBottom: 20,
               }}
             />
           )}
 
           {/* Duration */}
-          <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
             Duration
           </p>
           <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
@@ -219,10 +221,10 @@ export default function ClassWorkout() {
                 key={d}
                 onClick={() => setDuration(d)}
                 style={{
-                  flex: 1, background: duration === d ? '#2D1F00' : '#0D1728',
-                  border: `1.5px solid ${duration === d ? '#F5A623' : '#1A2A42'}`,
+                  flex: 1, background: duration === d ? c.accentBg : c.surface,
+                  border: `1.5px solid ${duration === d ? c.accent : c.border}`,
                   borderRadius: 10, padding: '10px 4px',
-                  color: duration === d ? '#F5A623' : '#BBCDE0',
+                  color: duration === d ? c.accent : c.text,
                   fontSize: 12, fontWeight: duration === d ? 700 : 400, cursor: 'pointer',
                 }}
               >
@@ -232,7 +234,7 @@ export default function ClassWorkout() {
           </div>
 
           {/* Intensity */}
-          <p style={{ color: '#5A7A9A', fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
             How hard was it?
           </p>
           <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
@@ -243,15 +245,15 @@ export default function ClassWorkout() {
                   key={opt.id}
                   onClick={() => setIntensity(opt.id)}
                   style={{
-                    flex: 1, background: active ? '#2D1F00' : '#0D1728',
-                    border: `1.5px solid ${active ? '#F5A623' : '#1A2A42'}`,
+                    flex: 1, background: active ? c.accentBg : c.surface,
+                    border: `1.5px solid ${active ? c.accent : c.border}`,
                     borderRadius: 12, padding: '14px 4px',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                     cursor: 'pointer',
                   }}
                 >
                   <span style={{ fontSize: 22, lineHeight: 1 }}>{opt.emoji}</span>
-                  <span style={{ color: active ? '#F5A623' : '#BBCDE0', fontSize: 12, fontWeight: active ? 700 : 400 }}>
+                  <span style={{ color: active ? c.accent : c.text, fontSize: 12, fontWeight: active ? 700 : 400 }}>
                     {opt.label}
                   </span>
                 </button>
@@ -266,8 +268,8 @@ export default function ClassWorkout() {
             onChange={e => setStudio(e.target.value)}
             placeholder="Studio or instructor (optional)"
             style={{
-              width: '100%', background: '#0D1728', border: '1px solid #1A2A42',
-              borderRadius: 12, padding: '12px 16px', color: '#FFFFFF', fontSize: 14,
+              width: '100%', background: c.inputBg, border: `1px solid ${c.border}`,
+              borderRadius: 12, padding: '12px 16px', color: c.text, fontSize: 14,
               outline: 'none', boxSizing: 'border-box',
             }}
           />
@@ -278,7 +280,7 @@ export default function ClassWorkout() {
           {isPreview ? (
             <button
               onClick={() => navigate('/home')}
-              style={{ width: '100%', background: '#1A2A42', color: '#5A7A9A', fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: '1px solid #1E3D6E', cursor: 'pointer' }}
+              style={{ width: '100%', background: c.surface, color: c.textSub, fontSize: 15, fontWeight: 700, borderRadius: 14, padding: '16px', border: `1px solid ${c.border}`, cursor: 'pointer' }}
             >
               See you tomorrow 💪
             </button>
@@ -288,8 +290,8 @@ export default function ClassWorkout() {
               disabled={!canLog || saving}
               style={{
                 width: '100%',
-                background: canLog ? '#F5A623' : '#1A2A42',
-                color: canLog ? '#000000' : '#5A7A9A',
+                background: canLog ? c.accent : c.surface,
+                color: canLog ? '#FFFFFF' : c.textSub,
                 fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
                 border: 'none', cursor: canLog ? 'pointer' : 'not-allowed',
                 transition: 'background 0.2s',
