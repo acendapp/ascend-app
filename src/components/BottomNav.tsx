@@ -8,6 +8,10 @@ function isGymCheckedIn() {
   return !!ci && new Date(ci).getTime() > Date.now() - 2 * 60 * 60 * 1000
 }
 
+function hasCompletedWorkoutBefore() {
+  return !!localStorage.getItem('ascend_has_workout')
+}
+
 const tabs = [
   {
     id: 'home',
@@ -191,7 +195,7 @@ export default function BottomNav() {
           <button
             key={tab.id}
             onClick={() => {
-              if (tab.id === 'workout' && !location.pathname.startsWith('/workout') && !isGymCheckedIn()) {
+              if (tab.id === 'workout' && !location.pathname.startsWith('/workout') && hasCompletedWorkoutBefore() && !isGymCheckedIn()) {
                 setShowCheckinPrompt(true)
                 return
               }

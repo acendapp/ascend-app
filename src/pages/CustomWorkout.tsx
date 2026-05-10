@@ -360,6 +360,7 @@ export default function CustomWorkout() {
       }).eq('user_id', userId)
 
       localStorage.setItem('ascend_home_badge', '1')
+      localStorage.setItem('ascend_has_workout', '1')
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))
 
       setSummaryData({

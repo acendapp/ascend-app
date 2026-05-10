@@ -98,6 +98,7 @@ export default function ClassWorkout() {
       }).eq('user_id', user.id)
 
       localStorage.setItem('ascend_home_badge', '1')
+      localStorage.setItem('ascend_has_workout', '1')
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))
 
       setXpGain(xp)

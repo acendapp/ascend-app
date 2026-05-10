@@ -260,6 +260,9 @@ export default function Home() {
     const wc = workoutCount ?? 0
     setHasAnyWorkout(wc > 0)
     setWorkoutsCompleted(wc)
+    // Sync to localStorage so BottomNav can read without a Supabase call
+    if (wc > 0) localStorage.setItem('ascend_has_workout', '1')
+    else localStorage.removeItem('ascend_has_workout')
 
     // Campus rank + total users (parallel)
     const [higherRes, totalRes] = await Promise.all([
@@ -476,7 +479,7 @@ export default function Home() {
               Your Ascend Score, your campus rank, your history — none of it exists until you train. Every person on the leaderboard started right here.
             </p>
             <button
-              onClick={() => isCheckedIn ? navigate('/workout') : setShowCheckinPrompt(true)}
+              onClick={() => navigate('/workout')}
               style={{
                 width: '100%', background: c.accent, color: '#FFFFFF',
                 fontSize: 18, fontWeight: 700, borderRadius: 16, padding: '20px',
@@ -519,7 +522,7 @@ export default function Home() {
                 <div style={{ background: c.isDark ? 'linear-gradient(135deg, #1A1200, #221600)' : 'linear-gradient(135deg, #FFF8E7, #FFF3D0)', border: '1px solid #F59E0B', borderRadius: 12, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <p style={{ color: '#F59E0B', fontSize: 13, fontWeight: 700, margin: 0 }}>🔥 {streakDays}-day streak — train today to keep it</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 10 }}>
-                    <button onClick={() => isCheckedIn ? navigate('/workout') : setShowCheckinPrompt(true)} style={{ background: '#F59E0B', border: 'none', borderRadius: 7, padding: '4px 10px', color: '#000', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Train now</button>
+                    <button onClick={() => (!hasAnyWorkout || isCheckedIn) ? navigate('/workout') : setShowCheckinPrompt(true)} style={{ background: '#F59E0B', border: 'none', borderRadius: 7, padding: '4px 10px', color: '#000', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Train now</button>
                     <button onClick={() => setStreakBannerDismissed(true)} style={{ background: 'none', border: 'none', color: '#92700A', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}>×</button>
                   </div>
                 </div>
@@ -633,7 +636,7 @@ export default function Home() {
             <button
               onClick={() => {
                 if (workoutCompletedToday) { navigate('/workout', { state: { preview: true } }); return }
-                if (isCheckedIn) { navigate('/workout'); return }
+                if (!hasAnyWorkout || isCheckedIn) { navigate('/workout'); return }
                 setShowCheckinPrompt(true)
               }}
               style={{

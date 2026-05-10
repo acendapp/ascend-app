@@ -977,6 +977,7 @@ export default function Workout() {
       })
       clearSession()
       localStorage.setItem('ascend_home_badge', '1')
+      localStorage.setItem('ascend_has_workout', '1')
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))
       setPhase('summary')
     } catch (err) {
