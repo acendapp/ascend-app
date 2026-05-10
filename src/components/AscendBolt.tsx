@@ -9,7 +9,7 @@ const AscendBolt: React.FC<AscendBoltProps> = ({ size = 120 }) => {
     <svg
       width={size}
       height={size * 1.4}
-      viewBox="0 0 100 140"
+      viewBox="8.5 0 100 140"
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: 'block' }}
     >
