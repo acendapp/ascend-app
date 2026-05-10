@@ -8,7 +8,7 @@ import {
   GOAL_OPTIONS, EXPERIENCE_OPTIONS, EQUIPMENT_OPTIONS, SCHOOL_YEAR_OPTIONS,
 } from '../lib/display'
 import { calculateConsistencyScore } from '../lib/scoring'
-import { useTheme } from '../lib/theme'
+import { useTheme, ACCENT_COLORS } from '../lib/theme'
 import type { UserProfile, UserScores, FriendshipWithProfile, FriendProfile } from '../types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -257,7 +257,7 @@ function CropModal({ src, onDone, onCancel }: CropModalProps) {
 export default function Profile() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { colors: c } = useTheme()
+  const { colors: c, theme, toggleTheme, accentKey, setAccentColor } = useTheme()
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [scores, setScores] = useState<UserScores | null>(null)
@@ -863,6 +863,56 @@ export default function Profile() {
           )}
 
           {/* ── Editable fields ── */}
+          {/* ── Appearance ─────────────────────────────────────────── */}
+          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '20px 0 10px' }}>Appearance</p>
+
+          {/* Theme toggle */}
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Theme</p>
+              <p style={{ color: c.text, fontSize: 14, margin: 0 }}>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</p>
+            </div>
+            <button
+              onClick={toggleTheme}
+              style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 20, padding: '6px 14px', color: c.accent, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            >
+              {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </button>
+          </div>
+
+          {/* Accent color */}
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 8 }}>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 14px' }}>App Color</p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {Object.entries(ACCENT_COLORS).map(([key, def]) => {
+                const selected = accentKey === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setAccentColor(key)}
+                    title={def.label}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}
+                  >
+                    <div style={{
+                      width: 38, height: 38, borderRadius: '50%',
+                      background: def.swatch,
+                      border: selected ? `3px solid ${c.text}` : '3px solid transparent',
+                      boxShadow: selected ? `0 0 0 2px ${def.swatch}` : 'none',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s',
+                    }}>
+                      {selected && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M5 13l4 4L19 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '20px 0 10px' }}>Profile Settings</p>
 
           <EditableField label="Full Name" value={profile.name} onSave={v => updateField('name', v)} />

@@ -457,7 +457,7 @@ export default function Auth() {
               if (isSignup) {
                 setMode('signin'); setSignupStep(1); setError(null); setEmailError(null)
               } else {
-                navigate('/onboarding/step1')
+                navigate('/onboarding/step0')
               }
             }}
             style={{ color: c.accent, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0 }}

@@ -1,10 +1,12 @@
 import React from 'react';
+import { useTheme } from '../lib/theme';
 
 interface AscendBoltProps {
   size?: number;
 }
 
 const AscendBolt: React.FC<AscendBoltProps> = ({ size = 120 }) => {
+  const { colors: c } = useTheme()
   return (
     <svg
       width={size}
@@ -15,7 +17,7 @@ const AscendBolt: React.FC<AscendBoltProps> = ({ size = 120 }) => {
     >
       <polygon
         points="58,0 30,65 50,65 22,140 90,55 66,55 95,0"
-        fill="#4A9EFF"
+        fill={c.accent}
       />
     </svg>
   );

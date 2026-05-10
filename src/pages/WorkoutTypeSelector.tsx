@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { useTheme } from '../lib/theme'
+import { useTheme, ACCENT_COLORS } from '../lib/theme'
 
 interface RecentTemplate {
   id: string
@@ -92,7 +92,60 @@ export default function WorkoutTypeSelector() {
     navigate('/workout/custom', { state: { templateId } })
   }
 
-  const { colors: c } = useTheme()
+  const { colors: c, accentKey, setAccentColor } = useTheme()
+  const [showAccentPicker, setShowAccentPicker] = useState(() => !localStorage.getItem('ascend_accent_chosen'))
+
+  if (showAccentPicker) {
+    return (
+      <div className="app-shell">
+        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
+          <div style={{ flex: 1, overflow: 'auto', padding: '64px 24px 40px', display: 'flex', flexDirection: 'column' }}>
+            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 10px' }}>One last thing</p>
+            <h1 style={{ color: c.text, fontSize: 28, fontWeight: 800, margin: '0 0 10px', lineHeight: 1.15, letterSpacing: '-0.5px' }}>Make it yours</h1>
+            <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 36px', lineHeight: 1.55 }}>
+              Pick your accent color. It applies everywhere in the app — you can always change it in Profile.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 'auto' }}>
+              {Object.entries(ACCENT_COLORS).map(([key, def]) => {
+                const selected = accentKey === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setAccentColor(key)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '4px 0' }}
+                  >
+                    <div style={{
+                      width: 56, height: 56, borderRadius: '50%',
+                      background: def.swatch,
+                      border: selected ? `3px solid ${c.text}` : '3px solid transparent',
+                      boxShadow: selected ? `0 0 0 2px ${def.swatch}` : 'none',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s',
+                    }}>
+                      {selected && (
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                          <path d="M5 13l4 4L19 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <span style={{ color: selected ? c.text : c.textSub, fontSize: 11, fontWeight: selected ? 700 : 400 }}>{def.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              onClick={() => { localStorage.setItem('ascend_accent_chosen', '1'); setShowAccentPicker(false) }}
+              style={{ width: '100%', background: c.accent, color: '#FFFFFF', fontSize: 16, fontWeight: 800, borderRadius: 16, padding: '17px', border: 'none', cursor: 'pointer', marginTop: 36, letterSpacing: '-0.3px' }}
+            >
+              Start training →
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app-shell">
