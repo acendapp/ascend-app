@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/theme'
 import type { Goal, Experience, Equipment } from '../types'
 
-type Mode = 'signup' | 'signin'
+type Mode = 'signup' | 'signin' | 'forgot' | 'reset'
 
 function Field({
   label,
@@ -118,6 +118,16 @@ export default function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [emailError, setEmailError] = useState<string | null>(null)
+  const [forgotSent, setForgotSent] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+
+  // Detect Supabase PASSWORD_RECOVERY event (user arrived via reset link)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setMode('reset')
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   async function handleSignup() {
     setError(null)
@@ -211,7 +221,121 @@ export default function Auth() {
     }
   }
 
+  async function handleForgotPassword() {
+    setError(null)
+    if (!email) { setError('Enter your email address.'); return }
+    setLoading(true)
+    try {
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/auth',
+      })
+      if (resetErr) throw resetErr
+      setForgotSent(true)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResetPassword() {
+    setError(null)
+    if (!newPassword || newPassword.length < 6) { setError('Password must be at least 6 characters.'); return }
+    setLoading(true)
+    try {
+      const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword })
+      if (updateErr) throw updateErr
+      navigate('/home')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const isSignup = mode === 'signup'
+
+  // ── Forgot password view ──────────────────────────────────────────
+  if (mode === 'forgot') {
+    return (
+      <div className="app-shell">
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', padding: '0 24px', minHeight: '100vh', background: c.bg }}>
+          <div style={{ paddingTop: 64, paddingBottom: 48 }}>
+            <p style={{ color: c.accent, fontSize: 22, fontWeight: 800, letterSpacing: 5, margin: '0 0 6px' }}>ASCEND</p>
+            <p style={{ color: c.textFaint, fontSize: 14, margin: 0 }}>Password reset</p>
+          </div>
+
+          {forgotSent ? (
+            <>
+              <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: '20px', marginBottom: 28 }}>
+                <p style={{ color: c.accent, fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Check your inbox</p>
+                <p style={{ color: c.textSub, fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+                  We sent a password reset link to <strong>{email}</strong>. Click the link in that email to set a new password.
+                </p>
+              </div>
+              <button
+                onClick={() => { setMode('signin'); setForgotSent(false); setError(null) }}
+                style={{ width: '100%', background: 'none', border: `1px solid ${c.border}`, color: c.textSub, fontSize: 15, fontWeight: 600, borderRadius: 14, padding: '15px', cursor: 'pointer' }}
+              >
+                ← Back to sign in
+              </button>
+            </>
+          ) : (
+            <>
+              <h1 style={{ color: c.text, fontSize: 28, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.15, letterSpacing: '-0.5px' }}>Forgot your password?</h1>
+              <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 32px', lineHeight: 1.5 }}>Enter your email and we'll send you a reset link.</p>
+
+              <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} autoFocus colors={c} />
+
+              {error && <p style={{ color: '#E85D24', fontSize: 13, margin: '-4px 0 16px', lineHeight: 1.4 }}>{error}</p>}
+
+              <button
+                onClick={handleForgotPassword}
+                disabled={loading}
+                style={{ width: '100%', background: loading ? c.surface : c.accent, color: loading ? c.textMuted : '#FFFFFF', fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '17px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', marginTop: 8 }}
+              >
+                {loading ? 'Sending…' : 'Send reset email →'}
+              </button>
+              <button
+                onClick={() => { setMode('signin'); setError(null) }}
+                style={{ width: '100%', background: 'none', border: 'none', color: c.textMuted, fontSize: 14, padding: '15px', cursor: 'pointer', marginTop: 4 }}
+              >
+                ← Back to sign in
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Reset password view (arrived via email link) ───────────────────
+  if (mode === 'reset') {
+    return (
+      <div className="app-shell">
+        <div className="app-content" style={{ display: 'flex', flexDirection: 'column', padding: '0 24px', minHeight: '100vh', background: c.bg }}>
+          <div style={{ paddingTop: 64, paddingBottom: 48 }}>
+            <p style={{ color: c.accent, fontSize: 22, fontWeight: 800, letterSpacing: 5, margin: '0 0 6px' }}>ASCEND</p>
+            <p style={{ color: c.textFaint, fontSize: 14, margin: 0 }}>Set new password</p>
+          </div>
+          <h1 style={{ color: c.text, fontSize: 28, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.15, letterSpacing: '-0.5px' }}>Choose a new password</h1>
+          <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 32px', lineHeight: 1.5 }}>Must be at least 6 characters.</p>
+
+          <PasswordField label="New Password" placeholder="••••••••" value={newPassword} onChange={e => setNewPassword(e.target.value)} autoFocus colors={c} />
+
+          {error && <p style={{ color: '#E85D24', fontSize: 13, margin: '-4px 0 16px', lineHeight: 1.4 }}>{error}</p>}
+
+          <button
+            onClick={handleResetPassword}
+            disabled={loading}
+            style={{ width: '100%', background: loading ? c.surface : c.accent, color: loading ? c.textMuted : '#FFFFFF', fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '17px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', marginTop: 8 }}
+          >
+            {loading ? 'Saving…' : 'Set new password →'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app-shell">
@@ -258,7 +382,15 @@ export default function Auth() {
         ) : (
           <>
             <Field label="Email" type="email" placeholder="jane@wharton.upenn.edu" value={email} onChange={e => setEmail(e.target.value)} autoFocus colors={c} />
-            <Field label="Password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} colors={c} />
+            <PasswordField label="Password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} colors={c} />
+            <div style={{ textAlign: 'right', marginTop: -6, marginBottom: 14 }}>
+              <button
+                onClick={() => { setMode('forgot'); setError(null) }}
+                style={{ background: 'none', border: 'none', color: c.accent, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              >
+                Forgot password?
+              </button>
+            </div>
           </>
         )}
 

@@ -70,6 +70,7 @@ export default function Home() {
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
   const [isCheckedIn, setIsCheckedIn] = useState(false)
   const [checkinLoading, setCheckinLoading] = useState(false)
+  const [showCheckinPrompt, setShowCheckinPrompt] = useState(false)
   const [workoutCompletedToday, setWorkoutCompletedToday] = useState(false)
 
   const [showPRBanner, setShowPRBanner] = useState(newPRs.length > 0)
@@ -466,7 +467,7 @@ export default function Home() {
               Your Ascend Score, your campus rank, your history — none of it exists until you train. Every person on the leaderboard started right here.
             </p>
             <button
-              onClick={() => navigate('/workout')}
+              onClick={() => isCheckedIn ? navigate('/workout') : setShowCheckinPrompt(true)}
               style={{
                 width: '100%', background: c.accent, color: '#FFFFFF',
                 fontSize: 18, fontWeight: 700, borderRadius: 16, padding: '20px',
@@ -621,7 +622,11 @@ export default function Home() {
           {/* ── Primary CTA ─────────────────────────────────────────── */}
           <div style={{ padding: '0 16px', marginBottom: 12 }}>
             <button
-              onClick={() => navigate('/workout', workoutCompletedToday ? { state: { preview: true } } : {})}
+              onClick={() => {
+                if (workoutCompletedToday) { navigate('/workout', { state: { preview: true } }); return }
+                if (isCheckedIn) { navigate('/workout'); return }
+                setShowCheckinPrompt(true)
+              }}
               style={{
                 width: '100%',
                 background: workoutCompletedToday ? c.surface : c.accent,
@@ -749,6 +754,46 @@ export default function Home() {
 
         </div>
       </div>
+
+      {/* ── Gym check-in prompt modal ──────────────────────────────── */}
+      {showCheckinPrompt && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          onClick={() => setShowCheckinPrompt(false)}
+        >
+          <div
+            style={{ background: c.surface, borderRadius: '20px 20px 0 0', padding: '28px 24px 44px', width: '100%', maxWidth: 390 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <p style={{ color: c.text, fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>Are you at the gym?</p>
+            <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 28px', lineHeight: 1.55 }}>
+              Check in to let your friends know you're training and earn social points.
+            </p>
+            <button
+              onClick={async () => {
+                setShowCheckinPrompt(false)
+                navigate('/workout')
+                if (profile) {
+                  await supabase.from('users').update({ gym_checkin_at: new Date().toISOString() }).eq('id', profile.id)
+                  const { data: scoreRow } = await supabase.from('user_scores').select('social_score').eq('user_id', profile.id).maybeSingle()
+                  const newSocial = Math.min((scoreRow?.social_score ?? 0) + 3, 100)
+                  await supabase.from('user_scores').update({ social_score: newSocial }).eq('user_id', profile.id)
+                }
+              }}
+              style={{ width: '100%', background: c.accent, color: '#FFFFFF', fontSize: 16, fontWeight: 800, borderRadius: 14, padding: '17px', border: 'none', cursor: 'pointer', marginBottom: 10, letterSpacing: '-0.2px' }}
+            >
+              Check in + Start →
+            </button>
+            <button
+              onClick={() => { setShowCheckinPrompt(false); navigate('/workout') }}
+              style={{ width: '100%', background: 'none', color: c.textMuted, fontSize: 15, fontWeight: 600, borderRadius: 14, padding: '14px', border: `1px solid ${c.border}`, cursor: 'pointer' }}
+            >
+              Skip, just start
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
