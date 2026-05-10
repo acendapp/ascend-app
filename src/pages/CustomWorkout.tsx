@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs } from '../lib/scoring'
+import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs, calculateConsistencyScore, calculateAscendScore } from '../lib/scoring'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -313,7 +313,7 @@ export default function CustomWorkout() {
         .eq('id', activeTemplate.id)
 
       const { data: curScores } = await supabase
-        .from('user_scores').select('xp, level, streak_days, strength_score').eq('user_id', userId).maybeSingle()
+        .from('user_scores').select('xp, level, streak_days, strength_score, social_score').eq('user_id', userId).maybeSingle()
 
       const xp = calculateXPGain(exercisesCompleted, 0, false)
       const newXP = (curScores?.xp ?? 0) + xp
@@ -330,7 +330,14 @@ export default function CustomWorkout() {
         ? (curScores?.streak_days ?? 0) + 1
         : 1
 
-      const scoreUpdates: Record<string, number> = { xp: newXP, level: newLevel, streak_days: newStreak }
+      const monday = new Date()
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+      monday.setHours(0, 0, 0, 0)
+      const { count: weekCount } = await supabase
+        .from('workouts').select('id', { count: 'exact', head: true })
+        .eq('user_id', userId).eq('completed', true).gte('workout_date', monday.toISOString())
+      const consistencyScore = calculateConsistencyScore(weekCount ?? 0)
+
       const weightLogs: { weight: number }[] = []
       for (let i = 0; i < activeTemplate.exercises.length; i++) {
         const sets = completedSets[i] ?? 0
@@ -339,12 +346,18 @@ export default function CustomWorkout() {
           if (w > 0) weightLogs.push({ weight: w })
         }
       }
+      let strengthScore = curScores?.strength_score ?? 0
       if (weightLogs.length > 0) {
         const newStrength = calculateStrengthScoreFromLogs(weightLogs, 75)
-        if (newStrength > (curScores?.strength_score ?? 0)) scoreUpdates.strength_score = newStrength
+        if (newStrength > strengthScore) strengthScore = newStrength
       }
 
-      await supabase.from('user_scores').update(scoreUpdates).eq('user_id', userId)
+      const ascendScore = calculateAscendScore(strengthScore, consistencyScore, curScores?.social_score ?? 0, newStreak)
+
+      await supabase.from('user_scores').update({
+        xp: newXP, level: newLevel, streak_days: newStreak,
+        strength_score: strengthScore, consistency_score: consistencyScore, ascend_score: ascendScore,
+      }).eq('user_id', userId)
 
       localStorage.setItem('ascend_home_badge', '1')
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))

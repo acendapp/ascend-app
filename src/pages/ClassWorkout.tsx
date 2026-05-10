@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { calculateXPGain, getLevelFromXP } from '../lib/scoring'
+import { calculateXPGain, getLevelFromXP, calculateConsistencyScore, calculateAscendScore } from '../lib/scoring'
 
 const CLASS_TYPES = [
   { label: 'Pilates',   emoji: '🧘' },
@@ -63,7 +63,7 @@ export default function ClassWorkout() {
       })
 
       const { data: curScores } = await supabase
-        .from('user_scores').select('xp, level, streak_days').eq('user_id', user.id).maybeSingle()
+        .from('user_scores').select('xp, level, streak_days, strength_score, social_score').eq('user_id', user.id).maybeSingle()
 
       const xp = calculateXPGain(1, 0, false)
       const newXP = (curScores?.xp ?? 0) + xp
@@ -80,7 +80,22 @@ export default function ClassWorkout() {
         ? (curScores?.streak_days ?? 0) + 1
         : 1
 
-      await supabase.from('user_scores').update({ xp: newXP, level: newLevel, streak_days: newStreak }).eq('user_id', user.id)
+      const monday = new Date()
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+      monday.setHours(0, 0, 0, 0)
+      const { count: weekCount } = await supabase
+        .from('workouts').select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id).eq('completed', true).gte('workout_date', monday.toISOString())
+      const consistencyScore = calculateConsistencyScore(weekCount ?? 0)
+
+      // Strength score unchanged — class workouts don't involve progressive overload
+      const strengthScore = curScores?.strength_score ?? 0
+      const ascendScore = calculateAscendScore(strengthScore, consistencyScore, curScores?.social_score ?? 0, newStreak)
+
+      await supabase.from('user_scores').update({
+        xp: newXP, level: newLevel, streak_days: newStreak,
+        consistency_score: consistencyScore, ascend_score: ascendScore,
+      }).eq('user_id', user.id)
 
       localStorage.setItem('ascend_home_badge', '1')
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))

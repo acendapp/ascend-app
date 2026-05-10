@@ -221,12 +221,14 @@ export default function Home() {
       }
     }
 
-    // Campus activity fallback: shown when user has no friends yet
-    if (friendIds.length === 0) {
+    // Campus activity: always shown, non-friends anonymized
+    {
+      const excludeIds = [user.id, ...friendIds]
       const { data: campusWorkouts } = await supabase
         .from('workouts')
         .select('id, user_id, workout_date, workout_type')
         .eq('completed', true)
+        .not('user_id', 'in', `(${excludeIds.join(',')})`)
         .order('workout_date', { ascending: false })
         .limit(6)
       if (campusWorkouts && campusWorkouts.length > 0) {
@@ -237,14 +239,15 @@ export default function Home() {
         setCampusActivity(campusWorkouts.map(w => ({
           id: w.id as string,
           userId: w.user_id as string,
-          userName: cpMap.get(w.user_id as string) ?? 'Penn Athlete',
-          initials: initials(cpMap.get(w.user_id as string) ?? 'Penn Athlete'),
+          userName: 'A Penn student',
+          initials: '?',
           description: `Completed a ${(w.workout_type as string) ?? 'workout'}`,
           time: timeAgo(w.workout_date as string),
           workoutId: w.id as string,
           kudosCount: 0,
           userGaveKudos: false,
         })))
+        void cpMap // fetched for future use if we add friend-aware display
       }
     }
 
@@ -645,7 +648,7 @@ export default function Home() {
                 boxShadow: workoutCompletedToday ? 'none' : `0 4px 28px ${c.accentBg}`,
               }}
             >
-              {workoutCompletedToday ? "✓ Done today · Preview Tomorrow →" : "Generate Today's Workout →"}
+              {workoutCompletedToday ? "✓ Done today · Preview Tomorrow →" : "Workout Now →"}
             </button>
           </div>
 
@@ -692,17 +695,17 @@ export default function Home() {
 
           {/* ── Activity Feed ────────────────────────────────────────── */}
           <div style={{ padding: '0 16px' }}>
+
+            {/* Friend Activity */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>
-                {activityFeed.length > 0 ? 'Friend Activity' : campusActivity.length > 0 ? 'Happening at Penn' : 'Activity'}
-              </p>
-              {activityFeed.length === 0 && campusActivity.length === 0 && (
+              <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>Friend Activity</p>
+              {activityFeed.length === 0 && (
                 <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Find people →</button>
               )}
             </div>
 
             {activityFeed.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 24 }}>
                 {activityFeed.map(item => (
                   <div key={item.id} onClick={() => navigate(`/profile/${item.userId}`)} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '11px 13px', display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer' }}>
                     <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
@@ -723,13 +726,26 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            ) : campusActivity.length > 0 ? (
+            ) : (
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '20px', textAlign: 'center', marginBottom: 24 }}>
+                <p style={{ color: c.textMuted, fontSize: 13, fontWeight: 600, margin: '0 0 4px' }}>No friends yet</p>
+                <p style={{ color: c.textFaint, fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+                  Add classmates on{' '}
+                  <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Profile</button>
+                  {' '}to see their workouts here.
+                </p>
+              </div>
+            )}
+
+            {/* Happening at Penn — always visible, non-friends anonymized */}
+            {campusActivity.length > 0 && (
               <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 10px' }}>Happening at Penn</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {campusActivity.map(item => (
-                    <div key={item.id} onClick={() => navigate(`/profile/${item.userId}`)} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '11px 13px', display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer' }}>
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.textSub, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                        {item.initials}
+                    <div key={item.id} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '11px 13px', display: 'flex', alignItems: 'center', gap: 11 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.surfaceHigh, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.textMuted, fontSize: 14, flexShrink: 0 }}>
+                        🎓
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: '0 0 1px' }}>{item.userName}</p>
@@ -738,13 +754,10 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                <p style={{ color: c.textMuted, fontSize: 12, margin: 0, textAlign: 'center' }}>
-                  Add friends on{' '}
-                  <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Profile</button>
-                  {' '}to see their workouts here
-                </p>
               </>
-            ) : (
+            )}
+
+            {activityFeed.length === 0 && campusActivity.length === 0 && (
               <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '24px 20px', textAlign: 'center' }}>
                 <p style={{ color: c.border, fontSize: 28, margin: '0 0 10px' }}>🏃</p>
                 <p style={{ color: c.textMuted, fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>No activity yet</p>
