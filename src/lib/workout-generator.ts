@@ -238,14 +238,36 @@ const FIRST_SESSION_INSIGHT = "Welcome to your first Ascend workout. We've built
 function mainExerciseCount(durationMin: number): number {
   if (durationMin <= 30) return 2
   if (durationMin <= 45) return 3
-  if (durationMin >= 75) return 5
+  if (durationMin <= 60) return 4
+  if (durationMin <= 75) return 5
+  return 6
+}
+
+function mainWorkBudget(durationMin: number): number {
+  return Math.max(10, durationMin - 5 - 15)
+}
+
+function setsPerExercise(mainWorkMin: number, exerciseCount: number): number {
+  const minPerEx = mainWorkMin / exerciseCount
+  if (minPerEx <= 5) return 2
+  if (minPerEx <= 8) return 3
   return 4
+}
+
+function targetRestSeconds(durationMin: number): number {
+  if (durationMin <= 30) return 45
+  if (durationMin <= 45) return 60
+  if (durationMin <= 60) return 90
+  return 120
 }
 
 export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWorkout> {
   const { userId, goal, experience_level, equipment, recovery_score, workoutDuration, firstSessionType, sore_muscles, injured_muscles, sex } = input
   const totalMin = workoutDuration ?? 60
   const mainCount = mainExerciseCount(totalMin)
+  const mainMin = mainWorkBudget(totalMin)
+  const maxSets = setsPerExercise(mainMin, mainCount)
+  const restSecs = targetRestSeconds(totalMin)
 
   const [hoursSince, previousWeights, detailedHistory] = await Promise.all([
     getRecentMuscleHoursSince(userId),
@@ -292,16 +314,26 @@ Muscle groups available (recovered and due): ${musclesDue.join(', ') || 'all gro
 RECOVERY CONSTRAINT: ${muscleConstraint}${soreConstraint}${injuryConstraint}
 ${historyContext}
 
+STRICT TIME BUDGET — total must equal exactly ${totalMin} minutes:
+  Warmup   :  5 min  (3 movements — already in warmup array)
+  Main Work: ${mainMin} min  (${mainCount} exercises — each exercise must fit in ~${Math.round(mainMin / mainCount)} min)
+  Finisher : 15 min  (2 exercises, always include — labeled optional)
+  TOTAL    : ${totalMin} min
+
+To fit main_work in ${mainMin} min, use AT MOST ${maxSets} sets per exercise and target rest_seconds: ${restSecs}.
+Do NOT exceed ${maxSets} sets in main_work unless recovery score is 8+ AND duration allows it.
+For the finisher, use 3 sets per exercise with rest_seconds: 45.
+
 Goal modifiers:
-- lean: rest_seconds 45–60, reps 12–20, supersets
-- muscle: 4–5 sets, rest_seconds 60–90, reps 8–12
-- strength: heavy compounds, rest_seconds 150–180, reps 3–6
+- lean: reps 12–20, shorter rest (override rest_seconds down by 15 sec), supersets allowed
+- muscle: reps 8–12, keep rest_seconds as specified above
+- strength: reps 3–6, heavier weight, rest_seconds may be ${restSecs + 30} for compound lifts only
 - athletic: power movements, mixed rep ranges
 
 Recovery adjustment already applied in your output:
-- Score 1–3: reduce sets by 40%, reduce weight by 20%, session_label ends with "— Recovery Day"
+- Score 1–3: reduce sets by 1 (minimum 2), reduce weight by 20%, session_label ends with "— Recovery Day"
 - Score 4–6: standard
-- Score 7–10: add 1 set to each compound, increase weight by 5%, session_label ends with "— Performance Day"
+- Score 7–10: add 1 set to each compound only (stay within time budget), increase weight by 5%, session_label ends with "— Performance Day"
 
 Return ONLY valid JSON matching this exact structure:
 {
@@ -332,7 +364,7 @@ Return ONLY valid JSON matching this exact structure:
       "reps": "12-15",
       "suggested_weight": 20,
       "rpe_target": 7,
-      "rest_seconds": 60,
+      "rest_seconds": 45,
       "coaching_tip": "Maintain a slight bend in the elbows and focus on the stretch."
     }
   ]

@@ -70,6 +70,7 @@ export default function CustomWorkout() {
   const [finishing, setFinishing] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef<number>(0)
@@ -199,23 +200,26 @@ export default function CustomWorkout() {
     if (!userId || !templateName.trim()) return
     const validEx = exercises.filter(e => e.exercise_name.trim())
     if (validEx.length === 0) return
+    setSaveError(null)
     setSavingTemplate(true)
     try {
       let templateId = editingTemplate?.id
       if (templateId) {
-        await supabase.from('workout_templates')
+        const { error: updateErr } = await supabase.from('workout_templates')
           .update({ name: templateName.trim(), updated_at: new Date().toISOString() })
           .eq('id', templateId)
-        await supabase.from('template_exercises').delete().eq('template_id', templateId)
+        if (updateErr) throw new Error(updateErr.message)
+        const { error: delErr } = await supabase.from('template_exercises').delete().eq('template_id', templateId)
+        if (delErr) throw new Error(delErr.message)
       } else {
-        const { data: newTmpl } = await supabase.from('workout_templates')
+        const { data: newTmpl, error: insertErr } = await supabase.from('workout_templates')
           .insert({ user_id: userId, name: templateName.trim() })
           .select().single()
-        templateId = newTmpl?.id as string | undefined
+        if (insertErr || !newTmpl) throw new Error(insertErr?.message ?? 'Failed to save workout')
+        templateId = newTmpl.id as string
       }
-      if (!templateId) return
 
-      await supabase.from('template_exercises').insert(
+      const { error: exInsertErr } = await supabase.from('template_exercises').insert(
         validEx.map((e, i) => ({
           template_id: templateId,
           exercise_name: e.exercise_name.trim(),
@@ -226,6 +230,7 @@ export default function CustomWorkout() {
           order_index: i,
         }))
       )
+      if (exInsertErr) throw new Error(exInsertErr.message)
 
       const template: Template = {
         id: templateId,
@@ -234,6 +239,8 @@ export default function CustomWorkout() {
         exercises: validEx.map((e, i) => ({ ...e, order_index: i })),
       }
       startWorkout(template)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save workout')
     } finally {
       setSavingTemplate(false)
     }
@@ -621,6 +628,9 @@ export default function CustomWorkout() {
           </div>
 
           <div style={{ padding: '12px 24px 88px' }}>
+            {saveError && (
+              <p style={{ color: '#EF4444', fontSize: 12, margin: '0 0 10px', textAlign: 'center' }}>{saveError}</p>
+            )}
             <button
               onClick={saveAndStart}
               disabled={!canStart || savingTemplate}
