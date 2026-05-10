@@ -46,6 +46,11 @@ const SOURCE_META: Record<string, { emoji: string; label: string }> = {
   class: { emoji: '🏃', label: 'Class' },
 }
 
+function goBack(navigate: ReturnType<typeof useNavigate>) {
+  if ((window.history.state?.idx ?? 0) > 0) navigate(-1)
+  else navigate('/home')
+}
+
 export default function FriendProfile() {
   const navigate = useNavigate()
   const { userId } = useParams<{ userId: string }>()
@@ -110,7 +115,7 @@ export default function FriendProfile() {
     return (
       <div className="app-shell">
         <div className="app-content" style={{ padding: '52px 20px 0', background: c.bg }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '0 0 16px' }}>← Back</button>
+          <button onClick={() => goBack(navigate)} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '0 0 16px' }}>← Back</button>
           <p style={{ color: c.textSub, fontSize: 14 }}>Couldn't load this profile.</p>
         </div>
       </div>
@@ -125,7 +130,7 @@ export default function FriendProfile() {
         <div style={{ padding: '52px 20px 24px' }}>
 
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => goBack(navigate)}
             style={{ background: 'none', border: 'none', color: c.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '0 0 20px', display: 'flex', alignItems: 'center', gap: 4 }}
           >
             ← Back
