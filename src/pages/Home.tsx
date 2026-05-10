@@ -108,7 +108,11 @@ export default function Home() {
     if (profileData) {
       setProfile(profileData)
       const ci = profileData.gym_checkin_at
-      if (ci) setIsCheckedIn(new Date(ci).getTime() > Date.now() - 2 * 60 * 60 * 1000)
+      const checkedIn = !!ci && new Date(ci).getTime() > Date.now() - 2 * 60 * 60 * 1000
+      setIsCheckedIn(checkedIn)
+      // Sync to localStorage so BottomNav can read without a Supabase call
+      if (checkedIn) localStorage.setItem('ascend_gym_checkin', ci)
+      else localStorage.removeItem('ascend_gym_checkin')
     }
     if (scoresRes.data) setScores(scoresRes.data)
 
@@ -383,6 +387,7 @@ export default function Home() {
       .eq('id', profile.id)
     if (!error) {
       setIsCheckedIn(true)
+      localStorage.setItem('ascend_gym_checkin', new Date().toISOString())
       const { data: scoreRow } = await supabase
         .from('user_scores').select('social_score').eq('user_id', profile.id).maybeSingle()
       const newSocial = Math.min((scoreRow?.social_score ?? 0) + 3, 100)
@@ -409,6 +414,7 @@ export default function Home() {
       .eq('id', profile.id)
     if (!error) {
       setIsCheckedIn(false)
+      localStorage.removeItem('ascend_gym_checkin')
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
       const { data: gymUsersData } = await supabase
         .from('users').select('id, name').gte('gym_checkin_at', twoHoursAgo).neq('id', profile.id).limit(8)
@@ -510,7 +516,7 @@ export default function Home() {
                 <div style={{ background: c.isDark ? 'linear-gradient(135deg, #1A1200, #221600)' : 'linear-gradient(135deg, #FFF8E7, #FFF3D0)', border: '1px solid #F59E0B', borderRadius: 12, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <p style={{ color: '#F59E0B', fontSize: 13, fontWeight: 700, margin: 0 }}>🔥 {streakDays}-day streak — train today to keep it</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 10 }}>
-                    <button onClick={() => navigate('/workout')} style={{ background: '#F59E0B', border: 'none', borderRadius: 7, padding: '4px 10px', color: '#000', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Train now</button>
+                    <button onClick={() => isCheckedIn ? navigate('/workout') : setShowCheckinPrompt(true)} style={{ background: '#F59E0B', border: 'none', borderRadius: 7, padding: '4px 10px', color: '#000', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Train now</button>
                     <button onClick={() => setStreakBannerDismissed(true)} style={{ background: 'none', border: 'none', color: '#92700A', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}>×</button>
                   </div>
                 </div>
@@ -774,7 +780,9 @@ export default function Home() {
                 setShowCheckinPrompt(false)
                 navigate('/workout')
                 if (profile) {
-                  await supabase.from('users').update({ gym_checkin_at: new Date().toISOString() }).eq('id', profile.id)
+                  const now = new Date().toISOString()
+                  localStorage.setItem('ascend_gym_checkin', now)
+                  await supabase.from('users').update({ gym_checkin_at: now }).eq('id', profile.id)
                   const { data: scoreRow } = await supabase.from('user_scores').select('social_score').eq('user_id', profile.id).maybeSingle()
                   const newSocial = Math.min((scoreRow?.social_score ?? 0) + 3, 100)
                   await supabase.from('user_scores').update({ social_score: newSocial }).eq('user_id', profile.id)
