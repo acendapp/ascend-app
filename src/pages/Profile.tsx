@@ -895,11 +895,11 @@ export default function Profile() {
                   >
                     <div style={{
                       width: 38, height: 38, borderRadius: '50%',
-                      background: def.swatch,
+                      background: c.isDark ? def.dark : def.light,
                       border: selected ? `3px solid ${c.text}` : '3px solid transparent',
-                      boxShadow: selected ? `0 0 0 2px ${def.swatch}` : 'none',
+                      boxShadow: selected ? `0 0 0 2px ${c.isDark ? def.dark : def.light}` : 'none',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'all 0.15s',
+                      transition: 'border 0.1s, box-shadow 0.1s',
                     }}>
                       {selected && (
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
