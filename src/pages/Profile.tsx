@@ -7,7 +7,7 @@ import {
   displayGoal, displayExperience, displayEquipment,
   GOAL_OPTIONS, EXPERIENCE_OPTIONS, EQUIPMENT_OPTIONS, SCHOOL_YEAR_OPTIONS,
 } from '../lib/display'
-import { calculateConsistencyScore, getRankInfo, getRankProgress } from '../lib/scoring'
+import { calculateConsistencyScore, getRankInfo, getRankProgress, RANKS } from '../lib/scoring'
 import RankBadge from '../components/RankBadge'
 import { useTheme, ACCENT_COLORS } from '../lib/theme'
 import type { UserProfile, UserScores, FriendshipWithProfile, FriendProfile } from '../types'
@@ -660,10 +660,38 @@ export default function Profile() {
                     )}
                     {myRank.nextScore !== null && (
                       <p style={{ color: c.textFaint, fontSize: 10, margin: '3px 0 0' }}>
-                        {ascendScore} / {myRank.nextScore} to {myRank.name !== 'GOAT' ? 'next rank' : 'Ascendant'}
+                        {ascendScore} / {myRank.nextScore} to next rank
                       </p>
                     )}
                   </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* ── Badge Collection ── */}
+          {(() => {
+            const myRank = getRankInfo(ascendScore)
+            return (
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: 0 }}>Badges</p>
+                  <p style={{ color: c.accent, fontSize: 11, fontWeight: 700, margin: 0 }}>{myRank.tier} / 12 unlocked</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '18px 6px' }}>
+                  {RANKS.map(rank => {
+                    const isUnlocked = myRank.tier >= rank.tier
+                    return (
+                      <div key={rank.tier} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                        <div style={{ filter: isUnlocked ? 'none' : 'blur(5px)', opacity: isUnlocked ? 1 : 0.3, transition: 'filter 0.3s, opacity 0.3s' }}>
+                          <RankBadge tier={rank.tier} size={40} accentColor={c.accent} />
+                        </div>
+                        <p style={{ color: isUnlocked ? c.text : c.textFaint, fontSize: 9, fontWeight: isUnlocked ? 700 : 400, margin: 0, textAlign: 'center', letterSpacing: '0.3px' }}>
+                          {isUnlocked ? rank.name : '???'}
+                        </p>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
