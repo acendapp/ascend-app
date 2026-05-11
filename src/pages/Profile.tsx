@@ -7,7 +7,8 @@ import {
   displayGoal, displayExperience, displayEquipment,
   GOAL_OPTIONS, EXPERIENCE_OPTIONS, EQUIPMENT_OPTIONS, SCHOOL_YEAR_OPTIONS,
 } from '../lib/display'
-import { calculateConsistencyScore } from '../lib/scoring'
+import { calculateConsistencyScore, getRankInfo, getRankProgress } from '../lib/scoring'
+import RankBadge from '../components/RankBadge'
 import { useTheme, ACCENT_COLORS } from '../lib/theme'
 import type { UserProfile, UserScores, FriendshipWithProfile, FriendProfile } from '../types'
 
@@ -640,6 +641,33 @@ export default function Profile() {
             <ScoreCard label="Consistency" value={consistencyScore} unit="%" />
             <ScoreCard label="Ascend" value={ascendScore} accent />
           </div>
+
+          {/* ── Rank ── */}
+          {(() => {
+            const myRank = getRankInfo(ascendScore)
+            const myRankProgress = getRankProgress(ascendScore, myRank)
+            return (
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 10 }}>
+                <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Rank</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <RankBadge tier={myRank.tier} size={32} accentColor={c.accent} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>{myRank.name}</p>
+                    {myRank.nextScore !== null && (
+                      <div style={{ background: c.border, borderRadius: 3, height: 4, overflow: 'hidden' }}>
+                        <div style={{ background: c.accent, height: '100%', width: `${Math.round(myRankProgress * 100)}%`, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                      </div>
+                    )}
+                    {myRank.nextScore !== null && (
+                      <p style={{ color: c.textFaint, fontSize: 10, margin: '3px 0 0' }}>
+                        {ascendScore} / {myRank.nextScore} to {myRank.name !== 'GOAT' ? 'next rank' : 'Ascendant'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* ── Campus rank ── */}
           <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>

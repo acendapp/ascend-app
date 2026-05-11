@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import StreakDots from '../components/StreakDots'
 import AscendBolt from '../components/AscendBolt'
 import { supabase } from '../lib/supabase'
-import { getLevelName } from '../lib/scoring'
+import { getRankInfo, getRankProgress } from '../lib/scoring'
+import RankBadge from '../components/RankBadge'
 import { useTheme } from '../lib/theme'
 import type { UserProfile, UserScores, ActivityItem } from '../types'
 
@@ -504,6 +505,8 @@ export default function Home() {
 
   const firstName = profile ? profile.name.split(' ')[0] : 'Athlete'
   const streakDays = scores?.streak_days ?? 0
+  const rank = getRankInfo(scores?.ascend_score ?? 0)
+  const rankProgress = getRankProgress(scores?.ascend_score ?? 0, rank)
 
   return (
     <div className="app-shell">
@@ -541,10 +544,16 @@ export default function Home() {
                 <h1 style={{ color: c.text, fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{firstName}</h1>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 20, padding: '5px 12px', flexShrink: 0 }}>
-                  <span style={{ color: c.accent, fontSize: 11, fontWeight: 700 }}>
-                    Lv.{scores?.level ?? 1} {getLevelName(scores?.level ?? 1)}
-                  </span>
+                <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 20, padding: '5px 12px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 90 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <RankBadge tier={rank.tier} size={22} accentColor={c.accent} />
+                    <span style={{ color: c.accent, fontSize: 11, fontWeight: 700 }}>{rank.name}</span>
+                  </div>
+                  {rank.nextScore !== null && (
+                    <div style={{ width: '100%', background: c.border, borderRadius: 3, height: 3, overflow: 'hidden' }}>
+                      <div style={{ background: c.accent, height: '100%', width: `${Math.round(rankProgress * 100)}%`, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={toggleTheme}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useTheme, ACCENT_COLORS } from '../lib/theme'
+import WorkoutHistoryView from '../components/WorkoutHistoryView'
 
 interface RecentTemplate {
   id: string
@@ -97,6 +98,7 @@ export default function WorkoutTypeSelector() {
 
   const { colors: c, accentKey, setAccentColor } = useTheme()
   const [showAccentPicker, setShowAccentPicker] = useState(() => !localStorage.getItem('ascend_accent_chosen'))
+  const [activeTab, setActiveTab] = useState<'workout' | 'history'>('workout')
 
   if (showAccentPicker) {
     return (
@@ -169,84 +171,100 @@ export default function WorkoutTypeSelector() {
           <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
             {isPreview ? "Tomorrow's session" : 'Ready to train?'}
           </p>
-          <h1 style={{ color: c.text, fontSize: 26, fontWeight: 700, margin: '0 0 28px', lineHeight: 1.2 }}>
+          <h1 style={{ color: c.text, fontSize: 26, fontWeight: 700, margin: '0 0 16px', lineHeight: 1.2 }}>
             {isPreview ? 'Plan your workout type' : 'What kind of workout?'}
           </h1>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {WORKOUT_TYPE_DEFS.map(opt => {
-              const isLast = lastType === opt.id
-              const typeAccent = opt.accentDynamic ? c.accent : opt.staticAccent
-              return (
-                <button
-                  key={opt.id}
-                  onClick={() => selectType(opt.id, opt.path)}
-                  style={{
-                    background: c.surface,
-                    border: `1.5px solid ${isLast ? typeAccent : c.border}`,
-                    borderRadius: 18,
-                    padding: '18px 20px',
-                    display: 'flex', alignItems: 'center', gap: 16,
-                    cursor: 'pointer', textAlign: 'left', width: '100%',
-                    position: 'relative',
-                  }}
-                >
-                  <span style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>{opt.emoji}</span>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ color: c.text, fontSize: 16, fontWeight: 700, margin: '0 0 3px' }}>{opt.title}</p>
-                    <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>{opt.subtitle}</p>
-                  </div>
-                  {isLast && (
-                    <span style={{
-                      position: 'absolute', top: 10, right: 14,
-                      background: typeAccent + '22', color: typeAccent,
-                      fontSize: 9, fontWeight: 700, borderRadius: 4,
-                      padding: '2px 6px', letterSpacing: 1,
-                    }}>
-                      LAST USED
-                    </span>
-                  )}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, opacity: 0.4 }}>
-                    <path d="M9 18l6-6-6-6" stroke={c.text} strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
-                </button>
-              )
-            })}
+          {/* Tab bar */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 20, background: c.surface, borderRadius: 12, padding: 3 }}>
+            {(['workout', 'history'] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                style={{ flex: 1, background: activeTab === tab ? c.accent : 'transparent', color: activeTab === tab ? '#FFF' : c.textSub, border: 'none', borderRadius: 10, padding: '9px', fontSize: 13, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize' }}>
+                {tab === 'workout' ? 'Workout' : 'History'}
+              </button>
+            ))}
           </div>
 
-          {/* Quick-repeat section for saved custom templates — hidden in preview */}
-          {ready && recentTemplates.length > 0 && !isPreview && (
-            <div style={{ marginTop: 28 }}>
-              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>
-                Quick Repeat
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {recentTemplates.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => quickStart(t.id)}
-                    style={{
-                      background: c.surface, border: `1px solid ${c.border}`,
-                      borderRadius: 14, padding: '13px 16px',
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      cursor: 'pointer', width: '100%', textAlign: 'left',
-                    }}
-                  >
-                    <span style={{ fontSize: 20, flexShrink: 0 }}>✏️</span>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>{t.name}</p>
-                      <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>
-                        {t.exercise_count} exercise{t.exercise_count !== 1 ? 's' : ''}
-                        {t.last_used_at
-                          ? ` · ${new Date(t.last_used_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
-                          : ''}
-                      </p>
-                    </div>
-                    <span style={{ color: c.accent, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Start →</span>
-                  </button>
-                ))}
+          {activeTab === 'history' ? (
+            <WorkoutHistoryView />
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {WORKOUT_TYPE_DEFS.map(opt => {
+                  const isLast = lastType === opt.id
+                  const typeAccent = opt.accentDynamic ? c.accent : opt.staticAccent
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => selectType(opt.id, opt.path)}
+                      style={{
+                        background: c.surface,
+                        border: `1.5px solid ${isLast ? typeAccent : c.border}`,
+                        borderRadius: 18,
+                        padding: '18px 20px',
+                        display: 'flex', alignItems: 'center', gap: 16,
+                        cursor: 'pointer', textAlign: 'left', width: '100%',
+                        position: 'relative',
+                      }}
+                    >
+                      <span style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>{opt.emoji}</span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ color: c.text, fontSize: 16, fontWeight: 700, margin: '0 0 3px' }}>{opt.title}</p>
+                        <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>{opt.subtitle}</p>
+                      </div>
+                      {isLast && (
+                        <span style={{
+                          position: 'absolute', top: 10, right: 14,
+                          background: typeAccent + '22', color: typeAccent,
+                          fontSize: 9, fontWeight: 700, borderRadius: 4,
+                          padding: '2px 6px', letterSpacing: 1,
+                        }}>
+                          LAST USED
+                        </span>
+                      )}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, opacity: 0.4 }}>
+                        <path d="M9 18l6-6-6-6" stroke={c.text} strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  )
+                })}
               </div>
-            </div>
+
+              {/* Quick-repeat section for saved custom templates — hidden in preview */}
+              {ready && recentTemplates.length > 0 && !isPreview && (
+                <div style={{ marginTop: 28 }}>
+                  <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>
+                    Quick Repeat
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {recentTemplates.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => quickStart(t.id)}
+                        style={{
+                          background: c.surface, border: `1px solid ${c.border}`,
+                          borderRadius: 14, padding: '13px 16px',
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          cursor: 'pointer', width: '100%', textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ fontSize: 20, flexShrink: 0 }}>✏️</span>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>{t.name}</p>
+                          <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>
+                            {t.exercise_count} exercise{t.exercise_count !== 1 ? 's' : ''}
+                            {t.last_used_at
+                              ? ` · ${new Date(t.last_used_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                              : ''}
+                          </p>
+                        </div>
+                        <span style={{ color: c.accent, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Start →</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
         </div>

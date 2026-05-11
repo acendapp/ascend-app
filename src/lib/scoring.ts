@@ -1,5 +1,44 @@
 // All scoring logic lives here. Edit weights or formulas without touching other files.
 
+// ── Rank system ───────────────────────────────────────────────────────────────
+
+export interface RankInfo {
+  name: string
+  tier: number
+  color: string
+  minScore: number
+  nextScore: number | null
+}
+
+export const RANKS: RankInfo[] = [
+  { tier: 1,  name: 'Benchwarmer',      color: '#6B7280', minScore: 0,   nextScore: 30  },
+  { tier: 2,  name: 'Walk-On',          color: '#B45309', minScore: 30,  nextScore: 42  },
+  { tier: 3,  name: 'Prospect',         color: '#D97706', minScore: 42,  nextScore: 52  },
+  { tier: 4,  name: 'Starter',          color: '#9CA3AF', minScore: 52,  nextScore: 61  },
+  { tier: 5,  name: 'Varsity',          color: '#D1D5DB', minScore: 61,  nextScore: 68  },
+  { tier: 6,  name: 'Team Captain',     color: '#FBBF24', minScore: 68,  nextScore: 74  },
+  { tier: 7,  name: 'All-Conference',   color: '#F59E0B', minScore: 74,  nextScore: 80  },
+  { tier: 8,  name: 'All-American',     color: '#FDE68A', minScore: 80,  nextScore: 85  },
+  { tier: 9,  name: 'First Round Pick', color: '#E2E8F0', minScore: 85,  nextScore: 90  },
+  { tier: 10, name: 'Hall of Famer',    color: '#F472B6', minScore: 90,  nextScore: 95  },
+  { tier: 11, name: 'GOAT',             color: '#A78BFA', minScore: 95,  nextScore: 100 },
+  { tier: 12, name: 'Ascendant',        color: 'accent',  minScore: 100, nextScore: null },
+]
+
+export function getRankInfo(ascendScore: number): RankInfo {
+  for (let i = RANKS.length - 1; i >= 0; i--) {
+    if (ascendScore >= RANKS[i].minScore) return RANKS[i]
+  }
+  return RANKS[0]
+}
+
+export function getRankProgress(ascendScore: number, rank: RankInfo): number {
+  if (rank.nextScore === null) return 1
+  const range = rank.nextScore - rank.minScore
+  if (range <= 0) return 1
+  return Math.min((ascendScore - rank.minScore) / range, 1)
+}
+
 // ── Level system ──────────────────────────────────────────────────────────────
 
 export const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000, 1750, 2750, 4000, 5500, 7500]

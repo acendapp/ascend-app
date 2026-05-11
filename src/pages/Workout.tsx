@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import AscendBolt from '../components/AscendBolt'
 import BodyDiagram, { MUSCLE_ZONE_LABELS } from '../components/BodyDiagram'
+import MuscleMap from '../components/MuscleMap'
 import { supabase } from '../lib/supabase'
 import { generateWorkout, suggestSubstitution, parseReps } from '../lib/workout-generator'
 import type { GeneratedWorkout, ExerciseItem } from '../lib/workout-generator'
@@ -24,6 +25,7 @@ interface SummaryData {
   sessionLabel: string
   exercisesCompleted: number
   totalVolume: number
+  durationMinutes: number
   newPRs: string[]
   scoreChange: number
   xpGain: number
@@ -983,6 +985,7 @@ export default function Workout() {
         sessionLabel: workout.session_label,
         exercisesCompleted,
         totalVolume: Math.round(totalVolume),
+        durationMinutes: Math.round((Date.now() - startTimeRef.current) / 60000),
         newPRs,
         scoreChange: Math.max(0, ascendScore - previousAscendScore),
         xpGain,
@@ -1003,6 +1006,89 @@ export default function Workout() {
   }
 
   const anySetsDone = Object.values(completedSets).some(v => v > 0)
+
+  function normalizeMuscle(raw: string): string {
+    const m = raw.toLowerCase().trim()
+    if (m === 'lats') return 'back'
+    if (m === 'abs') return 'core'
+    if (m === 'hamstring') return 'hamstrings'
+    if (m === 'glute') return 'glutes'
+    if (m === 'calf') return 'calves'
+    if (m === 'delt' || m === 'deltoid') return 'shoulders'
+    if (m === 'tricep') return 'triceps'
+    if (m === 'bicep') return 'biceps'
+    return m
+  }
+
+  async function handleShare() {
+    if (!summaryData || !profile) return
+
+    const canvas = document.createElement('canvas')
+    canvas.width = 1080
+    canvas.height = 1080
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    ctx.fillStyle = '#0A1628'
+    ctx.fillRect(0, 0, 1080, 1080)
+
+    ctx.fillStyle = c.accent
+    ctx.fillRect(0, 0, 1080, 8)
+
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = 'bold 52px -apple-system, system-ui, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(summaryData.sessionLabel ?? 'Workout Complete', 540, 180)
+
+    ctx.fillStyle = c.accent
+    ctx.font = 'bold 28px -apple-system, system-ui, sans-serif'
+    ctx.fillText('ASCEND', 540, 230)
+
+    const stats = [
+      { label: 'EXERCISES', value: String(summaryData.exercisesCompleted) },
+      { label: 'VOLUME', value: `${summaryData.totalVolume}lb` },
+      { label: 'DURATION', value: `${summaryData.durationMinutes}min` },
+    ]
+    stats.forEach((s, i) => {
+      const x = 200 + i * 340
+      ctx.fillStyle = '#1A2A42'
+      ctx.beginPath()
+      ctx.arc(x, 420, 120, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = c.accent
+      ctx.lineWidth = 4
+      ctx.stroke()
+      ctx.fillStyle = c.accent
+      ctx.font = 'bold 56px -apple-system, system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(s.value, x, 440)
+      ctx.fillStyle = '#8899AA'
+      ctx.font = '22px -apple-system, system-ui, sans-serif'
+      ctx.fillText(s.label, x, 470)
+    })
+
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = 'bold 36px -apple-system, system-ui, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(profile.name ?? '', 540, 820)
+
+    ctx.fillStyle = '#445566'
+    ctx.font = '24px -apple-system, system-ui, sans-serif'
+    ctx.fillText('ascend.app', 540, 870)
+
+    canvas.toBlob(async blob => {
+      if (!blob) return
+      const file = new File([blob], 'ascend-workout.png', { type: 'image/png' })
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'My Ascend Workout' })
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = 'ascend-workout.png'; a.click()
+        URL.revokeObjectURL(url)
+      }
+    }, 'image/png')
+  }
 
   async function handleFeedback(rating: number) {
     setFeedbackRating(rating)
@@ -1469,36 +1555,55 @@ export default function Workout() {
   // ── Summary screen ────────────────────────────────────────────────────────
 
   if (phase === 'summary' && summaryData) {
+    const summaryMuscles = workout
+      ? Array.from(new Set([
+          ...workout.main_work.map(e => normalizeMuscle(e.muscle_group)),
+          ...workout.finisher.map(e => normalizeMuscle(e.muscle_group)),
+        ]))
+      : []
+
     return (
       <div className="app-shell">
-        <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
-          <div style={{ flex: 1, overflow: 'auto', padding: '60px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ marginBottom: 12 }}><AscendBolt size={72} /></div>
-            <div style={{
-              background: '#0A2A1A', border: '1px solid #22C55E',
-              borderRadius: 20, padding: '5px 14px', marginBottom: 16,
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>
-              <span style={{ color: '#22C55E', fontSize: 11, fontWeight: 700 }}>✓ Saved to your history</span>
+        <div className="app-content page-scroll" style={{ background: c.bg }}>
+          <div style={{ padding: '52px 24px 100px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+
+            {/* Lightning bolt */}
+            <div style={{ marginBottom: 12 }}>
+              <AscendBolt size={56} />
             </div>
-            <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 8px' }}>
-              Workout Complete
-            </p>
-            <h1 style={{ color: c.text, fontSize: 20, fontWeight: 700, margin: '0 0 28px', textAlign: 'center', lineHeight: 1.3 }}>
-              {summaryData.sessionLabel}
+
+            {/* Workout title */}
+            <h1 style={{ color: c.text, fontSize: 22, fontWeight: 800, margin: '0 0 4px', textAlign: 'center' }}>
+              {summaryData.sessionLabel ?? 'Workout Complete'}
             </h1>
+            <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 24px' }}>Great work. Keep the streak alive.</p>
 
-            <div style={{ display: 'flex', gap: 12, width: '100%', marginBottom: 14 }}>
-              <div style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 16, textAlign: 'center' }}>
-                <p style={{ color: c.accent, fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.exercisesCompleted}</p>
-                <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>Exercises</p>
-              </div>
-              <div style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 16, textAlign: 'center' }}>
-                <p style={{ color: c.accent, fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>{summaryData.totalVolume.toLocaleString()}</p>
-                <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>Total lbs</p>
-              </div>
+            {/* 3 stat circles */}
+            <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+              {[
+                { label: 'Exercises', value: String(summaryData.exercisesCompleted), unit: '' },
+                { label: 'Volume', value: String(summaryData.totalVolume), unit: 'lb' },
+                { label: 'Duration', value: String(summaryData.durationMinutes), unit: 'min' },
+              ].map(stat => (
+                <div key={stat.label} style={{
+                  width: 90, height: 90, borderRadius: '50%',
+                  background: c.surface, border: `2px solid ${c.accentBorder}`,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <span style={{ color: c.accent, fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{stat.value}</span>
+                  {stat.unit && <span style={{ color: c.accent, fontSize: 10, fontWeight: 700 }}>{stat.unit}</span>}
+                  <span style={{ color: c.textSub, fontSize: 9, letterSpacing: '0.5px', marginTop: 2 }}>{stat.label.toUpperCase()}</span>
+                </div>
+              ))}
             </div>
 
+            {/* Muscle map */}
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20, width: '100%' }}>
+              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>Muscles Trained</p>
+              <MuscleMap highlighted={summaryMuscles} sex={profile?.sex as 'male'|'female' ?? 'male'} accentColor={c.accent} isDark={c.isDark} width={300} />
+            </div>
+
+            {/* Score change */}
             <div style={{ width: '100%', background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: 16, marginBottom: 14, textAlign: 'center' }}>
               <p style={{ color: c.textSub, fontSize: 12, margin: '0 0 6px' }}>Ascend Score</p>
               <p style={{ color: c.accent, fontSize: 32, fontWeight: 700, margin: 0 }}>+{summaryData.scoreChange} pts</p>
@@ -1515,6 +1620,7 @@ export default function Workout() {
               <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>+{summaryData.xpGain} XP earned</p>
             </div>
 
+            {/* PR highlights */}
             {summaryData.newPRs.length > 0 && (
               <div style={{ width: '100%', marginBottom: 14 }}>
                 <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 8px' }}>🏆 New Personal Records</p>
@@ -1525,12 +1631,10 @@ export default function Workout() {
                 ))}
               </div>
             )}
-          </div>
 
-          <div style={{ padding: '12px 24px 88px' }}>
             {/* Workout feedback */}
             {feedbackRating === null ? (
-              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14, width: '100%' }}>
                 <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 12px', textAlign: 'center' }}>How was today's workout?</p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {([
@@ -1550,13 +1654,14 @@ export default function Workout() {
                 </div>
               </div>
             ) : (
-              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 12, textAlign: 'center' }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 14, width: '100%', textAlign: 'center' }}>
                 <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>Thanks for the feedback — we'll adjust your next session.</p>
               </div>
             )}
-            {/* Notification opt-in — shown once, at the highest motivation moment */}
+
+            {/* Notification opt-in */}
             {notifPermState === 'default' && (
-              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 12 }}>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14, width: '100%' }}>
                 <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>
                   Never miss a workout
                 </p>
@@ -1575,16 +1680,17 @@ export default function Workout() {
                 </button>
               </div>
             )}
-            <button
-              onClick={() => setPhase(summaryData.newPRs.length > 0 ? 'pr-celebration' : 'celebration')}
-              style={{
-                width: '100%', background: c.accent, color: '#FFFFFF',
-                fontSize: 16, fontWeight: 700, borderRadius: 14, padding: '16px',
-                border: 'none', cursor: 'pointer',
-              }}
-            >
-              Done 💪
+
+            {/* Done button */}
+            <button onClick={() => navigate('/home', { state: { prs: summaryData.newPRs ?? [] } })} style={{ width: '100%', background: c.accent, color: '#FFF', fontSize: 16, fontWeight: 800, borderRadius: 16, padding: '17px', border: 'none', cursor: 'pointer', marginBottom: 10 }}>
+              Done →
             </button>
+
+            {/* Share button */}
+            <button onClick={handleShare} style={{ width: '100%', background: c.surface, color: c.text, fontSize: 15, fontWeight: 600, borderRadius: 16, padding: '15px', border: `1px solid ${c.border}`, cursor: 'pointer' }}>
+              Share Workout
+            </button>
+
           </div>
         </div>
       </div>
@@ -1596,6 +1702,11 @@ export default function Workout() {
   if (phase !== 'workout' || !workout) return null
 
   const goalRestSecs = getGoalRestSeconds(profile?.goal ?? null)
+
+  const trainedMuscles = Array.from(new Set([
+    ...workout.main_work.map(e => normalizeMuscle(e.muscle_group)),
+    ...workout.finisher.map(e => normalizeMuscle(e.muscle_group)),
+  ]))
 
   return (
     <div className="app-shell">
@@ -1686,9 +1797,15 @@ export default function Workout() {
             {workout.main_work.length + workout.finisher.length} exercises · Est. {parseInt(localStorage.getItem('onboarding_workout_duration') ?? '60', 10) || 60} min
           </p>
 
-          <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 24 }}>
+          <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.accent, flexShrink: 0, marginTop: 4 }} />
             <p style={{ color: c.textSub, fontSize: 12, lineHeight: 1.5, margin: 0 }}>{workout.ai_insight}</p>
+          </div>
+
+          {/* Muscle map */}
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>Muscles Today</p>
+            <MuscleMap highlighted={trainedMuscles} sex={profile?.sex as 'male'|'female' ?? 'male'} accentColor={c.accent} isDark={c.isDark} width={300} />
           </div>
 
           {/* Warm-up */}

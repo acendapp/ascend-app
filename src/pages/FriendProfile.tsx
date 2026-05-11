@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getLevelName } from '../lib/scoring'
+import { getRankInfo } from '../lib/scoring'
+import RankBadge from '../components/RankBadge'
 import { useTheme } from '../lib/theme'
 
 interface FriendData {
@@ -168,23 +169,27 @@ export default function FriendProfile() {
             </div>
           )}
 
-          {/* Level + rank */}
-          {scores && (
-            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Level</p>
-                <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: 0 }}>
-                  Level {scores.level} · {getLevelName(scores.level)}
-                </p>
-              </div>
-              {campusRank > 0 && (
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Campus Rank</p>
-                  <p style={{ color: c.accent, fontSize: 15, fontWeight: 700, margin: 0 }}>#{campusRank}</p>
+          {/* Rank + campus rank */}
+          {scores && (() => {
+            const friendRank = getRankInfo(scores.ascend_score)
+            return (
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 6px' }}>Rank</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <RankBadge tier={friendRank.tier} size={28} accentColor={c.accent} />
+                    <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: 0 }}>{friendRank.name}</p>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+                {campusRank > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Campus Rank</p>
+                    <p style={{ color: c.accent, fontSize: 15, fontWeight: 700, margin: 0 }}>#{campusRank}</p>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Personal Records */}
           {prs.length > 0 && (
