@@ -40,6 +40,8 @@ export interface WorkoutInput {
   sore_muscles?: string[]
   injured_muscles?: string[]
   sex?: string
+  limitations?: string[]
+  bodyWeight?: number
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -262,7 +264,7 @@ function targetRestSeconds(durationMin: number): number {
 }
 
 export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWorkout> {
-  const { userId, goal, experience_level, equipment, recovery_score, workoutDuration, firstSessionType, sore_muscles, injured_muscles, sex } = input
+  const { userId, goal, experience_level, equipment, recovery_score, workoutDuration, firstSessionType, sore_muscles, injured_muscles, sex, limitations, bodyWeight } = input
   const totalMin = workoutDuration ?? 60
   const mainCount = mainExerciseCount(totalMin)
   const mainMin = mainWorkBudget(totalMin)
@@ -301,6 +303,13 @@ export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWor
   const injuryConstraint = injured_muscles?.length
     ? `\nINJURED muscles (COMPLETELY EXCLUDE — zero exercises targeting these): ${injured_muscles.join(', ')}`
     : ''
+  const activeLimitations = (limitations ?? []).filter(l => l !== 'none')
+  const limitationsConstraint = activeLimitations.length
+    ? `\nCHRONIC LIMITATIONS (always exclude exercises that directly load these areas, even if not listed as currently injured): ${activeLimitations.join(', ')}`
+    : ''
+  const bodyWeightLine = bodyWeight
+    ? `\nAthlete body weight: ${bodyWeight} lb — calibrate suggested_weight relative to body mass; for bodyweight exercises note as 0`
+    : ''
 
   const prompt = `Design a ${totalMin}-minute workout for this athlete:
 
@@ -311,7 +320,7 @@ Equipment: ${equipment ?? 'full gym'}
 Weekly split: ${splitType}
 Recovery score today: ${recovery_score}/10
 Muscle groups available (recovered and due): ${musclesDue.join(', ') || 'all groups'}
-RECOVERY CONSTRAINT: ${muscleConstraint}${soreConstraint}${injuryConstraint}
+RECOVERY CONSTRAINT: ${muscleConstraint}${soreConstraint}${injuryConstraint}${limitationsConstraint}${bodyWeightLine}
 ${historyContext}
 
 STRICT TIME BUDGET — total must equal exactly ${totalMin} minutes:

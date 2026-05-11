@@ -12,6 +12,10 @@ function hasCompletedWorkoutBefore() {
   return !!localStorage.getItem('ascend_has_workout')
 }
 
+function hasCompletedWorkoutToday() {
+  return !!localStorage.getItem('ascend_workout_today')
+}
+
 const tabs = [
   {
     id: 'home',
@@ -195,9 +199,15 @@ export default function BottomNav() {
           <button
             key={tab.id}
             onClick={() => {
-              if (tab.id === 'workout' && !location.pathname.startsWith('/workout') && hasCompletedWorkoutBefore() && !isGymCheckedIn()) {
-                setShowCheckinPrompt(true)
-                return
+              if (tab.id === 'workout' && !location.pathname.startsWith('/workout')) {
+                if (hasCompletedWorkoutToday()) {
+                  navigate('/workout', { state: { preview: true } })
+                  return
+                }
+                if (hasCompletedWorkoutBefore() && !isGymCheckedIn()) {
+                  setShowCheckinPrompt(true)
+                  return
+                }
               }
               navigate(tab.path)
             }}

@@ -126,7 +126,10 @@ export default function Home() {
       .eq('completed', true)
       .gte('workout_date', todayStart.toISOString())
       .limit(1)
-    setWorkoutCompletedToday((todayWorkouts?.length ?? 0) > 0)
+    const hasToday = (todayWorkouts?.length ?? 0) > 0
+    setWorkoutCompletedToday(hasToday)
+    if (hasToday) localStorage.setItem('ascend_workout_today', '1')
+    else localStorage.removeItem('ascend_workout_today')
 
     // Workouts in last 30 days (consistency) and last 7 days (streak dots)
     const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()

@@ -740,6 +740,17 @@ export default function Workout() {
       const injuredLabels = injuredMuscles.map(id => MUSCLE_ZONE_LABELS[id] ?? id)
       const durationPref = parseInt(localStorage.getItem('onboarding_workout_duration') ?? '60', 10)
       const workoutDuration = isNaN(durationPref) ? 60 : durationPref
+      let limitations: string[] | undefined
+      try {
+        const raw = localStorage.getItem('onboarding_limitations')
+        if (raw) limitations = (JSON.parse(raw) as string[]).filter((l: string) => l !== 'none')
+      } catch {}
+      let bodyWeight: number | undefined
+      const bwRaw = localStorage.getItem('onboarding_weight')
+      if (bwRaw) {
+        const parsed = parseFloat(bwRaw.replace(/[^\d.]/g, ''))
+        if (!isNaN(parsed) && parsed > 0) bodyWeight = parsed
+      }
       const result = await generateWorkout({
         userId: profile.id,
         goal: profile.goal,
@@ -751,6 +762,8 @@ export default function Workout() {
         sore_muscles: soreLabels.length > 0 ? soreLabels : undefined,
         injured_muscles: injuredLabels.length > 0 ? injuredLabels : undefined,
         sex: profile?.sex ?? undefined,
+        limitations: limitations && limitations.length > 0 ? limitations : undefined,
+        bodyWeight,
       })
       clearSession()
       startTimeRef.current = Date.now()

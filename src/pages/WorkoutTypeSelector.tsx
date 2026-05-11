@@ -91,8 +91,8 @@ export default function WorkoutTypeSelector() {
   }
 
   function quickStart(templateId: string) {
-    localStorage.setItem(LAST_TYPE_KEY, 'custom')
-    navigate('/workout/custom', { state: { templateId } })
+    if (!isPreview) localStorage.setItem(LAST_TYPE_KEY, 'custom')
+    navigate('/workout/custom', { state: isPreview ? { templateId, preview: true } : { templateId } })
   }
 
   const { colors: c, accentKey, setAccentColor } = useTheme()
