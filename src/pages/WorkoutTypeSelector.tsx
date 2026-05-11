@@ -102,7 +102,7 @@ export default function WorkoutTypeSelector() {
     return (
       <div className="app-shell">
         <div className="app-content" style={{ background: c.bg, display: 'flex', flexDirection: 'column', height: '100vh' }}>
-          <div style={{ flex: 1, overflow: 'auto', padding: '64px 24px 40px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, overflow: 'auto', padding: '64px 24px 24px', display: 'flex', flexDirection: 'column' }}>
             {/* Suppress the 0.4s global transition on accent-colored elements so the live preview is instant */}
             <p style={{ color: c.accent, fontSize: 11, letterSpacing: '2px', textTransform: 'uppercase', margin: '0 0 10px', transition: 'color 0.1s' }}>One last thing</p>
             <h1 style={{ color: c.text, fontSize: 28, fontWeight: 800, margin: '0 0 10px', lineHeight: 1.15, letterSpacing: '-0.5px' }}>Make it yours</h1>
@@ -110,7 +110,7 @@ export default function WorkoutTypeSelector() {
               Pick your accent color. It applies everywhere in the app — you can always change it in Profile.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
               {Object.entries(ACCENT_COLORS).map(([key, def]) => {
                 const selected = accentKey === key
                 // Use the mode-appropriate shade so the swatch matches exactly what will appear in the app
@@ -140,10 +140,12 @@ export default function WorkoutTypeSelector() {
                 )
               })}
             </div>
+          </div>
 
+          <div style={{ padding: '16px 24px', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}>
             <button
               onClick={() => { localStorage.setItem('ascend_accent_chosen', '1'); setShowAccentPicker(false) }}
-              style={{ width: '100%', background: c.accent, color: '#FFFFFF', fontSize: 16, fontWeight: 800, borderRadius: 16, padding: '17px', border: 'none', cursor: 'pointer', marginTop: 36, letterSpacing: '-0.3px', transition: 'background-color 0.1s' }}
+              style={{ width: '100%', background: c.accent, color: '#FFFFFF', fontSize: 16, fontWeight: 800, borderRadius: 16, padding: '17px', border: 'none', cursor: 'pointer', letterSpacing: '-0.3px', transition: 'background-color 0.1s' }}
             >
               Start training →
             </button>

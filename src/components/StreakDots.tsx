@@ -1,9 +1,13 @@
+import { useTheme } from '../lib/theme'
+
 interface StreakDotsProps {
   /** 7 booleans: index 0 = 6 days ago, index 6 = today */
   days: boolean[]
 }
 
 export default function StreakDots({ days }: StreakDotsProps) {
+  const { colors: c } = useTheme()
+
   const labels = Array.from({ length: 7 }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - 6 + i)
@@ -21,13 +25,13 @@ export default function StreakDots({ days }: StreakDotsProps) {
                 width: 30,
                 height: 30,
                 borderRadius: '50%',
-                background: filled ? '#4A9EFF' : 'transparent',
-                border: `2px solid ${filled ? '#4A9EFF' : isToday ? '#4A9EFF55' : '#1A2A42'}`,
-                boxShadow: filled ? '0 0 8px #4A9EFF44' : 'none',
+                background: filled ? c.accent : 'transparent',
+                border: `2px solid ${filled ? c.accent : isToday ? c.accentBorder : c.border}`,
+                boxShadow: filled ? `0 0 8px ${c.accent}44` : 'none',
                 transition: 'all 0.2s',
               }}
             />
-            <span style={{ color: isToday ? '#4A9EFF' : '#5A7A9A', fontSize: 9, fontWeight: isToday ? 700 : 400 }}>
+            <span style={{ color: isToday ? c.accent : c.textSub, fontSize: 9, fontWeight: isToday ? 700 : 400 }}>
               {labels[i]}
             </span>
           </div>
