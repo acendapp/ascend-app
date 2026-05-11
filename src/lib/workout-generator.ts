@@ -324,10 +324,10 @@ export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWor
     : 'All muscle groups are fully recovered and available.'
 
   const soreConstraint = sore_muscles?.length
-    ? `\nSORE muscles (keep in workout but cap at 2 sets max, reduce suggested_weight by 15%): ${sore_muscles.join(', ')}`
+    ? `\nSORE muscles (still include exercises targeting these — just reduce sets by 1 and drop suggested_weight by 10%): ${sore_muscles.join(', ')}`
     : ''
   const injuryConstraint = injured_muscles?.length
-    ? `\nINJURED muscles (COMPLETELY EXCLUDE — zero exercises targeting these): ${injured_muscles.join(', ')}`
+    ? `\nINJURED muscles (COMPLETELY EXCLUDE — do not program any exercise that directly loads these): ${injured_muscles.join(', ')}`
     : ''
   const activeLimitations = (limitations ?? []).filter(l => l !== 'none')
   const limitationsConstraint = activeLimitations.length
