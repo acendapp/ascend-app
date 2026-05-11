@@ -140,14 +140,11 @@ export default function Auth() {
       const { data, error: signupError } = await supabase.auth.signUp({ email, password })
 
       if (signupError) {
-        console.error('[Auth] signUp error:', signupError)
         throw signupError
       }
 
       const user = data.user
       const session = data.session
-
-      console.log('[Auth] signUp response — user:', user?.id, '| session:', session ? 'present' : 'null (email confirmation required)')
 
       if (!user) throw new Error('Signup succeeded but no user was returned.')
 
@@ -161,7 +158,6 @@ export default function Auth() {
       const experience_level = localStorage.getItem('onboarding_experience') as Experience | null
       const equipment = localStorage.getItem('onboarding_equipment') as Equipment | null
 
-      console.log('[Auth] Inserting into public.users — id:', user.id)
       const { error: profileError } = await supabase.from('users').insert({
         id: user.id,
         email,
@@ -173,7 +169,6 @@ export default function Auth() {
         equipment,
       })
       if (profileError) {
-        console.error('[Auth] public.users insert failed:', profileError.message, profileError.details, profileError.hint, profileError.code)
         throw new Error(`Profile save failed: ${profileError.message}`)
       }
 
@@ -188,7 +183,6 @@ export default function Auth() {
         streak_days: 0,
       })
       if (scoresError) {
-        console.error('[Auth] public.user_scores insert failed:', scoresError.message)
         throw new Error(`Scores save failed: ${scoresError.message}`)
       }
 

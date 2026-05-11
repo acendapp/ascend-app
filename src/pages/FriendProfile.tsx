@@ -64,7 +64,7 @@ export default function FriendProfile() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId) { setLoading(false); return }
     async function load() {
       const [profileRes, scoresRes, workoutsRes, prsRes] = await Promise.all([
         supabase.from('users').select('name, username, avatar_url, school_year, affiliation').eq('id', userId!).maybeSingle(),

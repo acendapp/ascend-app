@@ -567,7 +567,7 @@ export default function Home() {
                   </div>
                   <div style={{ width: 1, height: 20, background: c.border }} />
                   <div>
-                    <span style={{ color: workoutsThisWeek >= 5 ? '#3BF0A0' : c.text, fontSize: 18, fontWeight: 700 }}>
+                    <span style={{ color: workoutsThisWeek >= 5 ? c.accent : c.text, fontSize: 18, fontWeight: 700 }}>
                       {workoutsThisWeek}
                       <span style={{ color: c.textSub, fontSize: 13, fontWeight: 400 }}>/5</span>
                     </span>
@@ -575,12 +575,12 @@ export default function Home() {
                   </div>
                 </div>
                 {workoutsThisWeek >= 5 && (
-                  <span style={{ background: c.isDark ? '#0D2E1A' : '#E8FFF0', border: '1px solid #1A5A34', borderRadius: 20, padding: '3px 10px', color: '#3BF0A0', fontSize: 11, fontWeight: 700 }}>Perfect week 🎯</span>
+                  <span style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 20, padding: '3px 10px', color: c.accent, fontSize: 11, fontWeight: 700 }}>Perfect week 🎯</span>
                 )}
               </div>
               <StreakDots days={weekDays} />
               <div style={{ background: c.border, borderRadius: 4, height: 3, overflow: 'hidden', marginTop: 10 }}>
-                <div style={{ background: workoutsThisWeek >= 5 ? '#3BF0A0' : c.accent, height: '100%', width: `${Math.min((workoutsThisWeek / 5) * 100, 100)}%`, borderRadius: 4, transition: 'width 0.6s ease' }} />
+                <div style={{ background: c.accent, height: '100%', width: `${Math.min((workoutsThisWeek / 5) * 100, 100)}%`, borderRadius: 4, transition: 'width 0.6s ease' }} />
               </div>
               {workoutsThisWeek === 0 && (
                 <p style={{ color: c.textMuted, fontSize: 11, margin: '8px 0 0', textAlign: 'center' }}>No workouts logged yet this week — your streak starts today</p>
@@ -600,7 +600,7 @@ export default function Home() {
                   {displayedScore}
                 </span>
                 {ascendScoreDelta !== null && ascendScoreDelta > 0 && (
-                  <span style={{ color: '#3BF0A0', fontSize: 18, fontWeight: 700 }}>+{ascendScoreDelta}</span>
+                  <span style={{ color: c.accent, fontSize: 18, fontWeight: 700 }}>+{ascendScoreDelta}</span>
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -660,7 +660,7 @@ export default function Home() {
             <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: liveAtGym.length > 0 || isCheckedIn ? '#3BF0A0' : c.border, flexShrink: 0 }} />
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: liveAtGym.length > 0 || isCheckedIn ? c.accent : c.border, flexShrink: 0 }} />
                   <span style={{ color: liveAtGym.length > 0 || isCheckedIn ? c.text : c.textMuted, fontSize: 13, fontWeight: 600 }}>
                     {liveAtGym.length > 0 ? (() => {
                       const friends = liveAtGym.filter(u => u.isFriend)
@@ -717,7 +717,7 @@ export default function Home() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <p style={{ color: c.text, fontSize: 13, fontWeight: 600, margin: 0 }}>{item.userName}</p>
-                        {item.gymVerified && <span style={{ color: '#3BF0A0', fontSize: 10, fontWeight: 700 }}>📍</span>}
+                        {item.gymVerified && <span style={{ color: c.accent, fontSize: 10, fontWeight: 700 }}>📍</span>}
                       </div>
                       <p style={{ color: c.textSub, fontSize: 12, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.description} · {item.time}

@@ -947,8 +947,7 @@ export default function Workout() {
         newLevel = getLevelFromXP(newXP)
         leveledUp = newLevel > currentLevel
 
-        console.log('[scores] auth uid:', user.id, 'profile id:', profileId, 'ascendScore:', ascendScore, 'xp:', newXP)
-        const { data: updatedRows, error: scoreUpdateErr } = await supabase.from('user_scores')
+        const { error: scoreUpdateErr } = await supabase.from('user_scores')
           .update({
             strength_score: strengthScore,
             consistency_score: consistencyScore,
@@ -958,9 +957,7 @@ export default function Workout() {
             streak_days: newStreakDays,
           })
           .eq('user_id', profileId)
-          .select()
-        console.log('[scores] update result — rows affected:', updatedRows?.length ?? 0, 'error:', scoreUpdateErr)
-        if (scoreUpdateErr) console.error('user_scores update error:', scoreUpdateErr)
+        if (scoreUpdateErr) throw new Error(scoreUpdateErr.message)
 
         try {
           await supabase.from('user_scores').update({ workouts_completed: wids.length }).eq('user_id', profileId)

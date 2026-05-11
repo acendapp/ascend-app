@@ -121,6 +121,7 @@ interface CropModalProps {
 }
 
 function CropModal({ src, onDone, onCancel }: CropModalProps) {
+  const { colors: c } = useTheme()
   const [zoom, setZoom] = useState(1)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [imgDims, setImgDims] = useState<{ coverW: number; coverH: number } | null>(null)
@@ -200,7 +201,7 @@ function CropModal({ src, onDone, onCancel }: CropModalProps) {
       <div
         style={{
           width: CROP_SIZE, height: CROP_SIZE, borderRadius: '50%',
-          overflow: 'hidden', border: '2px solid #4A9EFF',
+          overflow: 'hidden', border: `2px solid ${c.accent}`,
           position: 'relative', flexShrink: 0, cursor: 'grab', touchAction: 'none',
         }}
         onMouseDown={e => { e.preventDefault(); dragStart(e.clientX, e.clientY) }}
@@ -233,17 +234,17 @@ function CropModal({ src, onDone, onCancel }: CropModalProps) {
           type="range" min={50} max={300} step={1}
           value={Math.round(zoom * 100)}
           onChange={e => setZoom(parseInt(e.target.value) / 100)}
-          style={{ width: '100%', accentColor: '#4A9EFF' }}
+          style={{ width: '100%', accentColor: c.accent }}
         />
-        <p style={{ color: '#5A7A9A', fontSize: 11, textAlign: 'center', margin: '4px 0 16px' }}>
+        <p style={{ color: c.textSub, fontSize: 11, textAlign: 'center', margin: '4px 0 16px' }}>
           Pinch or drag to adjust · slide to zoom
         </p>
       </div>
       <div style={{ display: 'flex', gap: 10, width: CROP_SIZE }}>
-        <button onClick={onCancel} style={{ flex: 1, background: 'transparent', border: '1px solid #2A3A52', borderRadius: 12, padding: '12px', color: '#5A7A9A', fontSize: 14, cursor: 'pointer' }}>
+        <button onClick={onCancel} style={{ flex: 1, background: 'transparent', border: `1px solid ${c.border}`, borderRadius: 12, padding: '12px', color: c.textSub, fontSize: 14, cursor: 'pointer' }}>
           Cancel
         </button>
-        <button onClick={cropAndReturn} disabled={!imgDims} style={{ flex: 2, background: '#4A9EFF', border: 'none', borderRadius: 12, padding: '12px', color: '#FFFFFF', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+        <button onClick={cropAndReturn} disabled={!imgDims} style={{ flex: 2, background: c.accent, border: 'none', borderRadius: 12, padding: '12px', color: '#FFFFFF', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
           Use Photo
         </button>
       </div>
@@ -336,8 +337,6 @@ export default function Profile() {
         if (!session?.user) { navigate('/auth'); return }
         const user = session.user
 
-        console.log('[Profile] session user id:', user.id, '| email:', user.email)
-
         const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
         const [profileRes, scoresRes, allPRsRes, workoutsRes, recentWorkoutsRes] = await Promise.all([
@@ -348,19 +347,14 @@ export default function Profile() {
           supabase.from('workouts').select('id, workout_date').eq('user_id', user.id).eq('completed', true).gte('workout_date', thirtyAgo),
         ])
 
-        console.log('[Profile] users query result — data:', profileRes.data, '| error:', profileRes.error)
-
         let profileData = profileRes.data
         if (!profileData && user.email) {
-          // Fallback: look up by email in case the row id doesn't match auth uid
-          const { data: byEmail, error: byEmailErr } = await supabase
+          const { data: byEmail } = await supabase
             .from('users').select('*').eq('email', user.email).maybeSingle()
-          console.log('[Profile] email fallback — data:', byEmail, '| error:', byEmailErr)
           profileData = byEmail
         }
 
         if (!profileData) {
-          console.error('[Profile] no profile row found for uid:', user.id, 'email:', user.email)
           setLoadError(true)
           return
         }
@@ -534,8 +528,8 @@ export default function Profile() {
   }
 
   async function acceptFriend(friendshipId: string) {
-    await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId)
-    // +5 social points for both users when a friend request is accepted
+    const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId)
+    if (error) return
     if (profile) {
       const row = pendingReceived.find(r => r.id === friendshipId)
       const otherId = row?.friend.id
@@ -552,12 +546,14 @@ export default function Profile() {
   }
 
   async function declineFriend(friendshipId: string) {
-    await supabase.from('friendships').delete().eq('id', friendshipId)
+    const { error } = await supabase.from('friendships').delete().eq('id', friendshipId)
+    if (error) return
     if (profile) await loadFriends(profile.id)
   }
 
   async function removeFriend(friendshipId: string) {
-    await supabase.from('friendships').delete().eq('id', friendshipId)
+    const { error } = await supabase.from('friendships').delete().eq('id', friendshipId)
+    if (error) return
     if (profile) await loadFriends(profile.id)
   }
 
@@ -684,7 +680,7 @@ export default function Profile() {
             style={{
               width: '100%', background: c.surface, border: `1px solid ${c.border}`,
               borderRadius: 14, padding: '14px 16px', marginBottom: 14,
-              color: shareCopied ? '#3BF0A0' : c.accent,
+              color: c.accent,
               fontSize: 14, fontWeight: 700, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
