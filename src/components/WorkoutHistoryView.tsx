@@ -81,10 +81,9 @@ function formatDate(dateStr: string): string {
 
 // ── Volume Chart ──────────────────────────────────────────────────────────────
 
-function VolumeChart({ weeks, accentColor, borderColor, textSubColor, isDark }: {
+function VolumeChart({ weeks, accentColor, textSubColor, isDark }: {
   weeks: WeekVolume[]
   accentColor: string
-  borderColor: string
   textSubColor: string
   isDark: boolean
 }) {
@@ -307,7 +306,6 @@ export default function WorkoutHistoryView() {
           <VolumeChart
             weeks={weeklyVolume}
             accentColor={c.accent}
-            borderColor={c.border}
             textSubColor={c.textSub}
             isDark={c.isDark}
           />
