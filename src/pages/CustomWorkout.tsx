@@ -247,7 +247,7 @@ export default function CustomWorkout() {
   }
 
   function handleSetTap(exIdx: number) {
-    if (!activeTemplate) return
+    if (!activeTemplate || isPreview) return
     const done = completedSets[exIdx] ?? 0
     const ex = activeTemplate.exercises[exIdx]
     if (done >= ex.sets) return
@@ -702,6 +702,8 @@ export default function CustomWorkout() {
                       </p>
                     </div>
 
+                    {/* Set circles + weight prompt — disabled in preview */}
+                    <div style={{ opacity: isPreview ? 0.4 : 1, pointerEvents: isPreview ? 'none' : undefined }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       {Array.from({ length: ex.sets }, (_, si) => {
                         const isCurrent = si === done
@@ -761,6 +763,7 @@ export default function CustomWorkout() {
                         </button>
                       </div>
                     )}
+                    </div>{/* end preview-disabled wrapper */}
                   </div>
                 )
               })}

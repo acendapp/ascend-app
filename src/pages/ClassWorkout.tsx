@@ -46,7 +46,7 @@ export default function ClassWorkout() {
   const canLog = classLabel.length > 0 && intensity !== ''
 
   async function handleLog() {
-    if (!canLog || saving) return
+    if (!canLog || saving || isPreview) return
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
