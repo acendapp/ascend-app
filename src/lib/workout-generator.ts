@@ -2,6 +2,32 @@
 // Calls /api/generate-workout which is proxied to the Express server (server.js) to avoid CORS.
 
 import { supabase } from './supabase'
+import exerciseDB from '../data/exercises.json'
+
+type ExerciseEntry = typeof exerciseDB[0]
+
+function buildExerciseLibrary(userEquipment: string | null, excludeContraindications: string[]): string {
+  const tier = userEquipment ?? 'gym'
+  const allowed = (exerciseDB as ExerciseEntry[]).filter(e => {
+    // equipment filter: bodyweight users only get bodyweight exercises; gym/both get everything
+    if (tier === 'bodyweight' && e.min_equipment !== 'bodyweight') return false
+    // exclude exercises that conflict with any active contraindication
+    if (e.contraindications.some(c => excludeContraindications.includes(c))) return false
+    return true
+  })
+
+  // group by primary muscle
+  const groups: Record<string, string[]> = {}
+  for (const ex of allowed) {
+    const key = ex.primary[0]
+    if (!groups[key]) groups[key] = []
+    groups[key].push(ex.name)
+  }
+
+  return Object.entries(groups)
+    .map(([mg, names]) => `${mg.charAt(0).toUpperCase() + mg.slice(1)}: ${names.join(', ')}`)
+    .join('\n')
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -311,6 +337,9 @@ export async function generateWorkout(input: WorkoutInput): Promise<GeneratedWor
     ? `\nAthlete body weight: ${bodyWeight} lb — calibrate suggested_weight relative to body mass; for bodyweight exercises note as 0`
     : ''
 
+  const allContraindications = [...activeLimitations, ...(injured_muscles ?? [])]
+  const exerciseLibrary = buildExerciseLibrary(equipment, allContraindications)
+
   const prompt = `Design a ${totalMin}-minute workout for this athlete:
 
 Goal: ${goal ?? 'general fitness'}
@@ -322,6 +351,9 @@ Recovery score today: ${recovery_score}/10
 Muscle groups available (recovered and due): ${musclesDue.join(', ') || 'all groups'}
 RECOVERY CONSTRAINT: ${muscleConstraint}${soreConstraint}${injuryConstraint}${limitationsConstraint}${bodyWeightLine}
 ${historyContext}
+
+EXERCISE LIBRARY — select main_work and finisher exercises ONLY from these options (exact name match required):
+${exerciseLibrary}
 
 STRICT TIME BUDGET — total must equal exactly ${totalMin} minutes:
   Warmup   :  5 min  (3 movements — already in warmup array)

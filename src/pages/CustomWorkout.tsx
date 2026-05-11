@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs, calculateConsistencyScore, calculateAscendScore } from '../lib/scoring'
 import { useTheme } from '../lib/theme'
+import exerciseDB from '../data/exercises.json'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -71,9 +72,24 @@ export default function CustomWorkout() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [focusedExIdx, setFocusedExIdx] = useState<number | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef<number>(0)
+
+  // ── Exercise autocomplete ──────────────────────────────────────────────────
+
+  function getExerciseSuggestions(query: string): string[] {
+    const tier = localStorage.getItem('onboarding_equipment') ?? 'gym'
+    const q = query.toLowerCase()
+    return exerciseDB
+      .filter(e => {
+        if (tier === 'bodyweight' && e.min_equipment !== 'bodyweight') return false
+        return e.name.toLowerCase().includes(q)
+      })
+      .slice(0, 6)
+      .map(e => e.name)
+  }
 
   // ── Data loading ─────────────────────────────────────────────────────────────
 
@@ -556,16 +572,62 @@ export default function CustomWorkout() {
                 <div key={idx} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px' }}>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <input
-                      type="text"
-                      value={ex.exercise_name}
-                      onChange={e => updateExercise(idx, 'exercise_name', e.target.value)}
-                      placeholder={`Exercise ${idx + 1}`}
-                      style={{
-                        flex: 1, background: c.inputBg, border: `1px solid ${c.border}`,
-                        borderRadius: 8, padding: '8px 12px', color: c.text, fontSize: 14, outline: 'none',
-                      }}
-                    />
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <input
+                        type="text"
+                        value={ex.exercise_name}
+                        onChange={e => updateExercise(idx, 'exercise_name', e.target.value)}
+                        onFocus={() => setFocusedExIdx(idx)}
+                        onBlur={() => setTimeout(() => setFocusedExIdx(null), 150)}
+                        placeholder={`Exercise ${idx + 1}`}
+                        style={{
+                          width: '100%', background: c.inputBg, border: `1px solid ${c.border}`,
+                          borderRadius: 8, padding: '8px 12px', color: c.text, fontSize: 14, outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      {focusedExIdx === idx && ex.exercise_name.length > 0 && (() => {
+                        const suggestions = getExerciseSuggestions(ex.exercise_name)
+                        const exactMatch = exerciseDB.some(e => e.name.toLowerCase() === ex.exercise_name.toLowerCase())
+                        const showCustom = !exactMatch
+                        if (suggestions.length === 0 && !showCustom) return null
+                        return (
+                          <div style={{
+                            position: 'absolute', top: '100%', left: 0, right: 0,
+                            background: c.surface, border: `1px solid ${c.border}`,
+                            borderRadius: 10, zIndex: 50, overflow: 'hidden',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                            marginTop: 2,
+                          }}>
+                            {suggestions.map(name => (
+                              <button
+                                key={name}
+                                onMouseDown={() => { updateExercise(idx, 'exercise_name', name); setFocusedExIdx(null) }}
+                                style={{
+                                  display: 'block', width: '100%', background: 'none', border: 'none',
+                                  borderBottom: `1px solid ${c.border}`, padding: '10px 12px',
+                                  color: c.text, fontSize: 13, textAlign: 'left', cursor: 'pointer',
+                                }}
+                              >
+                                {name}
+                              </button>
+                            ))}
+                            {showCustom && (
+                              <button
+                                onMouseDown={() => setFocusedExIdx(null)}
+                                style={{
+                                  display: 'block', width: '100%', background: 'none', border: 'none',
+                                  padding: '10px 12px', color: c.textSub, fontSize: 13,
+                                  textAlign: 'left', cursor: 'pointer', fontStyle: 'italic',
+                                }}
+                              >
+                                Other (custom)
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })()}
+                    </div>
                     <button
                       onClick={() => removeExercise(idx)}
                       style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 20, cursor: 'pointer', padding: '2px 6px', lineHeight: 1, flexShrink: 0 }}
