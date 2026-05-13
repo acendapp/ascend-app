@@ -34,6 +34,37 @@ interface SummaryData {
   xpGain: number
 }
 
+// ── Session persistence ────────────────────────────────────────────────────────
+
+const CUSTOM_SESSION_KEY = 'ascend_custom_workout'
+const CUSTOM_SESSION_TTL = 10 * 60 * 60 * 1000
+
+interface CustomSession {
+  startEpoch: number
+  templateName: string
+  exercises: TemplateExercise[]
+  completedSets: Record<number, number>
+  setWeights: Record<string, number>
+}
+
+function loadCustomSession(): CustomSession | null {
+  try {
+    const raw = localStorage.getItem(CUSTOM_SESSION_KEY)
+    if (!raw) return null
+    const s: CustomSession = JSON.parse(raw)
+    if (Date.now() - s.startEpoch > CUSTOM_SESSION_TTL) { localStorage.removeItem(CUSTOM_SESSION_KEY); return null }
+    return s
+  } catch { return null }
+}
+
+function saveCustomSession(s: CustomSession) {
+  try { localStorage.setItem(CUSTOM_SESSION_KEY, JSON.stringify(s)) } catch {}
+}
+
+function clearCustomSession() {
+  try { localStorage.removeItem(CUSTOM_SESSION_KEY) } catch {}
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function fmtTime(totalSecs: number): string {
@@ -51,7 +82,9 @@ export default function CustomWorkout() {
   const directTemplateId = (location.state as { templateId?: string } | null)?.templateId ?? null
   const isPreview = !!(location.state as { preview?: boolean } | null)?.preview
 
-  const [phase, setPhase] = useState<Phase>('loading')
+  const savedSession = loadCustomSession()
+
+  const [phase, setPhase] = useState<Phase>(() => savedSession ? 'workout' : 'loading')
   const [userId, setUserId] = useState<string | null>(null)
   const [templates, setTemplates] = useState<Template[]>([])
 
@@ -62,9 +95,11 @@ export default function CustomWorkout() {
   const [savingTemplate, setSavingTemplate] = useState(false)
 
   // Workout state
-  const [activeTemplate, setActiveTemplate] = useState<Template | null>(null)
-  const [completedSets, setCompletedSets] = useState<Record<number, number>>({})
-  const [setWeights, setSetWeights] = useState<Record<string, number>>({})
+  const [activeTemplate, setActiveTemplate] = useState<Template | null>(() =>
+    savedSession ? { id: '', name: savedSession.templateName, last_used_at: null, exercises: savedSession.exercises } : null
+  )
+  const [completedSets, setCompletedSets] = useState<Record<number, number>>(() => savedSession?.completedSets ?? {})
+  const [setWeights, setSetWeights] = useState<Record<string, number>>(() => savedSession?.setWeights ?? {})
   const [pendingExIdx, setPendingExIdx] = useState<number | null>(null)
   const [pendingWeight, setPendingWeight] = useState('')
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -97,6 +132,7 @@ export default function CustomWorkout() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { navigate('/auth'); return }
     setUserId(user.id)
+    if (loadCustomSession()) return
 
     const { data: tmplData } = await supabase
       .from('workout_templates')
@@ -157,22 +193,37 @@ export default function CustomWorkout() {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
       return
     }
-    setElapsedSeconds(0)
-    startTimeRef.current = Date.now()
+    const saved = loadCustomSession()
+    const epoch = saved?.startEpoch ?? Date.now()
+    startTimeRef.current = epoch
+    setElapsedSeconds(Math.floor((Date.now() - epoch) / 1000))
     timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000)
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null } }
   }, [phase])
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
 
+  useEffect(() => {
+    if (phase !== 'workout' || !activeTemplate) return
+    saveCustomSession({
+      startEpoch: startTimeRef.current || Date.now(),
+      templateName: activeTemplate.name,
+      exercises: activeTemplate.exercises,
+      completedSets,
+      setWeights,
+    })
+  }, [completedSets, setWeights, phase, activeTemplate])
+
   // ── Actions ──────────────────────────────────────────────────────────────────
 
   function startWorkout(template: Template) {
+    clearCustomSession()
     setActiveTemplate(template)
     setCompletedSets({})
     setSetWeights({})
     setPendingExIdx(null)
     setPendingWeight('')
+    startTimeRef.current = Date.now()
     setPhase('workout')
   }
 
@@ -388,6 +439,7 @@ export default function CustomWorkout() {
       localStorage.setItem('ascend_has_workout', '1')
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))
 
+      clearCustomSession()
       setSummaryData({
         templateName: activeTemplate.name,
         exercisesCompleted,
@@ -689,7 +741,7 @@ export default function CustomWorkout() {
 
           </div>
 
-          <div style={{ padding: '12px 24px 88px' }}>
+          <div style={{ padding: '12px 24px calc(env(safe-area-inset-bottom, 0px) + 88px)' }}>
             {saveError && (
               <p style={{ color: '#EF4444', fontSize: 12, margin: '0 0 10px', textAlign: 'center' }}>{saveError}</p>
             )}

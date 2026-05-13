@@ -100,6 +100,19 @@ export default function WorkoutTypeSelector() {
   const [showAccentPicker, setShowAccentPicker] = useState(() => !localStorage.getItem('ascend_accent_chosen'))
   const [activeTab, setActiveTab] = useState<'workout' | 'history'>('workout')
 
+  const SESSION_TTL = 10 * 60 * 60 * 1000
+  const activeSession: { path: string; label: string } | null = (() => {
+    try {
+      const raw = localStorage.getItem('ascend_active_workout')
+      if (raw) { const s = JSON.parse(raw); if (Date.now() - s.startEpoch < SESSION_TTL) return { path: '/workout/ascend', label: 'Ascend Method' } }
+    } catch {}
+    try {
+      const raw = localStorage.getItem('ascend_custom_workout')
+      if (raw) { const s = JSON.parse(raw); if (Date.now() - s.startEpoch < SESSION_TTL) return { path: '/workout/custom', label: s.templateName ?? 'Custom Workout' } }
+    } catch {}
+    return null
+  })()
+
   if (showAccentPicker) {
     return (
       <div className="app-shell">
@@ -144,7 +157,7 @@ export default function WorkoutTypeSelector() {
             </div>
           </div>
 
-          <div style={{ padding: '16px 24px', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}>
+          <div style={{ padding: '16px 24px', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 90px)' }}>
             <button
               onClick={() => { localStorage.setItem('ascend_accent_chosen', '1'); setShowAccentPicker(false) }}
               style={{ width: '100%', background: c.accent, color: '#FFFFFF', fontSize: 16, fontWeight: 800, borderRadius: 16, padding: '17px', border: 'none', cursor: 'pointer', letterSpacing: '-0.3px', transition: 'background-color 0.1s' }}
@@ -189,6 +202,26 @@ export default function WorkoutTypeSelector() {
             <WorkoutHistoryView />
           ) : (
             <>
+              {activeSession && !isPreview && (
+                <button
+                  onClick={() => navigate(activeSession.path)}
+                  style={{
+                    width: '100%', background: c.accentBg, border: `1.5px solid ${c.accent}`,
+                    borderRadius: 14, padding: '14px 16px', marginBottom: 16,
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <span style={{ fontSize: 22, flexShrink: 0 }}>▶️</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: c.accent, fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>Resume workout</p>
+                    <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>{activeSession.label} · in progress</p>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M9 18l6-6-6-6" stroke={c.accent} strokeWidth="2.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {WORKOUT_TYPE_DEFS.map(opt => {
                   const isLast = lastType === opt.id

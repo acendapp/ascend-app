@@ -21,8 +21,9 @@ import Profile from './pages/Profile'
 import History from './pages/History'
 import FriendProfile from './pages/FriendProfile'
 import Landing from './pages/Landing'
+import FeedPage from './pages/FeedPage'
 
-const TAB_PATHS = new Set(['/home', '/workout', '/groups', '/compete', '/profile'])
+const TAB_PATHS = new Set(['/home', '/workout', '/workout/ascend', '/workout/custom', '/workout/class', '/groups', '/compete', '/profile'])
 
 function SplashScreen({ fading }: { fading: boolean }) {
   const { colors: c } = useTheme()
@@ -90,6 +91,7 @@ function AppRoutes() {
             <Route path="/profile" element={authed ? <Profile /> : <Navigate to="/auth" replace />} />
             <Route path="/history" element={authed ? <History /> : <Navigate to="/auth" replace />} />
             <Route path="/profile/:userId" element={authed ? <FriendProfile /> : <Navigate to="/auth" replace />} />
+            <Route path="/feed" element={authed ? <FeedPage /> : <Navigate to="/auth" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           {showNav && <BottomNav />}

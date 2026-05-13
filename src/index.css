@@ -104,6 +104,16 @@ input[type="range"]::-moz-range-thumb {
   border: 3px solid var(--bg);
 }
 
+/* Online presence pulse */
+@keyframes presence-pulse {
+  0%   { transform: scale(1);   opacity: 1; }
+  50%  { transform: scale(1.6); opacity: 0.35; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.presence-dot {
+  animation: presence-pulse 3.5s ease-in-out infinite;
+}
+
 /* Horizontal friend scroll */
 .friend-scroll {
   display: flex;

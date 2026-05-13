@@ -18,6 +18,94 @@ interface WorkoutRow {
   logs: LogRow[]
 }
 
+type Period = '1M' | '3M' | 'All'
+
+function workoutVolume(logs: LogRow[]): number {
+  return logs.reduce((sum, l) => sum + l.sets * l.reps * (l.weight > 0 ? l.weight : 0), 0)
+}
+
+function fmtVol(v: number): string {
+  return v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(Math.round(v))
+}
+
+function VolumeChart({ data, accent, border, textSub }: {
+  data: { date: Date; volume: number }[]
+  accent: string; border: string; textSub: string
+}) {
+  if (data.length < 2) return (
+    <p style={{ color: textSub, fontSize: 12, textAlign: 'center', margin: '24px 0' }}>
+      Log at least 2 weighted workouts to see your volume trend.
+    </p>
+  )
+
+  const W = 300, H = 110
+  const padL = 36, padR = 8, padT = 10, padB = 22
+  const chartW = W - padL - padR
+  const chartH = H - padT - padB
+
+  const vols = data.map(d => d.volume)
+  const maxV = Math.max(...vols)
+  const minV = Math.min(...vols)
+  const range = maxV - minV || 1
+
+  const xs = (i: number) => padL + (i / (data.length - 1)) * chartW
+  const ys = (v: number) => padT + chartH - ((v - minV) / range) * chartH
+
+  const pts = data.map((d, i) => [xs(i), ys(d.volume)] as [number, number])
+
+  const linePath = pts.map(([x, y], i) => {
+    if (i === 0) return `M${x},${y}`
+    const [px, py] = pts[i - 1]
+    const cx = (px + x) / 2
+    return `C${cx},${py} ${cx},${y} ${x},${y}`
+  }).join(' ')
+
+  const areaPath = `${linePath} L${pts[pts.length - 1][0]},${padT + chartH} L${padL},${padT + chartH} Z`
+
+  const yTicks = [minV, (minV + maxV) / 2, maxV]
+  const xTickIdxs = data.length <= 4
+    ? data.map((_, i) => i)
+    : [0, Math.floor((data.length - 1) / 2), data.length - 1]
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+      <defs>
+        <linearGradient id="vg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={accent} stopOpacity={0.25} />
+          <stop offset="100%" stopColor={accent} stopOpacity={0.01} />
+        </linearGradient>
+      </defs>
+      {/* Grid lines */}
+      {yTicks.map((v, i) => (
+        <line key={i} x1={padL} y1={ys(v)} x2={W - padR} y2={ys(v)} stroke={border} strokeWidth={0.5} />
+      ))}
+      {/* Area */}
+      <path d={areaPath} fill="url(#vg)" />
+      {/* Line */}
+      <path d={linePath} fill="none" stroke={accent} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      {/* Dots */}
+      {pts.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={i === pts.length - 1 ? 3.5 : 2.5} fill={accent}
+          stroke={i === pts.length - 1 ? accent : 'none'} strokeWidth={i === pts.length - 1 ? 2 : 0}
+          fillOpacity={i === pts.length - 1 ? 1 : 0.85} />
+      ))}
+      {/* Y labels */}
+      {yTicks.map((v, i) => (
+        <text key={i} x={padL - 5} y={ys(v) + 3} textAnchor="end" fontSize={7} fill={textSub}>{fmtVol(v)}</text>
+      ))}
+      {/* X labels */}
+      {xTickIdxs.map((i, pos) => {
+        const anchor = pos === 0 ? 'start' : pos === xTickIdxs.length - 1 ? 'end' : 'middle'
+        return (
+          <text key={i} x={xs(i)} y={H - 4} textAnchor={anchor} fontSize={7} fill={textSub}>
+            {data[i].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </text>
+        )
+      })}
+    </svg>
+  )
+}
+
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr)
   const weekday = d.toLocaleDateString('en-US', { weekday: 'short' })
@@ -45,6 +133,7 @@ export default function History() {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [prRecords, setPrRecords] = useState<Map<string, number>>(new Map())
+  const [period, setPeriod] = useState<Period>('1M')
 
   useEffect(() => {
     async function load() {
@@ -127,8 +216,39 @@ export default function History() {
             ← Back
           </button>
 
-          <h1 style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: '0 0 20px' }}>Workout History</h1>
+          <h1 style={{ color: c.text, fontSize: 22, fontWeight: 700, margin: '0 0 20px' }}>Progress</h1>
 
+          {/* ── Volume chart ── */}
+          {workouts.length > 0 && (() => {
+            const now = Date.now()
+            const cutoff = period === '1M' ? 30 : period === '3M' ? 90 : Infinity
+            const chartData = [...workouts]
+              .reverse()
+              .filter(w => (now - new Date(w.workout_date).getTime()) / 86400000 <= cutoff)
+              .map(w => ({ date: new Date(w.workout_date), volume: workoutVolume(w.logs) }))
+              .filter(d => d.volume > 0)
+            return (
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 16, padding: '14px 16px', marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: 0 }}>Volume (lbs)</p>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {(['1M', '3M', 'All'] as Period[]).map(p => (
+                      <button key={p} onClick={() => setPeriod(p)} style={{
+                        background: period === p ? c.accentBg : 'none',
+                        border: `1px solid ${period === p ? c.accent : c.border}`,
+                        borderRadius: 8, padding: '3px 9px',
+                        color: period === p ? c.accent : c.textSub,
+                        fontSize: 11, fontWeight: period === p ? 700 : 400, cursor: 'pointer',
+                      }}>{p}</button>
+                    ))}
+                  </div>
+                </div>
+                <VolumeChart data={chartData} accent={c.accent} border={c.border} textSub={c.textSub} />
+              </div>
+            )
+          })()}
+
+          {/* ── Workout history ── */}
           {workouts.length === 0 ? (
             <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 32, textAlign: 'center' }}>
               <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>No workouts yet. Complete your first session to see history here.</p>

@@ -8,6 +8,26 @@ function isGymCheckedIn() {
   return !!ci && new Date(ci).getTime() > Date.now() - 2 * 60 * 60 * 1000
 }
 
+const SESSION_TTL = 10 * 60 * 60 * 1000
+
+function activeWorkoutPath(): string | null {
+  try {
+    const raw = localStorage.getItem('ascend_active_workout')
+    if (raw) {
+      const s = JSON.parse(raw)
+      if (Date.now() - s.startEpoch < SESSION_TTL) return '/workout/ascend'
+    }
+  } catch {}
+  try {
+    const raw = localStorage.getItem('ascend_custom_workout')
+    if (raw) {
+      const s = JSON.parse(raw)
+      if (Date.now() - s.startEpoch < SESSION_TTL) return '/workout/custom'
+    }
+  } catch {}
+  return null
+}
+
 function hasCompletedWorkoutBefore() {
   return !!localStorage.getItem('ascend_has_workout')
 }
@@ -194,12 +214,19 @@ export default function BottomNav() {
         </div>
       )}
       {tabs.map(tab => {
-        const active = location.pathname === tab.path
+        const active = tab.id === 'workout'
+          ? location.pathname.startsWith('/workout')
+          : location.pathname === tab.path
         return (
           <button
             key={tab.id}
             onClick={() => {
-              if (tab.id === 'workout' && !location.pathname.startsWith('/workout')) {
+              if (tab.id === 'workout') {
+                // Already on a workout sub-page — do nothing
+                if (location.pathname.startsWith('/workout') && location.pathname !== '/workout') return
+                // Resume active session if one exists
+                const resumePath = activeWorkoutPath()
+                if (resumePath) { navigate(resumePath); return }
                 if (hasCompletedWorkoutToday()) {
                   navigate('/workout', { state: { preview: true } })
                   return

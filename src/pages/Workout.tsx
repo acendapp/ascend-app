@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import AscendBolt from '../components/AscendBolt'
-import BodyDiagram, { MUSCLE_ZONE_LABELS } from '../components/BodyDiagram'
-import MuscleMap from '../components/MuscleMap'
 import { supabase } from '../lib/supabase'
 import { generateWorkout, suggestSubstitution, parseReps } from '../lib/workout-generator'
 import type { GeneratedWorkout, ExerciseItem } from '../lib/workout-generator'
@@ -32,6 +30,17 @@ interface SummaryData {
   leveledUp: boolean
   newLevel: number
 }
+
+// ── Muscle & joint selection ──────────────────────────────────────────────────
+
+const MUSCLE_LIST = [
+  'Chest', 'Upper Back', 'Lower Back', 'Shoulders', 'Biceps', 'Triceps',
+  'Forearms', 'Core', 'Obliques', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Hip Flexors',
+]
+
+const JOINT_LIST = [
+  'Neck', 'Shoulder', 'Elbow', 'Wrist', 'Lower Back', 'Hip', 'Knee', 'Ankle',
+]
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -738,8 +747,8 @@ export default function Workout() {
     setPhase('loading')
     setLoadingMsgIdx(0)
     try {
-      const soreLabels = soreMuscles.map(id => MUSCLE_ZONE_LABELS[id] ?? id)
-      const injuredLabels = injuredMuscles.map(id => MUSCLE_ZONE_LABELS[id] ?? id)
+      const soreLabels = soreMuscles
+      const injuredLabels = injuredMuscles
       const durationPref = parseInt(localStorage.getItem('onboarding_workout_duration') ?? '60', 10)
       const workoutDuration = isNaN(durationPref) ? 60 : durationPref
       let limitations: string[] | undefined
@@ -1009,14 +1018,18 @@ export default function Workout() {
 
   function normalizeMuscle(raw: string): string {
     const m = raw.toLowerCase().trim()
-    if (m === 'lats') return 'back'
-    if (m === 'abs') return 'core'
+    if (m === 'lats' || m === 'lat' || m === 'upper back' || m === 'lower back' || m === 'mid back' || m === 'rhomboids' || m === 'trapezius' || m === 'traps' || m === 'trap') return 'back'
+    if (m === 'abs' || m === 'abdominals' || m === 'abdomen') return 'core'
+    if (m === 'oblique') return 'obliques'
     if (m === 'hamstring') return 'hamstrings'
     if (m === 'glute') return 'glutes'
     if (m === 'calf') return 'calves'
-    if (m === 'delt' || m === 'deltoid') return 'shoulders'
+    if (m === 'delt' || m === 'deltoid' || m === 'delts' || m === 'deltoids') return 'shoulders'
     if (m === 'tricep') return 'triceps'
     if (m === 'bicep') return 'biceps'
+    if (m === 'quad' || m === 'quadriceps') return 'quads'
+    if (m === 'legs' || m === 'lower body' || m === 'hip flexors' || m === 'hip flexor') return 'legs'
+    if (m === 'forearm') return 'forearms'
     return m
   }
 
@@ -1148,7 +1161,7 @@ export default function Workout() {
               ))}
             </div>
           </div>
-          <div style={{ padding: '12px 32px 88px', display: 'flex', gap: 12 }}>
+          <div style={{ padding: '12px 32px calc(env(safe-area-inset-bottom, 0px) + 88px)', display: 'flex', gap: 12 }}>
             {introSlide > 0 && (
               <button
                 onClick={() => setIntroSlide(i => i - 1)}
@@ -1232,7 +1245,7 @@ export default function Workout() {
               })}
             </div>
           </div>
-          <div style={{ padding: '12px 24px 88px' }}>
+          <div style={{ padding: '12px 24px calc(env(safe-area-inset-bottom, 0px) + 88px)' }}>
             <button
               onClick={() => {
                 localStorage.setItem('ascend_first_session_done', '1')
@@ -1334,14 +1347,38 @@ export default function Workout() {
             <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 24px' }}>
               We'll keep these muscles active but reduce the load.
             </p>
-            <BodyDiagram
-              selected={soreMuscles}
-              onToggle={id => setSoreMuscles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
-              accentColor="#FBBF24"
-              accentBg="rgba(251,191,36,0.15)"
-            />
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Muscles</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              {MUSCLE_LIST.map(m => {
+                const active = soreMuscles.includes(m)
+                return (
+                  <button key={m} onClick={() => setSoreMuscles(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])} style={{
+                    background: active ? 'rgba(251,191,36,0.15)' : c.surface,
+                    border: `1.5px solid ${active ? '#FBBF24' : c.border}`,
+                    borderRadius: 20, padding: '8px 14px',
+                    color: active ? '#FBBF24' : c.text,
+                    fontSize: 13, fontWeight: active ? 700 : 400, cursor: 'pointer',
+                  }}>{m}</button>
+                )
+              })}
+            </div>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Joints</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {JOINT_LIST.map(j => {
+                const active = soreMuscles.includes(j)
+                return (
+                  <button key={j} onClick={() => setSoreMuscles(prev => prev.includes(j) ? prev.filter(x => x !== j) : [...prev, j])} style={{
+                    background: active ? 'rgba(251,191,36,0.15)' : c.surface,
+                    border: `1.5px solid ${active ? '#FBBF24' : c.border}`,
+                    borderRadius: 20, padding: '8px 14px',
+                    color: active ? '#FBBF24' : c.text,
+                    fontSize: 13, fontWeight: active ? 700 : 400, cursor: 'pointer',
+                  }}>{j}</button>
+                )
+              })}
+            </div>
           </div>
-          <div style={{ padding: '12px 24px 88px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ padding: '12px 24px calc(env(safe-area-inset-bottom, 0px) + 88px)', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button
               onClick={() => setPhase('injury')}
               style={{
@@ -1386,14 +1423,38 @@ export default function Workout() {
             <p style={{ color: c.textSub, fontSize: 14, margin: '0 0 24px' }}>
               We'll work around these completely.
             </p>
-            <BodyDiagram
-              selected={injuredMuscles}
-              onToggle={id => setInjuredMuscles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
-              accentColor="#EF4444"
-              accentBg="rgba(239,68,68,0.15)"
-            />
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Muscles</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              {MUSCLE_LIST.map(m => {
+                const active = injuredMuscles.includes(m)
+                return (
+                  <button key={m} onClick={() => setInjuredMuscles(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])} style={{
+                    background: active ? 'rgba(239,68,68,0.15)' : c.surface,
+                    border: `1.5px solid ${active ? '#EF4444' : c.border}`,
+                    borderRadius: 20, padding: '8px 14px',
+                    color: active ? '#EF4444' : c.text,
+                    fontSize: 13, fontWeight: active ? 700 : 400, cursor: 'pointer',
+                  }}>{m}</button>
+                )
+              })}
+            </div>
+            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Joints</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {JOINT_LIST.map(j => {
+                const active = injuredMuscles.includes(j)
+                return (
+                  <button key={j} onClick={() => setInjuredMuscles(prev => prev.includes(j) ? prev.filter(x => x !== j) : [...prev, j])} style={{
+                    background: active ? 'rgba(239,68,68,0.15)' : c.surface,
+                    border: `1.5px solid ${active ? '#EF4444' : c.border}`,
+                    borderRadius: 20, padding: '8px 14px',
+                    color: active ? '#EF4444' : c.text,
+                    fontSize: 13, fontWeight: active ? 700 : 400, cursor: 'pointer',
+                  }}>{j}</button>
+                )
+              })}
+            </div>
           </div>
-          <div style={{ padding: '12px 24px 88px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ padding: '12px 24px calc(env(safe-area-inset-bottom, 0px) + 88px)', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button
               onClick={() => handleGenerate()}
               disabled={!profile}
@@ -1565,7 +1626,7 @@ export default function Workout() {
     return (
       <div className="app-shell">
         <div className="app-content page-scroll" style={{ background: c.bg }}>
-          <div style={{ padding: '52px 24px 100px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ padding: '52px 24px calc(env(safe-area-inset-bottom, 0px) + 100px)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
             {/* Lightning bolt */}
             <div style={{ marginBottom: 12 }}>
@@ -1597,11 +1658,17 @@ export default function Workout() {
               ))}
             </div>
 
-            {/* Muscle map */}
-            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20, width: '100%' }}>
-              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>Muscles Trained</p>
-              <MuscleMap highlighted={summaryMuscles} sex={profile?.sex as 'male'|'female' ?? 'male'} accentColor={c.accent} isDark={c.isDark} width={300} />
-            </div>
+            {/* Muscles trained */}
+            {summaryMuscles.length > 0 && (
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20, width: '100%' }}>
+                <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>Muscles Trained</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {summaryMuscles.map(m => (
+                    <span key={m} style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 20, padding: '6px 12px', color: c.accent, fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>{m}</span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Score change */}
             <div style={{ width: '100%', background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: 16, marginBottom: 14, textAlign: 'center' }}>
@@ -1802,10 +1869,14 @@ export default function Workout() {
             <p style={{ color: c.textSub, fontSize: 12, lineHeight: 1.5, margin: 0 }}>{workout.ai_insight}</p>
           </div>
 
-          {/* Muscle map */}
+          {/* Muscles today */}
           <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
             <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>Muscles Today</p>
-            <MuscleMap highlighted={trainedMuscles} sex={profile?.sex as 'male'|'female' ?? 'male'} accentColor={c.accent} isDark={c.isDark} width={300} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {trainedMuscles.map(m => (
+                <span key={m} style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 20, padding: '6px 12px', color: c.accent, fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>{m}</span>
+              ))}
+            </div>
           </div>
 
           {/* Warm-up */}

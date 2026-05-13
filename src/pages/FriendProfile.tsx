@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getRankInfo } from '../lib/scoring'
@@ -154,42 +154,44 @@ export default function FriendProfile() {
           </div>
 
           {/* Score row */}
-          {scores && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-              {[
-                { label: 'Ascend Score', value: scores.ascend_score, accent: true, unit: '' },
-                { label: 'Strength', value: scores.strength_score, accent: false, unit: '' },
-                { label: 'Streak', value: scores.streak_days, accent: false, unit: 'd' },
-              ].map(s => (
-                <div key={s.label} style={{ flex: 1, background: s.accent ? c.accentBg : c.surface, border: `1px solid ${s.accent ? c.accentBorder : c.border}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
-                  <p style={{ color: c.textSub, fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>{s.label}</p>
-                  <p style={{ color: s.accent ? c.accent : c.text, fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1 }}>{s.value}{s.unit}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Rank + campus rank */}
           {scores && (() => {
             const friendRank = getRankInfo(scores.ascend_score)
+            const cardBase: React.CSSProperties = { flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between' }
+            const labelStyle: React.CSSProperties = { color: c.textSub, fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: 0 }
+            const contentStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'space-between', paddingTop: 6 }
             return (
-              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 6px' }}>Rank</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                {/* Rank */}
+                <div style={cardBase}>
+                  <p style={labelStyle}>Rank</p>
+                  <div style={contentStyle}>
                     <RankBadge tier={friendRank.tier} size={28} accentColor={c.accent} />
-                    <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: 0 }}>{friendRank.name}</p>
+                    <p style={{ color: friendRank.color === 'accent' ? c.accent : friendRank.color, fontSize: 11, fontWeight: 700, margin: 0, lineHeight: 1 }}>{friendRank.name}</p>
                   </div>
                 </div>
-                {campusRank > 0 && (
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>Campus Rank</p>
-                    <p style={{ color: c.accent, fontSize: 15, fontWeight: 700, margin: 0 }}>#{campusRank}</p>
+                {/* Ascend Score */}
+                <div style={{ ...cardBase, background: c.accentBg, border: `1px solid ${c.accentBorder}` }}>
+                  <p style={{ ...labelStyle, color: c.accent }}>Ascend Score</p>
+                  <div style={contentStyle}>
+                    <p style={{ color: c.accent, fontSize: 24, fontWeight: 700, margin: 0, lineHeight: 1 }}>{scores.ascend_score}</p>
+                    <span style={{ fontSize: 11, lineHeight: 1, visibility: 'hidden' }}>·</span>
                   </div>
-                )}
+                </div>
+                {/* Streak */}
+                <div style={cardBase}>
+                  <p style={labelStyle}>Streak</p>
+                  <div style={contentStyle}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <p style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: 0, lineHeight: 1 }}>{scores.streak_days}</p>
+                      <span style={{ fontSize: 24, lineHeight: 1 }}>🔥</span>
+                    </div>
+                    <p style={{ color: c.textSub, fontSize: 11, margin: 0, lineHeight: 1 }}>days</p>
+                  </div>
+                </div>
               </div>
             )
           })()}
+
 
           {/* Personal Records */}
           {prs.length > 0 && (

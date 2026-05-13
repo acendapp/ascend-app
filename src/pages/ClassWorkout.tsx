@@ -276,7 +276,7 @@ export default function ClassWorkout() {
 
         </div>
 
-        <div style={{ padding: '12px 24px 88px' }}>
+        <div style={{ padding: '12px 24px calc(env(safe-area-inset-bottom, 0px) + 88px)' }}>
           {isPreview ? (
             <button
               onClick={() => navigate('/home')}

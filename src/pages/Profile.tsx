@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import StreakDots from '../components/StreakDots'
@@ -279,6 +279,11 @@ export default function Profile() {
 
   const [campusRank, setCampusRank] = useState(0)
   const [shareCopied, setShareCopied] = useState(false)
+  const [showScoreInfo, setShowScoreInfo] = useState(false)
+  const [showAvatarPreview, setShowAvatarPreview] = useState(false)
+  const [showBreakdownInfo, setShowBreakdownInfo] = useState(false)
+  const [badgesExpanded, setBadgesExpanded] = useState(false)
+  const [prsExpanded, setPrsExpanded] = useState(false)
 
   interface ProfileGroup { group_id: string; role: 'admin' | 'member'; name: string }
   const [myProfileGroups, setMyProfileGroups] = useState<ProfileGroup[]>([])
@@ -502,8 +507,9 @@ export default function Profile() {
     const { error: upErr } = await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
     if (upErr) { console.error('Avatar upload error:', upErr); setAvatarUploading(false); return }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-    await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', profile.id)
-    setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : prev)
+    const bustUrl = `${publicUrl}?t=${Date.now()}`
+    await supabase.from('users').update({ avatar_url: bustUrl }).eq('id', profile.id)
+    setProfile(prev => prev ? { ...prev, avatar_url: bustUrl } : prev)
     if (cropUrlRef.current) { URL.revokeObjectURL(cropUrlRef.current); cropUrlRef.current = null }
     setAvatarUploading(false)
   }
@@ -606,10 +612,10 @@ export default function Profile() {
         <div style={{ padding: '48px 20px 0' }}>
 
           {/* ── Avatar + identity ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
-            <div style={{ position: 'relative', marginBottom: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ position: 'relative', marginBottom: 7 }}>
               <div
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => setShowAvatarPreview(true)}
                 style={{ width: 88, height: 88, borderRadius: '50%', background: c.border, border: `3px solid ${c.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
               >
                 {profile.avatar_url
@@ -621,13 +627,16 @@ export default function Profile() {
                   </div>
                 )}
               </div>
-              <div onClick={() => fileInputRef.current?.click()} style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: c.accent, border: `2px solid ${c.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <div
+                onClick={e => { e.stopPropagation(); fileInputRef.current?.click() }}
+                style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: c.accent, border: `2px solid ${c.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="#FFF" strokeWidth="2"/><circle cx="12" cy="13" r="4" stroke="#FFF" strokeWidth="2"/></svg>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
             </div>
-            <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: '0 0 3px', textAlign: 'center' }}>{profile.name}</h1>
-            <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 3px' }}>@{profile.username}</p>
+            <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: '0 0 1px', textAlign: 'center' }}>{profile.name}</h1>
+            <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 1px' }}>@{profile.username}</p>
             {(profile.school_year || profile.affiliation) && (
               <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
                 {[profile.school_year, profile.affiliation].filter(Boolean).join(' · ')}
@@ -636,34 +645,90 @@ export default function Profile() {
           </div>
 
           {/* ── Score row ── */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-            <ScoreCard label="Strength" value={strengthScore} />
-            <ScoreCard label="Consistency" value={consistencyScore} unit="%" />
-            <ScoreCard label="Ascend" value={ascendScore} accent />
-          </div>
-
-          {/* ── Rank ── */}
           {(() => {
             const myRank = getRankInfo(ascendScore)
-            const myRankProgress = getRankProgress(ascendScore, myRank)
+            const streakDays = scores?.streak_days ?? 0
+            const cardBase: React.CSSProperties = { flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between' }
+            const labelStyle: React.CSSProperties = { color: c.textSub, fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: 0 }
+            const contentStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'space-between', paddingTop: 6 }
+            return (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                {/* Rank */}
+                <div style={cardBase}>
+                  <p style={labelStyle}>Rank</p>
+                  <div style={contentStyle}>
+                    <RankBadge tier={myRank.tier} size={28} accentColor={c.accent} />
+                    <p style={{ color: myRank.color === 'accent' ? c.accent : myRank.color, fontSize: 11, fontWeight: 700, margin: 0, lineHeight: 1 }}>{myRank.name}</p>
+                  </div>
+                </div>
+                {/* Ascend Score */}
+                <div style={{ ...cardBase, background: c.accentBg, border: `1px solid ${c.accentBorder}` }}>
+                  <p style={{ ...labelStyle, color: c.accent }}>Ascend Score</p>
+                  <div style={contentStyle}>
+                    <p style={{ color: c.accent, fontSize: 24, fontWeight: 700, margin: 0, lineHeight: 1 }}>{ascendScore}</p>
+                    <button
+                      onClick={() => setShowScoreInfo(true)}
+                      style={{ background: 'none', border: `1px solid ${c.textSub}`, padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', flexShrink: 0 }}
+                      aria-label="Learn about Ascend Score"
+                    >
+                      <span style={{ color: c.textSub, fontSize: 7, fontWeight: 700, lineHeight: 1 }}>i</span>
+                    </button>
+                  </div>
+                </div>
+                {/* Streak */}
+                <div style={cardBase}>
+                  <p style={labelStyle}>Streak</p>
+                  <div style={contentStyle}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <p style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: 0, lineHeight: 1 }}>{streakDays}</p>
+                      <span style={{ fontSize: 24, lineHeight: 1 }}>🔥</span>
+                    </div>
+                    <p style={{ color: c.textSub, fontSize: 11, margin: 0, lineHeight: 1 }}>days</p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* ── Ascend Score Breakdown ── */}
+          {(() => {
+            const socialScore  = scores?.social_score ?? 0
+            const streakScore  = Math.min(Math.round((scores?.streak_days ?? 0) * (100 / 30)), 100)
+            const strengthPct  = (strengthScore % 15) / 15 * 100
+            const factors = [
+              [{ label: 'Strength', pct: strengthPct }, { label: 'Consistency', pct: consistencyScore }],
+              [{ label: 'Social',   pct: socialScore  }, { label: 'Streak',      pct: streakScore     }],
+            ]
             return (
               <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 10 }}>
-                <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 8px' }}>Rank</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <RankBadge tier={myRank.tier} size={32} accentColor={c.accent} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>{myRank.name}</p>
-                    {myRank.nextScore !== null && (
-                      <div style={{ background: c.border, borderRadius: 3, height: 4, overflow: 'hidden' }}>
-                        <div style={{ background: c.accent, height: '100%', width: `${Math.round(myRankProgress * 100)}%`, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+                  <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: 0 }}>Ascend Score Breakdown</p>
+                  <button
+                    onClick={() => setShowBreakdownInfo(true)}
+                    style={{ background: 'none', border: `1px solid ${c.textSub}`, padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', flexShrink: 0 }}
+                  >
+                    <span style={{ color: c.textSub, fontSize: 7, fontWeight: 700, lineHeight: 1 }}>i</span>
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 14 }}>
+                  {factors.map((col, ci) => (
+                    <React.Fragment key={ci}>
+                      {ci === 1 && <div style={{ width: 1, background: c.border, alignSelf: 'stretch', flexShrink: 0 }} />}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {col.map(({ label, pct }) => (
+                          <div key={label}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                              <p style={{ color: c.text, fontSize: 12, fontWeight: 600, margin: 0 }}>{label}</p>
+                              <p style={{ color: c.textSub, fontSize: 10, margin: 0 }}>{Math.round(pct)}%</p>
+                            </div>
+                            <div style={{ background: c.border, borderRadius: 3, height: 4, overflow: 'hidden' }}>
+                              <div style={{ background: c.accent, height: '100%', width: `${pct}%`, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                    {myRank.nextScore !== null && (
-                      <p style={{ color: c.textFaint, fontSize: 10, margin: '3px 0 0' }}>
-                        {ascendScore} / {myRank.nextScore} to next rank
-                      </p>
-                    )}
-                  </div>
+                    </React.Fragment>
+                  ))}
                 </div>
               </div>
             )
@@ -674,11 +739,19 @@ export default function Profile() {
             const myRank = getRankInfo(ascendScore)
             return (
               <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: 0 }}>Badges</p>
+                <button
+                  onClick={() => setBadgesExpanded(v => !v)}
+                  style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: badgesExpanded ? 16 : 0 }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: 0 }}>Badges</p>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ transform: badgesExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', flexShrink: 0 }}>
+                      <path d="M6 9l6 6 6-6" stroke={c.textSub} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
                   <p style={{ color: c.accent, fontSize: 11, fontWeight: 700, margin: 0 }}>{myRank.tier} / 12 unlocked</p>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '18px 6px' }}>
+                </button>
+                {badgesExpanded && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '18px 6px' }}>
                   {RANKS.map(rank => {
                     const isUnlocked = myRank.tier >= rank.tier
                     return (
@@ -687,37 +760,46 @@ export default function Profile() {
                           <RankBadge tier={rank.tier} size={40} accentColor={c.accent} />
                         </div>
                         <p style={{ color: isUnlocked ? c.text : c.textFaint, fontSize: 9, fontWeight: isUnlocked ? 700 : 400, margin: 0, textAlign: 'center', letterSpacing: '0.3px' }}>
-                          {isUnlocked ? rank.name : '???'}
+                          {rank.name}
                         </p>
                       </div>
                     )
                   })}
-                </div>
+                </div>}
               </div>
             )
           })()}
 
-          {/* ── Campus rank ── */}
-          <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: '14px 16px', marginBottom: 14 }}>
-            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>Campus Rank</p>
-            {totalWorkouts < 3 ? (
-              <>
-                <p style={{ color: c.textSub, fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>🔒 Locked</p>
-                <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
-                  Complete {3 - totalWorkouts} more workout{3 - totalWorkouts !== 1 ? 's' : ''} to unlock your rank
-                </p>
-              </>
-            ) : (
-              <>
-                <p style={{ color: c.accent, fontSize: 22, fontWeight: 700, margin: '0 0 2px' }}>
-                  Ranked #{campusRank > 0 ? campusRank : '—'} at Penn
-                </p>
-                <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
-                  {campusRank > 0
-                    ? `Top ${campusRank <= 10 ? '10' : campusRank <= 25 ? '25' : '50'} · Penn Campus`
-                    : 'Complete a workout to get ranked'}
-                </p>
-              </>
+          {/* ── Personal Records ── */}
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 10 }}>
+            <button
+              onClick={() => setPrsExpanded(v => !v)}
+              style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: prsExpanded && prs.length > 0 ? 12 : 0 }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: 0 }}>Personal Records</p>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ transform: prsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', flexShrink: 0 }}>
+                  <path d="M6 9l6 6 6-6" stroke={c.textSub} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <p style={{ color: c.accent, fontSize: 11, fontWeight: 700, margin: 0 }}>{prs.length} logged</p>
+            </button>
+            {prsExpanded && (
+              prs.length === 0 ? (
+                <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>No PRs logged yet.</p>
+              ) : (
+                <div style={{ borderTop: `1px solid ${c.border}`, paddingTop: 4 }}>
+                  {prs.map((pr, i) => (
+                    <div key={pr.exercise_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: i < prs.length - 1 ? `1px solid ${c.border}` : 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 14 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅'}</span>
+                        <span style={{ color: c.text, fontSize: 13, fontWeight: 600 }}>{pr.exercise_name}</span>
+                      </div>
+                      <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{pr.weight} lb</span>
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
 
@@ -744,11 +826,6 @@ export default function Profile() {
             {shareCopied ? '✓ Link copied' : '↗ Share your Ascend Score'}
           </button>
 
-          {/* ── Streak ── */}
-          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
-            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Last 7 Days</p>
-            <StreakDots days={weekDays} />
-          </div>
 
           {/* ── My Groups ── */}
           {myProfileGroups.length > 0 && (
@@ -765,23 +842,6 @@ export default function Profile() {
             </>
           )}
 
-          {/* ── Personal Records ── */}
-          {prs.length > 0 && (
-            <>
-              <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Personal Records</p>
-              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 16px', marginBottom: 14 }}>
-                {prs.map((pr, i) => (
-                  <div key={pr.exercise_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 0', borderBottom: i < prs.length - 1 ? `1px solid ${c.border}` : 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ color: i === 0 ? '#F5A623' : c.textSub, fontSize: 14 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅'}</span>
-                      <span style={{ color: c.text, fontSize: 13, fontWeight: 600 }}>{pr.exercise_name}</span>
-                    </div>
-                    <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{pr.weight} lb</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
 
           {/* ── Stats row ── */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
@@ -797,27 +857,8 @@ export default function Profile() {
             ))}
           </div>
 
-          {/* ── Friends horizontal scroll ── */}
+          {/* ── Friends ── */}
           <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Friends</p>
-          {friendCards.length > 0 ? (
-            <div className="friend-scroll" style={{ marginBottom: 14 }}>
-              {friendCards.map(fc => (
-                <div key={fc.id} onClick={() => navigate(`/profile/${fc.id}`)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0, cursor: 'pointer' }}>
-                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: c.border, border: `2px solid ${c.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    {fc.avatar_url
-                      ? <img src={fc.avatar_url} alt={fc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{initials(fc.name)}</span>}
-                  </div>
-                  <p style={{ color: c.text, fontSize: 10, fontWeight: 600, margin: 0, maxWidth: 56, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                    {fc.name.split(' ')[0]}
-                  </p>
-                  <p style={{ color: c.accent, fontSize: 10, fontWeight: 700, margin: 0 }}>{fc.ascend_score}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: c.textSub, fontSize: 13, marginBottom: 14 }}>Search below to add friends.</p>
-          )}
 
           {/* Group-based friend suggestions */}
           {groupSuggestions.length > 0 && (
@@ -935,7 +976,7 @@ export default function Profile() {
           {/* Accent color */}
           <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 8 }}>
             <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 14px' }}>App Color</p>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', justifyContent: 'space-between' }}>
               {Object.entries(ACCENT_COLORS).map(([key, def]) => {
                 const selected = accentKey === key
                 return (
@@ -946,7 +987,7 @@ export default function Profile() {
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}
                   >
                     <div style={{
-                      width: 38, height: 38, borderRadius: '50%',
+                      width: 28, height: 28, borderRadius: '50%',
                       background: c.isDark ? def.dark : def.light,
                       border: selected ? `3px solid ${c.text}` : '3px solid transparent',
                       boxShadow: selected ? `0 0 0 2px ${c.isDark ? def.dark : def.light}` : 'none',
@@ -984,6 +1025,110 @@ export default function Profile() {
 
         </div>
       </div>
+
+      {/* ── Breakdown info modal ── */}
+      {showBreakdownInfo && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setShowBreakdownInfo(false)}
+        >
+          <div
+            style={{ background: c.surface, border: `0.5px solid ${c.border}`, borderRadius: 18, padding: '20px 22px', width: 'calc(100% - 48px)', maxWidth: 320 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: '0 0 16px' }}>How it's calculated</p>
+            {[
+              { name: 'Strength',    desc: 'Based on your heaviest lifts normalized against bodyweight. The bar resets every 15 points as you climb.' },
+              { name: 'Consistency', desc: 'Tracks sessions completed this week against a 5-workout target, with 2 free rest days built in.' },
+              { name: 'Social',      desc: 'Earned by adding friends and checking into the gym. Reflects how active you are in the Penn community.' },
+              { name: 'Streak',      desc: 'Your streak normalized to 30 days. Bonus points unlock at 7 days (+5), 14 days (+10), and 30 days (+20) — these can push your score above 100.' },
+            ].map((f, i, arr) => (
+              <div key={f.name} style={{ paddingBottom: i < arr.length - 1 ? 12 : 0, marginBottom: i < arr.length - 1 ? 12 : 0, borderBottom: i < arr.length - 1 ? `1px solid ${c.border}` : 'none' }}>
+                <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 3px' }}>{f.name}</p>
+                <p style={{ color: c.textSub, fontSize: 12, lineHeight: 1.55, margin: 0 }}>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Avatar preview ── */}
+      {showAvatarPreview && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setShowAvatarPreview(false)}
+        >
+          <div style={{ width: 240, height: 240, borderRadius: '50%', border: `3px solid ${c.accentBorder}`, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: c.border }}>
+            {profile.avatar_url
+              ? <img src={profile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ color: c.accent, fontSize: 72, fontWeight: 700 }}>{avatarIni}</span>}
+          </div>
+        </div>
+      )}
+
+      {/* ── Score info sheet ── */}
+      {showScoreInfo && (() => {
+        const currentRank = getRankInfo(ascendScore)
+        const progress = getRankProgress(ascendScore, currentRank)
+        const rankColor = currentRank.color === 'accent' ? c.accent : currentRank.color
+        const nextRank = RANKS.find(r => r.tier === currentRank.tier + 1) ?? null
+        const ptsToNext = nextRank ? Math.max(0, nextRank.minScore - ascendScore) : 0
+        return (
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => setShowScoreInfo(false)}
+          >
+            <div
+              style={{ background: c.surface, border: `0.5px solid ${c.border}`, borderRadius: 22, padding: '20px 24px 32px', width: 'calc(100% - 48px)', maxWidth: 342, maxHeight: '90vh', overflowY: 'auto' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowScoreInfo(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 20px', display: 'flex', alignItems: 'center', gap: 6, color: c.textSub }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 18l-6-6 6-6" stroke={c.textSub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Back</span>
+              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+                <RankBadge tier={currentRank.tier} size={80} accentColor={c.accent} />
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ color: rankColor, fontSize: 22, fontWeight: 800, margin: '0 0 2px', letterSpacing: '-0.4px' }}>{currentRank.name}</p>
+                  <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>Tier {currentRank.tier} of {RANKS.length}</p>
+                </div>
+              </div>
+              <div style={{
+                background: c.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.65)',
+                backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                border: `1px solid ${c.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)'}`,
+                boxShadow: c.isDark ? 'none' : '0 4px 20px rgba(0,0,0,0.10)',
+                borderRadius: 14, padding: '12px 16px', marginBottom: 14,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <span style={{ color: c.textSub, fontSize: 12, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Ascend Score</span>
+                <span style={{ color: c.accent, fontSize: 32, fontWeight: 800, lineHeight: 1 }}>{ascendScore}</span>
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span style={{ color: c.textSub, fontSize: 11 }}>{currentRank.name}</span>
+                  {nextRank
+                    ? <span style={{ color: c.textSub, fontSize: 11 }}>{nextRank.name} in {ptsToNext} pts</span>
+                    : <span style={{ color: rankColor, fontSize: 11, fontWeight: 700 }}>Max rank reached</span>
+                  }
+                </div>
+                <div style={{ height: 5, borderRadius: 3, background: c.border }}>
+                  <div style={{ height: '100%', borderRadius: 3, background: rankColor, width: `${Math.round(progress * 100)}%`, transition: 'width 0.4s ease' }} />
+                </div>
+              </div>
+              <p style={{ color: c.textSub, fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+                Your Ascend Score reflects how consistently you train, how hard you push, and how you engage with the community. It updates after every logged workout.
+              </p>
+            </div>
+          </div>
+        )
+      })()}
+
     </div>
   )
 }

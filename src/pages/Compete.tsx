@@ -696,21 +696,13 @@ export default function Compete() {
             <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
               YOUR RANK
             </p>
-            {userWorkoutsCompleted < 3 ? (
-              <p style={{ color: c.textSub, fontSize: 22, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
-                Locked until 3 workouts
-              </p>
-            ) : (
-              <p style={{ color: c.accent, fontSize: 36, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
-                #{campusRank > 0 ? campusRank : '—'}
-              </p>
-            )}
+            <p style={{ color: c.accent, fontSize: 36, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
+              #{campusRank > 0 ? campusRank : '—'}
+            </p>
             <p style={{ color: c.text, fontSize: 18, fontWeight: 600, margin: '0 0 6px' }}>
               Ascend Score: {ascendScore}
             </p>
-            {userWorkoutsCompleted >= 3 && (
-              <p style={{ color: c.accent, fontSize: 13, margin: 0 }}>↑ Keep climbing</p>
-            )}
+            <p style={{ color: c.accent, fontSize: 13, margin: 0 }}>↑ Keep climbing</p>
             {myGroupIds.size > 0 && groupsLeaderboard.length > 0 && (() => {
               const myGroup = groupsLeaderboard.find(g => myGroupIds.has(g.groupId))
               return myGroup ? (
@@ -797,10 +789,10 @@ export default function Compete() {
                       {cc.totalParticipants} participant{cc.totalParticipants !== 1 ? 's' : ''}
                     </span>
                     <button
-                      onClick={() => userWorkoutsCompleted >= 3 && handleJoin(cc.challenge.id)}
+                      onClick={() => handleJoin(cc.challenge.id)}
                       disabled={joiningId === cc.challenge.id || userWorkoutsCompleted < 3}
                       style={{ background: 'none', border: 'none', color: userWorkoutsCompleted < 3 ? c.textSub : c.accent, fontSize: 13, fontWeight: 600, cursor: userWorkoutsCompleted < 3 ? 'not-allowed' : 'pointer', padding: 0 }}
-                      title={userWorkoutsCompleted < 3 ? 'Complete 3 workouts to join challenges' : undefined}
+                      title={undefined}
                     >
                       {joiningId === cc.challenge.id ? 'Joining…' : userWorkoutsCompleted < 3 ? 'Locked 🔒' : 'Join →'}
                     </button>
@@ -811,7 +803,7 @@ export default function Compete() {
           )}
 
           {/* Campus Standings — always-live computed competitions */}
-          {liveChallenges.length > 0 && userWorkoutsCompleted >= 3 && (
+          {liveChallenges.length > 0 && (
             <>
               <SectionHeader title="Campus Standings" c={c} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
@@ -848,7 +840,7 @@ export default function Compete() {
           )}
 
           {/* Friends leaderboard — top 3 snapshot */}
-          <SectionHeader title="Friends" onAction={userWorkoutsCompleted >= 3 && hasFriends ? () => setShowFullModal('friends') : undefined} c={c} />
+          <SectionHeader title="Friends" onAction={hasFriends ? () => setShowFullModal('friends') : undefined} c={c} />
           {userWorkoutsCompleted < 3 ? (
             <LockedCard hint="See how you stack up against your friends" c={c} />
           ) : !hasFriends ? (
@@ -893,7 +885,7 @@ export default function Compete() {
           )}
 
           {/* Groups leaderboard — top 3 snapshot */}
-          <SectionHeader title="Groups" onAction={userWorkoutsCompleted >= 3 ? () => setShowFullModal('groups') : undefined} c={c} />
+          <SectionHeader title="Groups" onAction={() => setShowFullModal('groups')} c={c} />
           {userWorkoutsCompleted < 3 ? (
             <LockedCard hint="See which Penn group reigns supreme" c={c} />
           ) : (
@@ -932,7 +924,7 @@ export default function Compete() {
           )}
 
           {/* Campus leaderboard — top 3 snapshot */}
-          <SectionHeader title="Campus" onAction={userWorkoutsCompleted >= 3 ? () => setShowFullModal('campus') : undefined} c={c} />
+          <SectionHeader title="Campus" onAction={() => setShowFullModal('campus')} c={c} />
           {userWorkoutsCompleted < 3 ? (
             <LockedCard hint="See where you rank among all Penn students" c={c} />
           ) : (
