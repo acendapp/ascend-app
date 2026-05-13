@@ -182,7 +182,7 @@ export default function BottomNav() {
         borderTop: `1px solid ${c.border}`,
         display: 'flex',
         zIndex: 100,
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)',
       }}
     >
       {showCheckinPrompt && (
