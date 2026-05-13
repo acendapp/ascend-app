@@ -76,29 +76,36 @@ const tabs = [
   },
   {
     id: 'compete',
-    label: 'Compete',
+    label: 'Campus',
     path: '/compete',
     icon: (active: boolean, accent: string, inactive: string) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path
-          d="M8 21h8M12 17v4M6 3h12"
+          d="M3 21h18"
+          stroke={active ? accent : inactive}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <path
+          d="M2 10l10-7 10 7"
           stroke={active ? accent : inactive}
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <path
-          d="M6 3v4a6 6 0 0012 0V3"
+        <rect x="9" y="14" width="6" height="7"
           stroke={active ? accent : inactive}
           strokeWidth="1.8"
-          strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <path
-          d="M6 7H3v3a3 3 0 003 3M18 7h3v3a3 3 0 01-3 3"
+        <rect x="4" y="12" width="4" height="4"
           stroke={active ? accent : inactive}
           strokeWidth="1.8"
-          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <rect x="16" y="12" width="4" height="4"
+          stroke={active ? accent : inactive}
+          strokeWidth="1.8"
           strokeLinejoin="round"
         />
       </svg>
