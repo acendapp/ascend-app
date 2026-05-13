@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs, calculateConsistencyScore, calculateAscendScore } from '../lib/scoring'
+import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs, calculateConsistencyScore, calculateAscendScore, getRankInfo } from '../lib/scoring'
+import { logActivity, isStreakMilestone } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 import exerciseDB from '../data/exercises.json'
 
@@ -438,6 +439,36 @@ export default function CustomWorkout() {
       localStorage.setItem('ascend_home_badge', '1')
       localStorage.setItem('ascend_has_workout', '1')
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))
+
+      // ── Activity feed events ──────────────────────────────────────────────
+      const prevScore = curScores?.ascend_score ?? 0
+      await logActivity({
+        userId,
+        eventType: 'workout',
+        title: 'finished a workout',
+        subtitle: activeTemplate.name,
+        metadata: { source: 'custom', duration },
+      })
+      if (isStreakMilestone(newStreak)) {
+        await logActivity({
+          userId,
+          eventType: 'streak',
+          title: 'kept their streak',
+          subtitle: `${newStreak} day streak`,
+          metadata: { days: newStreak },
+        })
+      }
+      const prevTier = getRankInfo(prevScore).tier
+      const newRankInfo = getRankInfo(ascendScore)
+      if (newRankInfo.tier > prevTier) {
+        await logActivity({
+          userId,
+          eventType: 'rank',
+          title: `reached ${newRankInfo.name}`,
+          subtitle: 'New rank achieved',
+          metadata: { tier: newRankInfo.tier, rank: newRankInfo.name },
+        })
+      }
 
       clearCustomSession()
       setSummaryData({

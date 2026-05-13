@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getRankInfo, getRankProgress, RANKS } from '../lib/scoring'
+import { logCheckin } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 import RankBadge from '../components/RankBadge'
 import type { UserProfile, UserScores, ActivityItem } from '../types'
@@ -132,7 +133,7 @@ export default function Home() {
   const [profile,               setProfile]               = useState<UserProfile | null>(null)
   const [scores,                setScores]                = useState<UserScores | null>(null)
   const [loading,               setLoading]               = useState(true)
-  const [activityFeed,          setActivityFeed]          = useState<FeedItem[]>([])
+  const [activityFeed,          setActivityFeed]          = useState<FeedDisplayItem[]>([])
   const [isCheckedIn,           setIsCheckedIn]           = useState(false)
   const [checkinLoading,        setCheckinLoading]        = useState(false)
   const [workoutCompletedToday, setWorkoutCompletedToday] = useState(false)
@@ -206,66 +207,34 @@ export default function Home() {
         f.requester_id === user.id ? f.recipient_id : f.requester_id
       )
 
-      // Activity feed: friend workouts + PRs merged and sorted
-      if (friendIds.length > 0) {
-        const [fwRes, fpRes] = await Promise.all([
-          supabase.from('workouts')
-            .select('id, user_id, workout_date, workout_type, gym_verified')
-            .in('user_id', friendIds).eq('completed', true)
-            .order('workout_date', { ascending: false }).limit(8),
-          supabase.from('personal_records')
-            .select('id, user_id, exercise_name, weight, logged_at')
-            .in('user_id', friendIds)
-            .order('logged_at', { ascending: false }).limit(8),
-        ])
-        const allUids = [...new Set([
-          ...(fwRes.data ?? []).map(w => w.user_id as string),
-          ...(fpRes.data ?? []).map(p => p.user_id as string),
-        ])]
-        const { data: fps } = await supabase.from('users').select('id, name').in('id', allUids)
-        const fpMap = new Map((fps ?? []).map(p => [p.id as string, p.name as string]))
+      // Activity feed: self + friends from activity_events
+      try {
+        const visibleIds = [user.id, ...friendIds]
+        const { data: events } = await supabase
+          .from('activity_events')
+          .select('id, user_id, event_type, title, subtitle, created_at')
+          .in('user_id', visibleIds)
+          .order('created_at', { ascending: false })
+          .limit(15)
 
-        const workoutIds = (fwRes.data ?? []).map(w => w.id as string)
-        const kudosMap = new Map<string, { count: number; userGave: boolean }>()
-        if (workoutIds.length > 0) {
-          const { data: kRows } = await supabase.from('kudos').select('workout_id, sender_id').in('workout_id', workoutIds)
-          for (const k of kRows ?? []) {
-            const prev = kudosMap.get(k.workout_id) ?? { count: 0, userGave: false }
-            kudosMap.set(k.workout_id, {
-              count: prev.count + 1,
-              userGave: prev.userGave || k.sender_id === user.id,
-            })
-          }
+        const nameMap = new Map<string, string>()
+        if (friendIds.length > 0) {
+          const { data: fps } = await supabase.from('users').select('id, name').in('id', friendIds)
+          for (const p of fps ?? []) nameMap.set(p.id as string, p.name as string)
         }
 
-        const feedRaw: FeedItem[] = []
-        for (const w of fwRes.data ?? []) {
-          const fname = fpMap.get(w.user_id as string) ?? 'Someone'
-          const ki = kudosMap.get(w.id as string) ?? { count: 0, userGave: false }
-          feedRaw.push({
-            id: w.id as string, userId: w.user_id as string, userName: fname, initials: initials(fname),
-            description: 'worked out',
-            time: timeAgo(w.workout_date as string),
-            workoutId: w.id as string, kudosCount: ki.count, userGaveKudos: ki.userGave,
-            gymVerified: (w as { gym_verified?: boolean }).gym_verified ?? false,
-            activityType: 'workout', rawTimestamp: new Date(w.workout_date as string).getTime(),
-          })
-        }
-        for (const pr of fpRes.data ?? []) {
-          const fname = fpMap.get(pr.user_id as string) ?? 'Someone'
-          const w = pr.weight as number | null
-          feedRaw.push({
-            id: pr.id as string, userId: pr.user_id as string, userName: fname, initials: initials(fname),
-            description: 'hit a new PR',
-            time: timeAgo(pr.logged_at as string),
-            workoutId: '', kudosCount: 0, userGaveKudos: false, gymVerified: false,
-            activityType: 'pr', rawTimestamp: new Date(pr.logged_at as string).getTime(),
-            prDetails: w ? `${Math.round(w)} lb ${pr.exercise_name as string}` : pr.exercise_name as string,
-          })
-        }
-        feedRaw.sort((a, b) => b.rawTimestamp - a.rawTimestamp)
-        setActivityFeed(feedRaw.slice(0, 3))
-      }
+        const realItems: FeedDisplayItem[] = (events ?? []).map(ev => ({
+          id: ev.id as string,
+          name: ev.user_id === user.id ? 'You' : (nameMap.get(ev.user_id as string) ?? 'Someone'),
+          mainText: ev.title as string,
+          subText: (ev.subtitle as string) ?? '',
+          timeStr: timeAgo(ev.created_at as string),
+          activityType: ev.event_type as FeedDisplayItem['activityType'],
+          isPlaceholder: false,
+          userId: ev.user_id === user.id ? undefined : ev.user_id as string,
+        }))
+        setActivityFeed(realItems)
+      } catch { /* activity_events table not available yet */ }
 
       // Total workouts + campus rank
       const { count: workoutCount } = await supabase.from('workouts').select('id', { count: 'exact', head: true })
@@ -466,6 +435,8 @@ export default function Home() {
       const newSocial = Math.min((scoreRow?.social_score ?? 0) + 3, 100)
       await supabase.from('user_scores').update({ social_score: newSocial }).eq('user_id', profile.id)
       setScores(prev => prev ? { ...prev, social_score: newSocial } : prev)
+      const gymName = localStorage.getItem('ascend_gym_location') ?? 'Pottruck Fitness Center'
+      await logCheckin(profile.id, gymName)
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
       const { data: gymUsersData } = await supabase.from('users').select('id, name')
         .gte('gym_checkin_at', twoHoursAgo).neq('id', profile.id).limit(20)
@@ -540,24 +511,11 @@ export default function Home() {
     saveNotifs([])
   }
 
+  const HOME_FEED_CAP = 6
   const displayFeedItems: FeedDisplayItem[] = [
-    ...activityFeed.map(item => ({
-      id: item.id,
-      name: item.userName,
-      mainText: item.description,
-      subText: item.activityType === 'pr'
-        ? (item.prDetails ?? 'Personal record')
-        : item.gymVerified ? 'Gym verified' : 'Workout logged',
-      timeStr: item.time,
-      activityType: item.activityType as FeedDisplayItem['activityType'],
-      isPlaceholder: false,
-      workoutId: item.workoutId,
-      kudosCount: item.kudosCount,
-      userGaveKudos: item.userGaveKudos,
-      userId: item.userId,
-    })),
-    ...DEMO_FEED.slice(0, Math.max(0, 3 - activityFeed.length)),
-  ]
+    ...activityFeed,
+    ...DEMO_FEED.slice(0, Math.max(0, HOME_FEED_CAP - activityFeed.length)),
+  ].slice(0, HOME_FEED_CAP)
 
   // ── Render ──────────────────────────────────────────────────────────────────
 

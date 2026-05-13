@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { calculateXPGain, getLevelFromXP, calculateConsistencyScore, calculateAscendScore } from '../lib/scoring'
+import { calculateXPGain, getLevelFromXP, calculateConsistencyScore, calculateAscendScore, getRankInfo } from '../lib/scoring'
+import { logActivity, isStreakMilestone } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 
 const CLASS_TYPES = [
@@ -102,6 +103,36 @@ export default function ClassWorkout() {
       localStorage.setItem('ascend_home_badge', '1')
       localStorage.setItem('ascend_has_workout', '1')
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))
+
+      // ── Activity feed events ──────────────────────────────────────────────
+      const prevScore = curScores?.ascend_score ?? 0
+      await logActivity({
+        userId: user.id,
+        eventType: 'workout',
+        title: 'finished a workout',
+        subtitle: `${classLabel} · Class`,
+        metadata: { source: 'class', duration },
+      })
+      if (isStreakMilestone(newStreak)) {
+        await logActivity({
+          userId: user.id,
+          eventType: 'streak',
+          title: 'kept their streak',
+          subtitle: `${newStreak} day streak`,
+          metadata: { days: newStreak },
+        })
+      }
+      const prevTier = getRankInfo(prevScore).tier
+      const newRankInfo = getRankInfo(ascendScore)
+      if (newRankInfo.tier > prevTier) {
+        await logActivity({
+          userId: user.id,
+          eventType: 'rank',
+          title: `reached ${newRankInfo.name}`,
+          subtitle: 'New rank achieved',
+          metadata: { tier: newRankInfo.tier, rank: newRankInfo.name },
+        })
+      }
 
       setXpGain(xp)
       setPhase('summary')

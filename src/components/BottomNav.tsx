@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../lib/theme'
 import { supabase } from '../lib/supabase'
+import { logCheckin } from '../lib/activity'
 
 function isGymCheckedIn() {
   const ci = localStorage.getItem('ascend_gym_checkin')
@@ -167,6 +168,8 @@ export default function BottomNav() {
     const { data: scoreRow } = await supabase.from('user_scores').select('social_score').eq('user_id', profileId).maybeSingle()
     const newSocial = Math.min((scoreRow?.social_score ?? 0) + 3, 100)
     await supabase.from('user_scores').update({ social_score: newSocial }).eq('user_id', profileId)
+    const gymName = localStorage.getItem('ascend_gym_location') ?? 'Pottruck Fitness Center'
+    await logCheckin(profileId, gymName)
   }
 
   return (

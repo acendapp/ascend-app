@@ -104,74 +104,37 @@ export default function FeedPage() {
         f.requester_id === user.id ? f.recipient_id : f.requester_id
       )
 
-      const realItems: FeedDisplayItem[] = []
+      // Fetch activity events for self + friends
+      const visibleIds = [user.id, ...friendIds]
+      const { data: events } = await supabase
+        .from('activity_events')
+        .select('id, user_id, event_type, title, subtitle, created_at')
+        .in('user_id', visibleIds)
+        .order('created_at', { ascending: false })
+        .limit(15)
 
+      // Resolve names for friend IDs
+      const nameMap = new Map<string, string>()
       if (friendIds.length > 0) {
-        const [fwRes, fpRes] = await Promise.all([
-          supabase.from('workouts')
-            .select('id, user_id, workout_date, workout_type, gym_verified')
-            .in('user_id', friendIds).eq('completed', true)
-            .order('workout_date', { ascending: false }).limit(30),
-          supabase.from('personal_records')
-            .select('id, user_id, exercise_name, weight, logged_at')
-            .in('user_id', friendIds)
-            .order('logged_at', { ascending: false }).limit(30),
-        ])
-
-        const allUids = [...new Set([
-          ...(fwRes.data ?? []).map(w => w.user_id as string),
-          ...(fpRes.data ?? []).map(p => p.user_id as string),
-        ])]
-        const { data: fps } = await supabase.from('users').select('id, name').in('id', allUids)
-        const fpMap = new Map((fps ?? []).map(p => [p.id as string, p.name as string]))
-
-        for (const w of fwRes.data ?? []) {
-          const name = fpMap.get(w.user_id as string) ?? 'Someone'
-          const wType = (w.workout_type as string) ?? 'workout'
-          realItems.push({
-            id: `w-${w.id}`,
-            name,
-            mainText: 'worked out',
-            subText: wType,
-            timeStr: timeAgo(w.workout_date as string),
-            activityType: 'workout',
-            isPlaceholder: false,
-            userId: w.user_id as string,
-          })
-        }
-
-        for (const pr of fpRes.data ?? []) {
-          const name = fpMap.get(pr.user_id as string) ?? 'Someone'
-          const w = pr.weight as number | null
-          realItems.push({
-            id: `pr-${pr.id}`,
-            name,
-            mainText: 'hit a new PR',
-            subText: w ? `${Math.round(w)} lb ${pr.exercise_name as string}` : pr.exercise_name as string,
-            timeStr: timeAgo(pr.logged_at as string),
-            activityType: 'pr',
-            isPlaceholder: false,
-            userId: pr.user_id as string,
-          })
-        }
-
-        realItems.sort((a, b) => {
-          const toMs = (s: string) => {
-            if (s === 'just now') return 0
-            const m = s.match(/^(\d+)(m|h|d) ago$/)
-            if (!m) return 0
-            const n = parseInt(m[1])
-            if (m[2] === 'm') return n * 60 * 1000
-            if (m[2] === 'h') return n * 3600 * 1000
-            return n * 86400 * 1000
-          }
-          return toMs(a.timeStr) - toMs(b.timeStr)
-        })
+        const { data: profiles } = await supabase
+          .from('users').select('id, name').in('id', friendIds)
+        for (const p of profiles ?? []) nameMap.set(p.id as string, p.name as string)
       }
 
-      const demoNeeded = Math.max(0, 10 - realItems.length)
-      const combined = [...realItems, ...DEMO_FEED.slice(0, demoNeeded)]
-      setItems(combined)
+      const realItems: FeedDisplayItem[] = (events ?? []).map(ev => ({
+        id: ev.id as string,
+        name: ev.user_id === user.id ? 'You' : (nameMap.get(ev.user_id as string) ?? 'Someone'),
+        mainText: ev.title as string,
+        subText: (ev.subtitle as string) ?? '',
+        timeStr: timeAgo(ev.created_at as string),
+        activityType: ev.event_type as FeedDisplayItem['activityType'],
+        isPlaceholder: false,
+        userId: ev.user_id === user.id ? undefined : ev.user_id as string,
+      }))
+
+      const MAX_FEED = 15
+      const placeholdersNeeded = Math.max(0, MAX_FEED - realItems.length)
+      setItems([...realItems, ...DEMO_FEED.slice(0, placeholdersNeeded)])
       setLoading(false)
     }
     load()

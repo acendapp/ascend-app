@@ -13,6 +13,7 @@ import {
   getLevelFromXP,
 } from '../lib/scoring'
 import { notificationPermission, requestPushPermission } from '../lib/notifications'
+import { logActivity, logCheckin as _logCheckin, maybeLogRankUp, isStreakMilestone } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -986,6 +987,34 @@ export default function Workout() {
         try {
           await supabase.from('user_scores').update({ workouts_completed: wids.length }).eq('user_id', profileId)
         } catch { /* column not yet added */ }
+
+        // ── Activity feed events ──────────────────────────────────────────────
+        await logActivity({
+          userId: profileId,
+          eventType: 'workout',
+          title: 'finished a workout',
+          subtitle: workout.session_label,
+          metadata: { source: 'ascend_method', duration },
+        })
+        for (const prName of newPRs) {
+          await logActivity({
+            userId: profileId,
+            eventType: 'pr',
+            title: 'hit a new PR',
+            subtitle: prName,
+            metadata: { exercise: prName },
+          })
+        }
+        if (isStreakMilestone(newStreakDays)) {
+          await logActivity({
+            userId: profileId,
+            eventType: 'streak',
+            title: 'kept their streak',
+            subtitle: `${newStreakDays} day streak`,
+            metadata: { days: newStreakDays },
+          })
+        }
+        await maybeLogRankUp(profileId, previousAscendScore, ascendScore)
       } catch (scoreErr) {
         console.error('Score update error:', scoreErr)
       }
