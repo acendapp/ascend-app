@@ -390,7 +390,7 @@ export default function CustomWorkout() {
         .eq('id', activeTemplate.id)
 
       const { data: curScores } = await supabase
-        .from('user_scores').select('xp, level, streak_days, strength_score, social_score').eq('user_id', userId).maybeSingle()
+        .from('user_scores').select('xp, level, streak_days, strength_score, social_score, ascend_score').eq('user_id', userId).maybeSingle()
 
       const xp = calculateXPGain(exercisesCompleted, 0, false)
       const newXP = (curScores?.xp ?? 0) + xp

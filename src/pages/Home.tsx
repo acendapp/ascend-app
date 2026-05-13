@@ -5,7 +5,7 @@ import { getRankInfo, getRankProgress, RANKS } from '../lib/scoring'
 import { logCheckin } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 import RankBadge from '../components/RankBadge'
-import type { UserProfile, UserScores, ActivityItem } from '../types'
+import type { UserProfile, UserScores } from '../types'
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 
@@ -46,11 +46,6 @@ interface GroupStanding { id: string; name: string; weeklyScore: number; rank: n
 interface ChallengeDetail {
   id: string; title: string; dayCount: number; totalDays: number
   participantCount: number; daysRemaining: number; progressPct: number
-}
-interface FeedItem extends ActivityItem {
-  activityType: 'workout' | 'pr' | 'checkin'
-  rawTimestamp: number
-  prDetails?: string
 }
 
 interface FeedDisplayItem {
