@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/theme'
-import RankBadge from '../components/RankBadge'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -60,35 +59,6 @@ function timeAgo(dateStr: string) {
 
 function initials(name: string) {
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-}
-
-// ── Feed Icon ─────────────────────────────────────────────────────────────────
-
-function FeedIcon({ type, delta, rankTier, accent }: { type: string; delta?: number; rankTier?: number; accent: string }) {
-  const wrap = (content: React.ReactNode) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 24, flexShrink: 0 }}>
-      {content}
-    </div>
-  )
-  if (type === 'checkin') return wrap(
-    <svg width="20" height="20" viewBox="0 0 24 24" fill={accent} style={{ display: 'block' }}>
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-    </svg>
-  )
-  if (type === 'pr') return wrap(<span style={{ fontSize: 18, lineHeight: 1, display: 'block' }}>🥇</span>)
-  if (type === 'streak') return wrap(<span style={{ fontSize: 18, lineHeight: 1, display: 'block' }}>🔥</span>)
-  if (type === 'workout') return wrap(<span style={{ fontSize: 18, lineHeight: 1, display: 'block' }}>💪</span>)
-  if (type === 'leaderboard') return wrap(
-    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      <svg width="16" height="16" viewBox="0 0 18 18" fill="none" style={{ display: 'block' }}>
-        <path d="M4 13 L9 8 L14 13" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M4 9 L9 4 L14 9" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      {delta !== undefined && <span style={{ color: accent, fontSize: 11, fontWeight: 700, lineHeight: 1 }}>+{delta}</span>}
-    </div>
-  )
-  if (type === 'rank') return wrap(<RankBadge tier={rankTier ?? 1} size={24} accentColor={accent} />)
-  return wrap(<span style={{ fontSize: 18, lineHeight: 1, display: 'block' }}>💪</span>)
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

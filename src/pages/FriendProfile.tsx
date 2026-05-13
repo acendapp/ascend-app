@@ -61,7 +61,7 @@ export default function FriendProfile() {
   const [scores, setScores] = useState<FriendScores | null>(null)
   const [recentWorkouts, setRecentWorkouts] = useState<RecentWorkout[]>([])
   const [prs, setPrs] = useState<PR[]>([])
-  const [campusRank, setCampusRank] = useState(0)
+  const [_campusRank, setCampusRank] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

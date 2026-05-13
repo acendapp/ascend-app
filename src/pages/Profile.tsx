@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import StreakDots from '../components/StreakDots'
 import { supabase } from '../lib/supabase'
 import {
   displayGoal, displayExperience, displayEquipment,
@@ -96,18 +95,6 @@ function EditableField({ label, value, display, onSave, options, locked }: Edita
         : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={c.textSub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={c.textSub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       }
     </button>
-  )
-}
-
-// ── Score mini-card ───────────────────────────────────────────────────────────
-
-function ScoreCard({ label, value, unit, accent }: { label: string; value: number; unit?: string; accent?: boolean }) {
-  const { colors: c } = useTheme()
-  return (
-    <div style={{ flex: 1, background: accent ? c.accentBg : c.surface, border: `1px solid ${accent ? c.accentBorder : c.border}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
-      <p style={{ color: c.textSub, fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase', margin: '0 0 6px' }}>{label}</p>
-      <p style={{ color: accent ? c.accent : c.text, fontSize: 24, fontWeight: 700, margin: 0, lineHeight: 1 }}>{value}{unit}</p>
-    </div>
   )
 }
 
@@ -270,7 +257,7 @@ export default function Profile() {
   const [cropSrc, setCropSrc] = useState<string | null>(null)
   const cropUrlRef = useRef<string | null>(null)
 
-  const [weekDays, setWeekDays] = useState<boolean[]>(new Array(7).fill(false))
+  const [_weekDays, setWeekDays] = useState<boolean[]>(new Array(7).fill(false))
   const [prs, setPrs] = useState<{ exercise_name: string; weight: number }[]>([])
   const [totalWorkouts, setTotalWorkouts] = useState(0)
   const [totalVolume, setTotalVolume] = useState(0)
@@ -289,7 +276,7 @@ export default function Profile() {
   const [myProfileGroups, setMyProfileGroups] = useState<ProfileGroup[]>([])
 
   interface FriendCard { id: string; name: string; username: string; avatar_url: string | null; ascend_score: number }
-  const [friendCards, setFriendCards] = useState<FriendCard[]>([])
+  const [_friendCards, setFriendCards] = useState<FriendCard[]>([])
   const [friends, setFriends] = useState<FriendshipWithProfile[]>([])
   const [pendingReceived, setPendingReceived] = useState<FriendshipWithProfile[]>([])
   const [searchQuery, setSearchQuery] = useState('')

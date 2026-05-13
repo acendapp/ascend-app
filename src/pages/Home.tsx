@@ -68,20 +68,6 @@ interface FeedDisplayItem {
   userId?: string
 }
 
-// ── Reactions ─────────────────────────────────────────────────────────────────
-
-type ReactKey = 'clap'
-type Reactions = { clap: number }
-
-const REACTION_EMOJIS: Record<ReactKey, string> = { clap: '👏' }
-const REACTION_KEYS: ReactKey[] = ['clap']
-
-function seedReactions(id: string): Reactions {
-  let h = 5381
-  for (let i = 0; i < id.length; i++) h = ((h << 5) + h) ^ id.charCodeAt(i)
-  return { clap: (Math.abs(h) % 3) + 2 }  // 2–4
-}
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const DEMO_GYM_USERS: GymUser[] = [
@@ -136,34 +122,6 @@ function storeRankSnapshot(userId: string, rank: number) {
   } catch {}
 }
 
-// ── Feed Icon ─────────────────────────────────────────────────────────────────
-
-function FeedIcon({ type, delta, rankTier, accent }: { type: string; delta?: number; rankTier?: number; accent: string }) {
-  const wrap = (content: React.ReactNode) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 24, flexShrink: 0 }}>
-      {content}
-    </div>
-  )
-  if (type === 'checkin') return wrap(
-    <svg width="20" height="20" viewBox="0 0 24 24" fill={accent} style={{ display: 'block' }}>
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-    </svg>
-  )
-  if (type === 'pr') return wrap(<span style={{ fontSize: 18, lineHeight: 1, display: 'block' }}>🥇</span>)
-  if (type === 'streak') return wrap(<span style={{ fontSize: 18, lineHeight: 1, display: 'block' }}>🔥</span>)
-  if (type === 'leaderboard') return wrap(
-    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      <svg width="16" height="16" viewBox="0 0 18 18" fill="none" style={{ display: 'block' }}>
-        <path d="M4 13 L9 8 L14 13" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M4 9 L9 4 L14 9" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      {delta !== undefined && <span style={{ color: accent, fontSize: 11, fontWeight: 700, lineHeight: 1 }}>+{delta}</span>}
-    </div>
-  )
-  if (type === 'rank') return wrap(<RankBadge tier={rankTier ?? 1} size={24} accentColor={accent} />)
-  return wrap(<span style={{ fontSize: 18, lineHeight: 1, display: 'block' }}>💪</span>)
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -178,7 +136,7 @@ export default function Home() {
   const [isCheckedIn,           setIsCheckedIn]           = useState(false)
   const [checkinLoading,        setCheckinLoading]        = useState(false)
   const [workoutCompletedToday, setWorkoutCompletedToday] = useState(false)
-  const [hasAnyWorkout,         setHasAnyWorkout]         = useState(false)
+  const [_hasAnyWorkout,        setHasAnyWorkout]         = useState(false)
   const [workoutsCompleted,     setWorkoutsCompleted]     = useState(0)
   const [campusRank,            setCampusRank]            = useState(0)
   const [totalUsers,            setTotalUsers]            = useState(0)
@@ -193,7 +151,6 @@ export default function Home() {
   const [showGymDropdown,       setShowGymDropdown]       = useState(false)
   const [dropdownPos,           setDropdownPos]           = useState({ top: 0, left: 0 })
   const [showGymUsers,          setShowGymUsers]          = useState(false)
-  const [feedReactions,         setFeedReactions]         = useState<Record<string, { counts: Reactions; mine: { clap: boolean } }>>({})
   const [notifications,         setNotifications]         = useState<AppNotification[]>(() => loadNotifs())
   const [showNotifDropdown,     setShowNotifDropdown]     = useState(false)
   const [notifPos,              setNotifPos]              = useState({ top: 0, right: 0 })
@@ -557,32 +514,11 @@ export default function Home() {
   const pct          = (totalUsers > 0 && campusRank > 0) ? Math.ceil((campusRank / totalUsers) * 100) : null
   const rank         = getRankInfo(scores?.ascend_score ?? 0)
   const rankProgress = getRankProgress(scores?.ascend_score ?? 0, rank)
-  const myGroupStanding  = groupStandings.find(g => g.isMyGroup)
   const realCount        = liveAtGym.length
   const displayedGymUsers: GymUser[] = realCount >= 20
     ? liveAtGym
     : [...liveAtGym, ...DEMO_GYM_USERS.slice(0, Math.max(0, 16 - realCount))]
   const gymDisplayCount  = displayedGymUsers.length
-
-  function getItemReactions(id: string) {
-    return feedReactions[id] ?? { counts: seedReactions(id), mine: { clap: false } }
-  }
-
-  function handleReaction(itemId: string, key: ReactKey) {
-    setFeedReactions(prev => {
-      const current = prev[itemId] ?? { counts: seedReactions(itemId), mine: { clap: false } }
-      const counts = { ...current.counts }
-      const mine = { ...current.mine }
-      if (mine[key]) {
-        counts[key] = Math.max(0, counts[key] - 1)
-        mine[key] = false
-      } else {
-        counts[key]++
-        mine[key] = true
-      }
-      return { ...prev, [itemId]: { counts, mine } }
-    })
-  }
 
   const hasUnread = notifications.some(n => !n.read)
 
@@ -805,7 +741,7 @@ export default function Home() {
                   <span style={{ color: c.textSub, fontSize: 8, fontWeight: 600 }}>Ascend Score</span>
                   <button
                     onClick={() => setShowScoreInfo(true)}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: `1px solid ${c.textSub}`, flexShrink: 0 }}
+                    style={{ background: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 13, height: 13, borderRadius: '50%', border: `1px solid ${c.textSub}`, flexShrink: 0 }}
                     aria-label="Learn about Ascend Score"
                   >
                     <span style={{ color: c.textSub, fontSize: 7, fontWeight: 700, lineHeight: 1 }}>i</span>
@@ -890,7 +826,6 @@ export default function Home() {
             </div>
             <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 16, overflow: 'hidden' }}>
               {displayFeedItems.map((item, i) => {
-                const rx = getItemReactions(item.id)
                 return (
                   <div
                     key={item.id}
