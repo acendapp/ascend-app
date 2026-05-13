@@ -15,6 +15,7 @@
     font-family: system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     background-color: var(--bg, #F0F4FA);
+    overflow: hidden;
   }
 
   input, button, textarea, select {
@@ -45,7 +46,7 @@
 
 /* App shell: centers 390px content, fills rest with bg color */
 .app-shell {
-  min-height: 100vh;
+  height: 100dvh;
   background-color: var(--bg);
   display: flex;
   justify-content: center;
@@ -54,10 +55,12 @@
 .app-content {
   width: 100%;
   max-width: 390px;
-  min-height: 100vh;
+  height: 100dvh;
   background-color: var(--bg);
   position: relative;
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Scrollable page with bottom nav padding */
