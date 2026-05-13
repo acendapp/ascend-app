@@ -252,18 +252,6 @@ export default function BottomNav() {
             <span style={{ color: active ? c.accent : c.textSub, fontSize: 10, fontWeight: active ? 600 : 400 }}>
               {tab.label}
             </span>
-            {active && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  width: 20,
-                  height: 3,
-                  borderRadius: 2,
-                  background: c.accent,
-                }}
-              />
-            )}
           </button>
         )
       })}
