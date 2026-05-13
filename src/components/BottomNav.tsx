@@ -81,33 +81,12 @@ const tabs = [
     icon: (active: boolean, accent: string, inactive: string) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path
-          d="M3 21h18"
-          stroke={active ? accent : inactive}
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-        <path
-          d="M2 10l10-7 10 7"
-          stroke={active ? accent : inactive}
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <rect x="9" y="14" width="6" height="7"
+          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
           stroke={active ? accent : inactive}
           strokeWidth="1.8"
           strokeLinejoin="round"
         />
-        <rect x="4" y="12" width="4" height="4"
-          stroke={active ? accent : inactive}
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-        />
-        <rect x="16" y="12" width="4" height="4"
-          stroke={active ? accent : inactive}
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-        />
+        <circle cx="12" cy="9" r="2.5" stroke={active ? accent : inactive} strokeWidth="1.8" />
       </svg>
     ),
   },
