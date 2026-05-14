@@ -845,7 +845,10 @@ export default function Profile() {
           </div>
 
           {/* ── Friends ── */}
-          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>Friends</p>
+          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>Friends</p>
+          <p style={{ color: c.textSub, fontSize: 11, margin: '0 0 10px', lineHeight: 1.4 }}>
+            Each friend you add boosts your Ascend score.
+          </p>
 
           {/* Group-based friend suggestions */}
           {groupSuggestions.length > 0 && (

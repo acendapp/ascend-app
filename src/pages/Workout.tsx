@@ -25,11 +25,48 @@ interface SummaryData {
   exercisesCompleted: number
   totalVolume: number
   durationMinutes: number
-  newPRs: string[]
+  newPRs: { exercise: string; weight: number }[]
   scoreChange: number
   xpGain: number
   leveledUp: boolean
   newLevel: number
+  ascendScore: number
+  volumeTrend: number[]
+  streakDays: number
+  weekDays: boolean[]
+}
+
+// Small label-free volume sparkline — same smooth-line + gradient-fill style
+// as the VolumeChart on the History page, shrunk down for the summary card.
+function VolumeSparkline({ data, color }: { data: number[]; color: string }) {
+  if (data.length < 2) return null
+  const W = 100, H = 44
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  const range = max - min || 1
+  const pts = data.map((v, i) => [
+    (i / (data.length - 1)) * W,
+    H - ((v - min) / range) * H,
+  ] as [number, number])
+  const linePath = pts.map(([x, y], i) => {
+    if (i === 0) return `M${x},${y}`
+    const [px, py] = pts[i - 1]
+    const cx = (px + x) / 2
+    return `C${cx},${py} ${cx},${y} ${x},${y}`
+  }).join(' ')
+  const areaPath = `${linePath} L${W},${H} L0,${H} Z`
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: 44, display: 'block' }}>
+      <defs>
+        <linearGradient id="volSpark" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#volSpark)" />
+      <path d={linePath} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
 }
 
 // ── Muscle & joint selection ──────────────────────────────────────────────────
@@ -858,7 +895,7 @@ export default function Workout() {
         ...workout.finisher.map((ex, i) => ({ ex, key: `finisher_${i}` })),
       ]
 
-      const newPRs: string[] = []
+      const newPRs: { exercise: string; weight: number }[] = []
       let exercisesCompleted = 0
       let totalVolume = 0
 
@@ -898,7 +935,7 @@ export default function Workout() {
                 exercise_name: ex.exercise_name,
                 weight: Math.round(weight),
               })
-              newPRs.push(ex.exercise_name)
+              newPRs.push({ exercise: ex.exercise_name, weight: Math.round(weight) })
             }
           } catch (prErr) {
             console.error('PR check/insert error:', prErr)
@@ -912,6 +949,8 @@ export default function Workout() {
       let newLevel = 1
       let ascendScore = 0
       let previousAscendScore = 0
+      let newStreakDays = 1
+      let weekDays = [false, false, false, false, false, false, false]
       try {
         const DEFAULT_BODYWEIGHT_KG = 80
 
@@ -938,10 +977,16 @@ export default function Workout() {
         const monday = new Date()
         monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
         monday.setHours(0, 0, 0, 0)
-        const { count: weekCount } = await supabase
-          .from('workouts').select('id', { count: 'exact', head: true })
+        const { data: weekWk } = await supabase
+          .from('workouts').select('workout_date')
           .eq('user_id', user.id).eq('completed', true).gte('workout_date', monday.toISOString())
-        const consistencyScore = calculateConsistencyScore(weekCount ?? 0)
+        const weekCount = weekWk?.length ?? 0
+        weekDays = [false, false, false, false, false, false, false]
+        for (const w of weekWk ?? []) {
+          const d = new Date(w.workout_date as string)
+          weekDays[(d.getDay() + 6) % 7] = true  // Mon=0 … Sun=6
+        }
+        const consistencyScore = calculateConsistencyScore(weekCount)
 
         const { data: curScores } = await supabase
           .from('user_scores').select('social_score, streak_days, xp, level, ascend_score').eq('user_id', profileId).maybeSingle()
@@ -956,7 +1001,7 @@ export default function Workout() {
         const { data: prevWorkout } = await supabase
           .from('workouts').select('workout_date').eq('user_id', user.id).eq('completed', true)
           .neq('id', workoutRecord.id).order('workout_date', { ascending: false }).limit(1).maybeSingle()
-        let newStreakDays = 1
+        newStreakDays = 1
         if (prevWorkout) {
           const prevDate = (prevWorkout.workout_date as string).split('T')[0]
           if (prevDate === todayStr || prevDate === yesterdayStr || prevDate === twoDaysAgoStr) {
@@ -999,13 +1044,13 @@ export default function Workout() {
           subtitle: workout.session_label,
           metadata: { source: 'ascend_method', duration },
         })
-        for (const prName of newPRs) {
+        for (const pr of newPRs) {
           await logActivity({
             userId: profileId,
             eventType: 'pr',
             title: 'hit a new PR',
-            subtitle: prName,
-            metadata: { exercise: prName },
+            subtitle: `${pr.weight} lb ${pr.exercise}`,
+            metadata: { exercise: pr.exercise, weight: pr.weight },
           })
         }
         if (isStreakMilestone(newStreakDays)) {
@@ -1022,6 +1067,31 @@ export default function Workout() {
         console.error('Score update error:', scoreErr)
       }
 
+      // Volume trend for the summary sparkline — last completed workouts
+      let volumeTrend: number[] = []
+      try {
+        const { data: recentWk } = await supabase
+          .from('workouts').select('id, workout_date')
+          .eq('user_id', user.id).eq('completed', true)
+          .order('workout_date', { ascending: false }).limit(8)
+        const recentIds = (recentWk ?? []).map(w => w.id as string)
+        if (recentIds.length > 0) {
+          const { data: recentLogs } = await supabase
+            .from('exercise_logs').select('workout_id, weight, reps, sets')
+            .in('workout_id', recentIds)
+          const volByWk = new Map<string, number>()
+          for (const l of recentLogs ?? []) {
+            const v = ((l.weight as number) ?? 0) * ((l.reps as number) ?? 0) * ((l.sets as number) ?? 0)
+            volByWk.set(l.workout_id as string, (volByWk.get(l.workout_id as string) ?? 0) + v)
+          }
+          volumeTrend = (recentWk ?? [])
+            .slice().reverse()
+            .map(w => Math.round(volByWk.get(w.id as string) ?? 0))
+        }
+      } catch (vErr) {
+        console.error('Volume trend fetch error:', vErr)
+      }
+
       setSummaryData({
         sessionLabel: workout.session_label,
         exercisesCompleted,
@@ -1032,6 +1102,10 @@ export default function Workout() {
         xpGain,
         leveledUp,
         newLevel,
+        ascendScore,
+        volumeTrend,
+        streakDays: newStreakDays,
+        weekDays,
       })
       clearSession()
       localStorage.setItem('ascend_home_badge', '1')
@@ -1578,8 +1652,8 @@ export default function Workout() {
         </p>
         <div style={{ width: '100%', marginBottom: 32 }}>
           {summaryData.newPRs.map(pr => (
-            <div key={pr} style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 12, padding: '14px 18px', marginBottom: 8, textAlign: 'center' }}>
-              <span style={{ color: c.text, fontSize: 16, fontWeight: 700 }}>{pr}</span>
+            <div key={pr.exercise} style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 12, padding: '14px 18px', marginBottom: 8, textAlign: 'center' }}>
+              <span style={{ color: c.text, fontSize: 16, fontWeight: 700 }}>{pr.exercise} · {pr.weight} lb</span>
             </div>
           ))}
         </div>
@@ -1590,7 +1664,7 @@ export default function Workout() {
                 try {
                   await (navigator as unknown as { share: (o: object) => Promise<void> }).share({
                     title: 'New PR — Ascend',
-                    text: `Just hit a new personal record in ${summaryData.newPRs.join(' & ')} at Penn! 💪`,
+                    text: `Just hit a new personal record in ${summaryData.newPRs.map(p => p.exercise).join(' & ')} at Penn! 💪`,
                   })
                 } catch { /* cancelled */ }
               }}
@@ -1648,12 +1722,14 @@ export default function Workout() {
   // ── Summary screen ────────────────────────────────────────────────────────
 
   if (phase === 'summary' && summaryData) {
-    const summaryMuscles = workout
-      ? Array.from(new Set([
-          ...workout.main_work.map(e => normalizeMuscle(e.muscle_group)),
-          ...workout.finisher.map(e => normalizeMuscle(e.muscle_group)),
-        ]))
-      : []
+    const firstName = profile?.name?.trim().split(' ')[0] ?? ''
+    // Rough resistance-training estimate (~6.5 kcal/min)
+    const estimatedCalories = Math.round(summaryData.durationMinutes * 6.5)
+    const totalTimeStr = summaryData.durationMinutes >= 60
+      ? `${Math.floor(summaryData.durationMinutes / 60)}h ${summaryData.durationMinutes % 60}m`
+      : `${summaryData.durationMinutes}m`
+    const todayIdx = (new Date().getDay() + 6) % 7  // Mon=0 … Sun=6
+    const badgeInterior = c.isDark ? '#EAEAEA' : '#000000'
 
     return (
       <div className="app-shell">
@@ -1667,67 +1743,148 @@ export default function Workout() {
 
             {/* Workout title */}
             <h1 style={{ color: c.text, fontSize: 22, fontWeight: 800, margin: '0 0 4px', textAlign: 'center' }}>
-              {summaryData.sessionLabel ?? 'Workout Complete'}
+              Workout Complete!
             </h1>
-            <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 24px' }}>Great work. Keep the streak alive.</p>
+            <p style={{ color: c.textSub, fontSize: 13, margin: '0 0 24px', textAlign: 'center' }}>
+              {firstName ? `Great work, ${firstName}.` : 'Great work.'}
+            </p>
 
-            {/* 3 stat circles */}
-            <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-              {[
-                { label: 'Exercises', value: String(summaryData.exercisesCompleted), unit: '' },
-                { label: 'Volume', value: String(summaryData.totalVolume), unit: 'lb' },
-                { label: 'Duration', value: String(summaryData.durationMinutes), unit: 'min' },
-              ].map(stat => (
-                <div key={stat.label} style={{
-                  width: 90, height: 90, borderRadius: '50%',
-                  background: c.surface, border: `2px solid ${c.accentBorder}`,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <span style={{ color: c.accent, fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{stat.value}</span>
-                  {stat.unit && <span style={{ color: c.accent, fontSize: 10, fontWeight: 700 }}>{stat.unit}</span>}
-                  <span style={{ color: c.textSub, fontSize: 9, letterSpacing: '0.5px', marginTop: 2 }}>{stat.label.toUpperCase()}</span>
+            {/* Stats box — Calories / Time / Volume */}
+            <div style={{ width: '100%', background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 16, marginBottom: 24, minHeight: 160, boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              {/* Top half — three stat columns split by vertical dividers */}
+              <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                {/* Total Calories */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                  </svg>
+                  <span style={{ color: c.text, fontSize: 18, fontWeight: 700 }}>{estimatedCalories}</span>
+                  <span style={{ color: c.textSub, fontSize: 11 }}>Total Calories</span>
                 </div>
-              ))}
-            </div>
-
-            {/* Muscles trained */}
-            {summaryMuscles.length > 0 && (
-              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20, width: '100%' }}>
-                <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 12px' }}>Muscles Trained</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {summaryMuscles.map(m => (
-                    <span key={m} style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 20, padding: '6px 12px', color: c.accent, fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>{m}</span>
-                  ))}
+                <div style={{ width: 1, background: c.border, alignSelf: 'stretch' }} />
+                {/* Total Time */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke={c.accent} strokeWidth="2" />
+                    <path d="M12 7v5l3 3" stroke={c.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span style={{ color: c.text, fontSize: 18, fontWeight: 700 }}>{totalTimeStr}</span>
+                  <span style={{ color: c.textSub, fontSize: 11 }}>Total Time</span>
+                </div>
+                <div style={{ width: 1, background: c.border, alignSelf: 'stretch' }} />
+                {/* Total Volume */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 9v6M7 6v12M17 6v12M20 9v6M7 12h10" />
+                  </svg>
+                  <span style={{ color: c.text, fontSize: 18, fontWeight: 700 }}>{summaryData.totalVolume.toLocaleString()} lb</span>
+                  <span style={{ color: c.textSub, fontSize: 11 }}>Total Volume</span>
                 </div>
               </div>
-            )}
-
-            {/* Score change */}
-            <div style={{ width: '100%', background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: 16, marginBottom: 14, textAlign: 'center' }}>
-              <p style={{ color: c.textSub, fontSize: 12, margin: '0 0 6px' }}>Ascend Score</p>
-              <p style={{ color: c.accent, fontSize: 32, fontWeight: 700, margin: 0 }}>+{summaryData.scoreChange} pts</p>
-            </div>
-
-            {/* XP gain + level-up */}
-            <div style={{ width: '100%', background: c.surface, border: `1px solid ${summaryData.leveledUp ? c.accentBorder : c.border}`, borderRadius: 14, padding: 16, marginBottom: 14, textAlign: 'center' }}>
-              {summaryData.leveledUp ? (
-                <>
-                  <p style={{ color: '#F5A623', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>Level Up! 🎉</p>
-                  <p style={{ color: c.accent, fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Level {summaryData.newLevel}</p>
-                </>
-              ) : null}
-              <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>+{summaryData.xpGain} XP earned</p>
-            </div>
-
-            {/* PR highlights */}
-            {summaryData.newPRs.length > 0 && (
-              <div style={{ width: '100%', marginBottom: 14 }}>
-                <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 8px' }}>🏆 New Personal Records</p>
-                {summaryData.newPRs.map(pr => (
-                  <div key={pr} style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 10, padding: '8px 12px', marginBottom: 6 }}>
-                    <span style={{ color: c.accent, fontSize: 13, fontWeight: 600 }}>{pr}</span>
+              {/* Divider between top and bottom halves */}
+              <div style={{ height: 1, background: c.border, margin: '14px 0' }} />
+              {/* Bottom half — Ascend Score / effort note / volume trend */}
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
+                {/* Ascend Score — under the Total Calories column */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'inline-block', textAlign: 'center' }}>
+                    <p style={{ color: c.text, fontSize: 11, fontWeight: 700, margin: '-10px 0 0' }}>Ascend Score</p>
+                    <p style={{ color: c.accent, fontSize: 38, fontWeight: 800, margin: '2px 0 0', lineHeight: 1 }}>{summaryData.ascendScore}</p>
                   </div>
-                ))}
+                </div>
+                {/* Community note */}
+                <div style={{ flex: 1.7, textAlign: 'center' }}>
+                  <p style={{ color: c.textSub, fontSize: 10, margin: 0, lineHeight: 1.4 }}>
+                    You're climbing alongside<br />the community.
+                  </p>
+                </div>
+                {/* Volume trend sparkline */}
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <VolumeSparkline data={summaryData.volumeTrend} color={c.accent} />
+                  <div style={{
+                    position: 'absolute', bottom: -3, right: -3,
+                    background: '#DCFCE7', color: '#15803D',
+                    fontSize: 9, fontWeight: 700,
+                    borderRadius: 6, padding: '2px 5px', whiteSpace: 'nowrap',
+                  }}>
+                    +{summaryData.scoreChange} pts
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Streak — badge + weekly progress */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
+              {/* Streak badge — double-bordered hexagon, centered beneath the Ascend Score */}
+              <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+                <div style={{ position: 'relative', width: 74, height: 74 }}>
+                  <svg width="74" height="74" viewBox="0 0 80 80" style={{ position: 'absolute', inset: 0 }}>
+                    {/* Outermost border — theme color */}
+                    <polygon points="40,2 72.9,21 72.9,59 40,78 7.1,59 7.1,21" fill={c.accent} />
+                    {/* Inner border — app background */}
+                    <polygon points="40,7 68.6,23.5 68.6,56.5 40,73 11.4,56.5 11.4,23.5" fill={c.bg} />
+                    {/* Interior — black (light mode) / off-white (dark mode) */}
+                    <polygon points="40,11 65.1,25.5 65.1,54.5 40,69 14.9,54.5 14.9,25.5" fill={badgeInterior} />
+                  </svg>
+                  {/* Streak number — slightly above center, unbold */}
+                  <span style={{
+                    position: 'absolute', top: 21, left: 0, right: 0, textAlign: 'center',
+                    color: c.bg, fontSize: 24, fontWeight: 700, lineHeight: 1,
+                  }}>{summaryData.streakDays}</span>
+                  {/* DAY STREAK banner — crosses the hexagon, ends extend past its edges */}
+                  <div style={{
+                    position: 'absolute', top: 50, left: -2, right: -2, height: 11,
+                    background: c.accent, borderRadius: 4,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ color: c.bg, fontSize: 8, fontWeight: 700, letterSpacing: 0.5, lineHeight: 1 }}>DAY STREAK</span>
+                  </div>
+                </div>
+              </div>
+              {/* Streak details */}
+              <div style={{ flex: 2.7 }}>
+                <p style={{ color: c.text, fontSize: 15, fontWeight: 800, margin: 0 }}>
+                  {summaryData.streakDays} Day Streak 🔥
+                </p>
+                <p style={{ color: c.textSub, fontSize: 12, margin: '2px 0 0' }}>
+                  You're on fire. Keep it going
+                </p>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((label, i) => {
+                    const done = summaryData.weekDays[i] || i === todayIdx
+                    return (
+                      <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                        <div style={{
+                          width: 18, height: 18, borderRadius: '50%',
+                          background: done ? c.accent : 'transparent',
+                          border: `1.5px solid ${done ? c.accent : c.border}`,
+                          boxShadow: i === todayIdx ? `0 0 0 2px ${c.accentBg}` : 'none',
+                        }} />
+                        <span style={{ color: c.textSub, fontSize: 8, fontWeight: 600 }}>{label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Records */}
+            {summaryData.newPRs.length > 0 && (
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20, width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 12px' }}>
+                  <span style={{ color: c.text, fontSize: 13, fontWeight: 700 }}>Personal Records</span>
+                  <span style={{ color: c.accent, fontSize: 12, fontWeight: 700 }}>
+                    {summaryData.newPRs.length} new PR{summaryData.newPRs.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {summaryData.newPRs.map(pr => (
+                    <div key={pr.exercise} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ color: c.text, fontSize: 13, fontWeight: 600 }}>{pr.exercise}</span>
+                      <span style={{ color: c.text, fontSize: 13, fontWeight: 400 }}>{pr.weight} lb</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1739,7 +1896,7 @@ export default function Workout() {
                   {([
                     { rating: 1, emoji: '😴', label: 'Too easy' },
                     { rating: 2, emoji: '💪', label: 'Just right' },
-                    { rating: 3, emoji: '🔥', label: 'Too hard' },
+                    { rating: 3, emoji: '🥵', label: 'Too hard' },
                   ] as { rating: number; emoji: string; label: string }[]).map(opt => (
                     <button
                       key={opt.rating}

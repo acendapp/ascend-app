@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useLayoutEffect, useState } from 'react'
 
 export type Theme = 'light' | 'dark'
 
@@ -101,7 +101,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setAccentKeyState(key)
   }
 
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so the data-theme attribute / CSS variables
+  // flip in the same frame as the React inline styles — otherwise the two color
+  // systems desync by a frame and the theme toggle glitches.
+  useLayoutEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     document.body.style.backgroundColor = colors.bg
   }, [theme, colors.bg])

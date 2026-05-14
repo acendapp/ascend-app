@@ -16,6 +16,7 @@ interface FeedDisplayItem {
   rankTier?: number
   isPlaceholder: boolean
   userId?: string
+  avatarUrl?: string | null
 }
 
 // ── Reactions ─────────────────────────────────────────────────────────────────
@@ -113,12 +114,14 @@ export default function FeedPage() {
         .order('created_at', { ascending: false })
         .limit(15)
 
-      // Resolve names for friend IDs
+      // Resolve names + avatars for everyone visible (self + friends)
       const nameMap = new Map<string, string>()
-      if (friendIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('users').select('id, name').in('id', friendIds)
-        for (const p of profiles ?? []) nameMap.set(p.id as string, p.name as string)
+      const avatarMap = new Map<string, string | null>()
+      const { data: profiles } = await supabase
+        .from('users').select('id, name, avatar_url').in('id', visibleIds)
+      for (const p of profiles ?? []) {
+        nameMap.set(p.id as string, p.name as string)
+        avatarMap.set(p.id as string, (p.avatar_url as string | null) ?? null)
       }
 
       const realItems: FeedDisplayItem[] = (events ?? []).map(ev => ({
@@ -129,6 +132,7 @@ export default function FeedPage() {
         timeStr: timeAgo(ev.created_at as string),
         activityType: ev.event_type as FeedDisplayItem['activityType'],
         isPlaceholder: false,
+        avatarUrl: avatarMap.get(ev.user_id as string) ?? null,
         userId: ev.user_id === user.id ? undefined : ev.user_id as string,
       }))
 
@@ -176,8 +180,10 @@ export default function FeedPage() {
                       onClick={() => !item.isPlaceholder && item.userId ? navigate(`/profile/${item.userId}`) : undefined}
                       style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: item.isPlaceholder ? 'default' : 'pointer' }}
                     >
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.surfaceHigh, border: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
-                        {initials(item.name)}
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.surfaceHigh, border: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 12, fontWeight: 600, flexShrink: 0, overflow: 'hidden' }}>
+                        {item.avatarUrl
+                          ? <img src={item.avatarUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : initials(item.name)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: '0 0 3px', fontSize: 13, lineHeight: '17px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

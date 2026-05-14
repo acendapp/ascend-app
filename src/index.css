@@ -23,9 +23,9 @@
   }
 }
 
-/* Smooth theme transition on all elements */
-*, *::before, *::after {
-  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+/* Smooth theme transition. Pseudo-elements excluded to cut needless jank. */
+* {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
 }
 
 :root {

@@ -62,6 +62,7 @@ interface FeedDisplayItem {
   kudosCount?: number
   userGaveKudos?: boolean
   userId?: string
+  avatarUrl?: string | null
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -213,9 +214,11 @@ export default function Home() {
           .limit(15)
 
         const nameMap = new Map<string, string>()
-        if (friendIds.length > 0) {
-          const { data: fps } = await supabase.from('users').select('id, name').in('id', friendIds)
-          for (const p of fps ?? []) nameMap.set(p.id as string, p.name as string)
+        const avatarMap = new Map<string, string | null>()
+        const { data: fps } = await supabase.from('users').select('id, name, avatar_url').in('id', visibleIds)
+        for (const p of fps ?? []) {
+          nameMap.set(p.id as string, p.name as string)
+          avatarMap.set(p.id as string, (p.avatar_url as string | null) ?? null)
         }
 
         const realItems: FeedDisplayItem[] = (events ?? []).map(ev => ({
@@ -226,6 +229,7 @@ export default function Home() {
           timeStr: timeAgo(ev.created_at as string),
           activityType: ev.event_type as FeedDisplayItem['activityType'],
           isPlaceholder: false,
+          avatarUrl: avatarMap.get(ev.user_id as string) ?? null,
           userId: ev.user_id === user.id ? undefined : ev.user_id as string,
         }))
         setActivityFeed(realItems)
@@ -506,7 +510,7 @@ export default function Home() {
     saveNotifs([])
   }
 
-  const HOME_FEED_CAP = 6
+  const HOME_FEED_CAP = 3
   const displayFeedItems: FeedDisplayItem[] = [
     ...activityFeed,
     ...DEMO_FEED.slice(0, Math.max(0, HOME_FEED_CAP - activityFeed.length)),
@@ -791,8 +795,10 @@ export default function Home() {
                       onClick={() => !item.isPlaceholder && item.userId ? navigate(`/profile/${item.userId}`) : undefined}
                       style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: item.isPlaceholder ? 'default' : 'pointer' }}
                     >
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.surfaceHigh, border: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
-                        {item.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.surfaceHigh, border: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 12, fontWeight: 600, flexShrink: 0, overflow: 'hidden' }}>
+                        {item.avatarUrl
+                          ? <img src={item.avatarUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : item.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ margin: '0 0 3px', fontSize: 13, lineHeight: '17px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

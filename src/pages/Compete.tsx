@@ -356,7 +356,7 @@ async function computeChallengeRankings(
 
 export default function Compete() {
   const navigate = useNavigate()
-  const { colors: c } = useTheme()
+  const { colors: c, toggleTheme } = useTheme()
 
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -538,11 +538,12 @@ export default function Compete() {
 
       // Top performers this week — ranked by ascend score gained in the last 7 days
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      const { data: weekWorkouts } = await supabase
+      const { data: weekWorkouts, error: weekWorkoutsErr } = await supabase
         .from('workouts')
-        .select('user_id, score_change')
+        .select('user_id, score_change, workout_date')
         .eq('completed', true)
         .gte('workout_date', weekAgo)
+      console.log('[TopPerformers] weekWorkouts:', weekWorkouts, 'error:', weekWorkoutsErr)
       const weekGains = new Map<string, number>()
       for (const w of weekWorkouts ?? []) {
         const uid = w.user_id as string
@@ -552,6 +553,7 @@ export default function Compete() {
         .filter(([, gain]) => gain > 0)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
+      console.log('[TopPerformers] per-user gains:', [...weekGains.entries()], '→ topWeek:', topWeek)
       if (topWeek.length > 0) {
         const topWeekIds = topWeek.map(([uid]) => uid)
         const [weekProfiles, weekScores] = await Promise.all([
@@ -859,19 +861,40 @@ export default function Compete() {
           {/* Header */}
           <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
             <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: 0 }}>Campus</h1>
-            <button
-              ref={notifBtnRef}
-              onClick={e => { e.stopPropagation(); openNotifDropdown() }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, position: 'relative' }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke={c.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke={c.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {hasUnread && (
-                <span style={{ position: 'absolute', bottom: 0, right: 0, width: 7, height: 7, borderRadius: '50%', background: '#2B7FE0', border: `1.5px solid ${c.bg}` }} />
-              )}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button onClick={toggleTheme} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {c.isDark ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="5" stroke={c.text} strokeWidth="2" />
+                    <line x1="12" y1="2" x2="12" y2="4" stroke={c.text} strokeWidth="2" strokeLinecap="round" />
+                    <line x1="12" y1="20" x2="12" y2="22" stroke={c.text} strokeWidth="2" strokeLinecap="round" />
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke={c.text} strokeWidth="2" strokeLinecap="round" />
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke={c.text} strokeWidth="2" strokeLinecap="round" />
+                    <line x1="2" y1="12" x2="4" y2="12" stroke={c.text} strokeWidth="2" strokeLinecap="round" />
+                    <line x1="20" y1="12" x2="22" y2="12" stroke={c.text} strokeWidth="2" strokeLinecap="round" />
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke={c.text} strokeWidth="2" strokeLinecap="round" />
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke={c.text} strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke={c.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+              <button
+                ref={notifBtnRef}
+                onClick={e => { e.stopPropagation(); openNotifDropdown() }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, position: 'relative' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke={c.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke={c.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {hasUnread && (
+                  <span style={{ position: 'absolute', bottom: 0, right: 0, width: 7, height: 7, borderRadius: '50%', background: '#2B7FE0', border: `1.5px solid ${c.bg}` }} />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* University selector — same style as gym button on Home */}
@@ -992,10 +1015,10 @@ export default function Compete() {
                     { name: 'Fox Fitness Center', active: 5 },
                     { name: 'Private Gyms', active: 3 },
                   ].map(g => (
-                    <div key={g.name} style={{ flex: 1, background: '#fff', borderRadius: 8, padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 1px 5px rgba(0,0,0,0.18)' }}>
-                      <p style={{ color: '#1a1a1a', fontSize: 11, fontWeight: 700, margin: 0, lineHeight: 1.25, height: 28, overflow: 'hidden' }}>{g.name}</p>
+                    <div key={g.name} style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 1px 5px rgba(0,0,0,0.18)' }}>
+                      <p style={{ color: c.text, fontSize: 11, fontWeight: 700, margin: 0, lineHeight: 1.25, height: 28, overflow: 'hidden' }}>{g.name}</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
-                        <span style={{ color: '#555', fontSize: 10, fontWeight: 600 }}>{g.active} active</span>
+                        <span style={{ color: c.textSub, fontSize: 10, fontWeight: 600 }}>{g.active} active</span>
                         <span
                           className="presence-dot"
                           style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#3BF0A0', flexShrink: 0 }}
@@ -1076,43 +1099,51 @@ export default function Compete() {
             onAction={() => setShowFullModal('campus')}
             c={c}
           />
-          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '18px 12px', marginBottom: 20, display: 'flex', gap: 8 }}>
-            {topThreePeople(weeklyTopPerformers).map(row => {
-              const isUser = !row.isPlaceholder && row.userId === userId
-              return (
-                <div
-                  key={row.userId}
-                  onClick={() => (!row.isPlaceholder && !isUser ? navigate(`/profile/${row.userId}`) : undefined)}
-                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: row.isPlaceholder ? 0.35 : 1, cursor: row.isPlaceholder || isUser ? 'default' : 'pointer' }}
-                >
-                  {/* Profile picture with rank badge on the top-left */}
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: c.border, border: isUser ? `2px solid ${c.accent}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 18, fontWeight: 700, overflow: 'hidden' }}>
-                      {row.avatarUrl
-                        ? <img src={row.avatarUrl} alt={row.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : row.initials}
+          {weeklyTopPerformers.length === 0 ? (
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
+              <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>
+                No score gains logged yet this week — finish a workout to get on the board.
+              </p>
+            </div>
+          ) : (
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '18px 12px', marginBottom: 20, display: 'flex', gap: 8 }}>
+              {weeklyTopPerformers.map(row => {
+                const isUser = row.userId === userId
+                return (
+                  <div
+                    key={row.userId}
+                    onClick={() => (!isUser ? navigate(`/profile/${row.userId}`) : undefined)}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: isUser ? 'default' : 'pointer' }}
+                  >
+                    {/* Profile picture with rank badge on the top-left */}
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ width: 56, height: 56, borderRadius: '50%', background: c.border, border: isUser ? `2px solid ${c.accent}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 18, fontWeight: 700, overflow: 'hidden' }}>
+                        {row.avatarUrl
+                          ? <img src={row.avatarUrl} alt={row.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : row.initials}
+                      </div>
+                      <div style={{ position: 'absolute', top: -3, left: -3, width: 20, height: 20, borderRadius: '50%', background: RANK_COLORS[row.rank] ?? c.textSub, color: '#fff', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${c.surface}` }}>
+                        {row.rank}
+                      </div>
                     </div>
-                    <div style={{ position: 'absolute', top: -3, left: -3, width: 20, height: 20, borderRadius: '50%', background: RANK_COLORS[row.rank] ?? c.textSub, color: '#fff', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${c.surface}` }}>
-                      {row.rank}
-                    </div>
+                    {/* Initials underneath */}
+                    <p style={{ color: c.text, fontSize: 12, fontWeight: 700, margin: '8px 0 0' }}>{row.initials}</p>
+                    {/* Ascend score underneath, in the user's theme color */}
+                    <p style={{ color: c.accent, fontSize: 13, fontWeight: 700, margin: '2px 0 0' }}>{row.score}</p>
+                    {/* Ascend score gained this week */}
+                    <p style={{ color: '#3BF0A0', fontSize: 11, fontWeight: 600, margin: '2px 0 0' }}>
+                      +{row.weeklyGain} this wk
+                    </p>
                   </div>
-                  {/* Initials underneath */}
-                  <p style={{ color: c.text, fontSize: 12, fontWeight: 700, margin: '8px 0 0' }}>{row.initials}</p>
-                  {/* Ascend score underneath, in the user's theme color */}
-                  <p style={{ color: c.accent, fontSize: 13, fontWeight: 700, margin: '2px 0 0' }}>{row.score}</p>
-                  {/* Ascend score gained this week */}
-                  <p style={{ color: '#3BF0A0', fontSize: 11, fontWeight: 600, margin: '2px 0 0' }}>
-                    {row.weeklyGain ? `+${row.weeklyGain} this wk` : '—'}
-                  </p>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
 
           {/* Group Activity */}
-          <div style={{ background: '#fff', borderRadius: 14, padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 5px rgba(0,0,0,0.12)' }}>
-            <span style={{ color: '#1a1a1a', fontSize: 14, fontWeight: 700 }}>Group Activity</span>
-            <span style={{ color: '#888', fontSize: 12, fontWeight: 600 }}>This Week</span>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 5px rgba(0,0,0,0.12)' }}>
+            <span style={{ color: c.text, fontSize: 14, fontWeight: 700 }}>Group Activity</span>
+            <span style={{ color: c.textSub, fontSize: 12, fontWeight: 600 }}>This Week</span>
           </div>
 
           {/* Campus Standings — always-live computed competitions */}
@@ -1158,7 +1189,10 @@ export default function Compete() {
             <LockedCard hint="See how you stack up against your friends" c={c} />
           ) : !hasFriends ? (
             <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: 24, textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>Add friends on your profile to compete</p>
+              <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>Add friends to climb faster</p>
+              <p style={{ color: c.textSub, fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+                Each friend adds to your social score — 20% of your Ascend Score. Add them on your profile.
+              </p>
             </div>
           ) : (
             <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>

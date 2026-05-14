@@ -32,10 +32,19 @@ export async function logActivity(opts: {
 // Records the ascend-score delta a workout produced, so weekly-gain
 // leaderboards can sum score_change over a time window.
 export async function recordScoreChange(workoutId: string, delta: number): Promise<void> {
-  try {
-    await supabase.from('workouts').update({ score_change: delta }).eq('id', workoutId)
-  } catch (err) {
-    console.error('recordScoreChange failed:', err)
+  // supabase-js resolves (doesn't throw) on Postgres/RLS errors — check `error`
+  // explicitly, and `.select()` so we can see whether the update matched a row.
+  const { data, error } = await supabase
+    .from('workouts')
+    .update({ score_change: delta })
+    .eq('id', workoutId)
+    .select('id, score_change')
+  if (error) {
+    console.error('[recordScoreChange] failed:', error)
+  } else if (!data || data.length === 0) {
+    console.warn('[recordScoreChange] update matched 0 rows (RLS?) for workout', workoutId)
+  } else {
+    console.log('[recordScoreChange] OK — workout', workoutId, 'score_change =', data[0].score_change)
   }
 }
 
