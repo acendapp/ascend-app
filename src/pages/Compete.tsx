@@ -1,8 +1,38 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/theme'
 import type { UserScores } from '../types'
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+interface AppNotification { id: string; message: string; timestamp: number; read: boolean }
+const NOTIF_KEY = 'ascend_notifs'
+const NOTIF_VERSION = 3
+function loadNotifs(): AppNotification[] {
+  try {
+    if (Number(localStorage.getItem(NOTIF_KEY + '_v')) !== NOTIF_VERSION) return []
+    return JSON.parse(localStorage.getItem(NOTIF_KEY) ?? '[]')
+  } catch { return [] }
+}
+function saveNotifs(n: AppNotification[]) {
+  localStorage.setItem(NOTIF_KEY, JSON.stringify(n))
+  localStorage.setItem(NOTIF_KEY + '_v', String(NOTIF_VERSION))
+}
+
+// ── Gym placeholder users ─────────────────────────────────────────────────────
+
+interface GymUser { id: string; name: string }
+const DEMO_GYM_USERS: GymUser[] = [
+  { id: 'd1', name: 'Alex Kim' }, { id: 'd2', name: 'Sarah Chen' },
+  { id: 'd3', name: 'Marcus Lee' }, { id: 'd4', name: 'Priya Patel' },
+  { id: 'd5', name: 'Jordan Wu' }, { id: 'd6', name: 'Tyler Ross' },
+  { id: 'd7', name: 'Emma Liu' }, { id: 'd8', name: 'Kai Nguyen' },
+  { id: 'd9', name: 'Zara Ahmed' }, { id: 'd10', name: 'Chris Park' },
+  { id: 'd11', name: 'Nina Reyes' }, { id: 'd12', name: 'David Osei' },
+  { id: 'd13', name: 'Lily Torres' }, { id: 'd14', name: 'Omar Hassan' },
+  { id: 'd15', name: 'Mia Johnson' }, { id: 'd16', name: 'Ben Zhao' },
+]
 
 // ── Local types ───────────────────────────────────────────────────────────────
 
@@ -286,6 +316,17 @@ export default function Compete() {
   const [rankChanges, setRankChanges] = useState<Record<string, number>>({})
   const [showFullModal, setShowFullModal] = useState<'friends' | 'campus' | 'groups' | null>(null)
 
+  const [notifications,     setNotifications]     = useState<AppNotification[]>(() => loadNotifs())
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false)
+  const [notifPos,          setNotifPos]          = useState({ top: 0, right: 0 })
+  const notifBtnRef   = useRef<HTMLButtonElement>(null)
+  const gymUsersBtnRef = useRef<HTMLButtonElement>(null)
+  const [todayWorkoutCount,  setTodayWorkoutCount]  = useState(0)
+  const [liveAtGym,          setLiveAtGym]          = useState<GymUser[]>([])
+  const [trainedTodayUsers,  setTrainedTodayUsers]  = useState<GymUser[]>([])
+  const [showGymUsers,      setShowGymUsers]      = useState(false)
+  const [gymUsersPos,       setGymUsersPos]       = useState({ top: 0, right: 0 })
+
   // ── Main data load ──────────────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
@@ -309,6 +350,29 @@ export default function Compete() {
         .gt('ascend_score', userScore)
       const myRank = (higherCount ?? 0) + 1
       setCampusRank(myRank)
+
+      // Today's community workout count
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+      const { count: todayCount } = await supabase
+        .from('workouts').select('id', { count: 'exact', head: true })
+        .eq('completed', true).gte('workout_date', todayStart.toISOString())
+      setTodayWorkoutCount(todayCount ?? 0)
+
+      // Live gym users (for pulsing dot count)
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      const { data: gymData } = await supabase.from('users').select('id, name')
+        .gte('gym_checkin_at', twoHoursAgo).neq('id', user.id).limit(20)
+      setLiveAtGym((gymData ?? []).map(u => ({ id: u.id as string, name: u.name as string })))
+
+      // Users who trained today (for avatar cluster)
+      const { data: todayWkRows } = await supabase
+        .from('workouts').select('user_id').eq('completed', true)
+        .gte('workout_date', todayStart.toISOString()).neq('user_id', user.id)
+      const todayUids = [...new Set((todayWkRows ?? []).map(w => w.user_id as string))]
+      if (todayUids.length > 0) {
+        const { data: todayProfiles } = await supabase.from('users').select('id, name').in('id', todayUids).limit(20)
+        setTrainedTodayUsers((todayProfiles ?? []).map(p => ({ id: p.id as string, name: p.name as string })))
+      }
 
       // Leaderboard eligibility gate — require 3 completed workouts
       const { count: wCount } = await supabase
@@ -641,6 +705,21 @@ export default function Compete() {
     }
   }
 
+  // ── Notification handler ────────────────────────────────────────────────────
+
+  function openNotifDropdown() {
+    if (notifBtnRef.current) {
+      const rect = notifBtnRef.current.getBoundingClientRect()
+      setNotifPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+    }
+    setNotifications(prev => {
+      const next = prev.map(n => ({ ...n, read: true }))
+      saveNotifs(next)
+      return next
+    })
+    setShowNotifDropdown(v => !v)
+  }
+
   // ── Loading state ───────────────────────────────────────────────────────────
 
   if (loading) {
@@ -657,22 +736,102 @@ export default function Compete() {
   const joinedChallenges = computedChallenges.filter(c => c.joined)
   const availableChallenges = computedChallenges.filter(c => !c.joined)
 
+  const realGymCount = liveAtGym.length
+  const displayedGymUsers = realGymCount >= 20
+    ? liveAtGym
+    : [...liveAtGym, ...DEMO_GYM_USERS.slice(0, Math.max(0, 16 - realGymCount))]
+  const gymDisplayCount = displayedGymUsers.length
+
+  const displayedTrainedUsers = trainedTodayUsers
+  const hasUnread = notifications.some(n => !n.read)
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="app-shell">
-      <div className="app-content page-scroll" style={{ background: c.bg }}>
+      <div
+        className="app-content page-scroll"
+        style={{ background: c.bg }}
+        onClick={() => { showGymUsers && setShowGymUsers(false); showNotifDropdown && setShowNotifDropdown(false) }}
+      >
         <div style={{ padding: '52px 20px 0' }}>
 
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: 0 }}>Compete</h1>
+          <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+            <h1 style={{ color: c.text, fontSize: 24, fontWeight: 700, margin: 0 }}>Campus</h1>
             <button
-              onClick={() => navigate('/groups')}
-              style={{ background: 'none', border: 'none', color: c.accent, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              ref={notifBtnRef}
+              onClick={e => { e.stopPropagation(); openNotifDropdown() }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, position: 'relative' }}
             >
-              My Groups →
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke={c.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke={c.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {hasUnread && (
+                <span style={{ position: 'absolute', bottom: 0, right: 0, width: 7, height: 7, borderRadius: '50%', background: '#2B7FE0', border: `1.5px solid ${c.bg}` }} />
+              )}
             </button>
+          </div>
+
+          {/* University selector — same style as gym button on Home */}
+          <button
+            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: 0, marginBottom: 14 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={c.accent}>
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+            </svg>
+            <span style={{ color: c.text, fontSize: 14, fontWeight: 600 }}>University of Pennsylvania</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9l6 6 6-6" stroke={c.textSub} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          {/* Penn Fitness Activity */}
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '12px 16px', marginBottom: 20 }}>
+            <p style={{ color: c.textSub, fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 5px' }}>
+              Penn Fitness Activity
+            </p>
+
+            {/* Workouts + avatar cluster on same row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <p style={{ color: c.text, fontSize: 11, fontWeight: 700, margin: 0 }}>
+                <span style={{ color: c.accent }}>{todayWorkoutCount}</span>{' '}
+                {todayWorkoutCount === 1 ? 'workout' : 'workouts'} logged today
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center' }}>
+                {displayedTrainedUsers.length > 4 && (
+                  <button
+                    ref={gymUsersBtnRef}
+                    onClick={e => {
+                      e.stopPropagation()
+                      const rect = gymUsersBtnRef.current?.getBoundingClientRect()
+                      if (rect) setGymUsersPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right })
+                      setShowGymUsers(v => !v)
+                    }}
+                    style={{ width: 24, height: 24, borderRadius: '50%', background: c.accent, border: `2px solid ${c.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 8, fontWeight: 700, flexShrink: 0, cursor: 'pointer' }}
+                  >
+                    +{displayedTrainedUsers.length - 4}
+                  </button>
+                )}
+                {[...displayedTrainedUsers.slice(0, 4)].reverse().map((u, i) => (
+                  <div key={u.id} style={{ width: 24, height: 24, borderRadius: '50%', background: c.border, border: `2px solid ${c.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 9, fontWeight: 700, marginLeft: (i > 0 || displayedTrainedUsers.length > 4) ? -6 : 0, flexShrink: 0 }}>
+                    {initials(u.name)}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* People training */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span
+                className="presence-dot"
+                style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#3BF0A0', flexShrink: 0 }}
+              />
+              <span style={{ color: c.text, fontSize: 11, fontWeight: 600 }}>
+                <span style={{ color: '#3BF0A0' }}>{gymDisplayCount}</span> people training now
+              </span>
+            </div>
           </div>
 
           {/* 3-workout gate banner */}
@@ -966,6 +1125,46 @@ export default function Compete() {
 
         </div>
       </div>
+
+      {/* Notification dropdown */}
+      {showNotifDropdown && (
+        <div
+          style={{ position: 'fixed', top: notifPos.top, right: notifPos.right, zIndex: 500, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, width: 300, maxHeight: 400, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div style={{ padding: '12px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${c.border}` }}>
+            <span style={{ color: c.text, fontSize: 13, fontWeight: 700 }}>Notifications</span>
+            <button onClick={() => { setNotifications([]); saveNotifs([]) }} style={{ background: 'none', border: 'none', color: c.textSub, fontSize: 11, cursor: 'pointer', padding: 0 }}>Clear all</button>
+          </div>
+          {notifications.length === 0 ? (
+            <p style={{ color: c.textSub, fontSize: 13, textAlign: 'center', padding: '20px 16px', margin: 0 }}>No notifications yet</p>
+          ) : notifications.map(n => (
+            <div key={n.id} style={{ padding: '10px 16px', borderBottom: `1px solid ${c.border}` }}>
+              <p style={{ color: c.text, fontSize: 12, margin: '0 0 3px', lineHeight: 1.5 }}>{n.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Gym users dropdown */}
+      {showGymUsers && (
+        <div
+          style={{ position: 'fixed', top: gymUsersPos.top, right: gymUsersPos.right, zIndex: 500, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, width: 220, maxHeight: 320, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: 0, padding: '12px 14px 8px', borderBottom: `1px solid ${c.border}` }}>
+            Trained Today
+          </p>
+          {displayedTrainedUsers.map(u => (
+            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: `1px solid ${c.border}` }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                {initials(u.name)}
+              </div>
+              <span style={{ color: c.text, fontSize: 13, fontWeight: 500 }}>{u.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Full leaderboard modal */}
       {showFullModal && (
