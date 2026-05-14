@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { calculateXPGain, getLevelFromXP, calculateConsistencyScore, calculateAscendScore, getRankInfo } from '../lib/scoring'
-import { logActivity, isStreakMilestone } from '../lib/activity'
+import { logActivity, isStreakMilestone, recordScoreChange } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 
 const CLASS_TYPES = [
@@ -53,7 +53,7 @@ export default function ClassWorkout() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/auth'); return }
 
-      await supabase.from('workouts').insert({
+      const { data: workoutRecord } = await supabase.from('workouts').insert({
         user_id: user.id,
         workout_date: new Date().toISOString(),
         workout_type: classLabel,
@@ -63,7 +63,7 @@ export default function ClassWorkout() {
         class_type: classLabel,
         intensity,
         studio_name: studio.trim() || null,
-      })
+      }).select().single()
 
       const { data: curScores } = await supabase
         .from('user_scores').select('xp, level, streak_days, strength_score, social_score, ascend_score').eq('user_id', user.id).maybeSingle()
@@ -106,6 +106,10 @@ export default function ClassWorkout() {
 
       // ── Activity feed events ──────────────────────────────────────────────
       const prevScore = curScores?.ascend_score ?? 0
+      // Record this workout's score delta for weekly-gain leaderboards
+      if (workoutRecord) {
+        await recordScoreChange(workoutRecord.id as string, ascendScore - prevScore)
+      }
       await logActivity({
         userId: user.id,
         eventType: 'workout',

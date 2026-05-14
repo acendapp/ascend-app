@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs, calculateConsistencyScore, calculateAscendScore, getRankInfo } from '../lib/scoring'
-import { logActivity, isStreakMilestone } from '../lib/activity'
+import { logActivity, isStreakMilestone, recordScoreChange } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 import exerciseDB from '../data/exercises.json'
 
@@ -59,11 +59,11 @@ function loadCustomSession(): CustomSession | null {
 }
 
 function saveCustomSession(s: CustomSession) {
-  try { localStorage.setItem(CUSTOM_SESSION_KEY, JSON.stringify(s)) } catch {}
+  try { localStorage.setItem(CUSTOM_SESSION_KEY, JSON.stringify(s)) } catch { /* ignore */ }
 }
 
 function clearCustomSession() {
-  try { localStorage.removeItem(CUSTOM_SESSION_KEY) } catch {}
+  try { localStorage.removeItem(CUSTOM_SESSION_KEY) } catch { /* ignore */ }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ export default function CustomWorkout() {
     }
 
     setPhase('template-list')
-  }, [navigate, directTemplateId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [navigate, directTemplateId])
 
   useEffect(() => { loadTemplates() }, [loadTemplates])
 
@@ -442,6 +442,8 @@ export default function CustomWorkout() {
 
       // ── Activity feed events ──────────────────────────────────────────────
       const prevScore = curScores?.ascend_score ?? 0
+      // Record this workout's score delta for weekly-gain leaderboards
+      await recordScoreChange(workoutRecord.id as string, ascendScore - prevScore)
       await logActivity({
         userId,
         eventType: 'workout',

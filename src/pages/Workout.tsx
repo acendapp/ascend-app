@@ -13,7 +13,7 @@ import {
   getLevelFromXP,
 } from '../lib/scoring'
 import { notificationPermission, requestPushPermission } from '../lib/notifications'
-import { logActivity, logCheckin as _logCheckin, maybeLogRankUp, isStreakMilestone } from '../lib/activity'
+import { logActivity, maybeLogRankUp, recordScoreChange, isStreakMilestone } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -86,11 +86,11 @@ function loadSession(): WorkoutSession | null {
 }
 
 function saveSession(s: WorkoutSession) {
-  try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)) } catch {}
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)) } catch { /* ignore */ }
 }
 
 function clearSession() {
-  try { localStorage.removeItem(SESSION_KEY) } catch {}
+  try { localStorage.removeItem(SESSION_KEY) } catch { /* ignore */ }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -756,7 +756,7 @@ export default function Workout() {
       try {
         const raw = localStorage.getItem('onboarding_limitations')
         if (raw) limitations = (JSON.parse(raw) as string[]).filter((l: string) => l !== 'none')
-      } catch {}
+      } catch { /* ignore */ }
       let bodyWeight: number | undefined
       const bwRaw = localStorage.getItem('onboarding_weight')
       if (bwRaw) {
@@ -983,6 +983,9 @@ export default function Workout() {
           })
           .eq('user_id', profileId)
         if (scoreUpdateErr) throw new Error(scoreUpdateErr.message)
+
+        // Record this workout's score delta for weekly-gain leaderboards
+        await recordScoreChange(workoutRecord.id as string, ascendScore - previousAscendScore)
 
         try {
           await supabase.from('user_scores').update({ workouts_completed: wids.length }).eq('user_id', profileId)

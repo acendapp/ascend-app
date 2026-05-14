@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/theme'
-import type { UserScores } from '../types'
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 
@@ -70,6 +69,7 @@ interface PersonRow {
   level: number
   avatarUrl: string | null
   isPlaceholder?: boolean
+  weeklyGain?: number
 }
 
 interface GroupRow {
@@ -157,7 +157,7 @@ function storeLeaderboardSnapshot(rows: PersonRow[]) {
     const snap: Record<string, number> = {}
     for (const r of rows) snap[r.userId] = r.rank
     localStorage.setItem(LB_SNAP_KEY, JSON.stringify(snap))
-  } catch {}
+  } catch { /* ignore */ }
 }
 function daysUntilMonthEnd(): number {
   const now = new Date()
@@ -177,7 +177,7 @@ interface LiveChallenge {
   daysLabel: string
 }
 
-function SectionHeader({ title, onAction, c }: { title: string; onAction?: () => void; c: ThemeColors }) {
+function SectionHeader({ title, onAction, actionLabel = 'See all →', c }: { title: string; onAction?: () => void; actionLabel?: string; c: ThemeColors }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
       <span style={{ color: c.text, fontSize: 13, fontWeight: 700 }}>{title}</span>
@@ -186,7 +186,7 @@ function SectionHeader({ title, onAction, c }: { title: string; onAction?: () =>
           onClick={onAction}
           style={{ background: 'none', border: 'none', color: c.accent, fontSize: 12, cursor: 'pointer', padding: 0 }}
         >
-          See all →
+          {actionLabel}
         </button>
       )}
     </div>
@@ -215,6 +215,68 @@ function LockedCard({ hint, c }: { hint: string; c: ThemeColors }) {
       <p style={{ color: c.textSub, fontSize: 12, margin: 0, lineHeight: 1.5, position: 'relative' }}>
         {hint}
       </p>
+    </div>
+  )
+}
+
+// ── Campus accomplishments (placeholder data) ─────────────────────────────────
+
+type Accomplishment = { icon: string; text: string; label: string }
+
+const CAMPUS_ACCOMPLISHMENTS: Accomplishment[] = [
+  { icon: '🏆', text: 'Castle climbed to #1', label: 'Group Rankings' },
+  { icon: '💪', text: 'PRs logged today', label: 'New Records' },
+  { icon: '🔥', text: '14 people kept their streak', label: 'Streaks' },
+  { icon: '🎯', text: 'Quakers won the squat challenge', label: 'Challenges' },
+]
+
+function AccomplishmentBox({ item, c }: { item: Accomplishment; c: ThemeColors }) {
+  return (
+    <div style={{
+      background: c.surface,
+      border: `1px solid ${c.border}`,
+      borderRadius: 14,
+      padding: 14,
+      height: '100%',
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <div style={{ fontSize: 22, marginBottom: 8, lineHeight: 1 }}>{item.icon}</div>
+      <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 4px', lineHeight: 1.3 }}>{item.text}</p>
+      <p style={{ color: c.textSub, fontSize: 11, margin: 0, marginTop: 'auto', paddingTop: 4 }}>{item.label}</p>
+    </div>
+  )
+}
+
+// Stylized map-app-looking fill (land, water, parks, roads, city blocks)
+function MapPlaceholder({ c }: { c: ThemeColors }) {
+  const m = c.isDark
+    ? { land: '#242f3e', water: '#17263c', park: '#2c3b34', road: '#3c4a5a', roadMajor: '#5d6b7a', block: '#2f3a4a' }
+    : { land: '#e8eaed', water: '#aadaff', park: '#cfe8c2', road: '#ffffff', roadMajor: '#ffffff', block: '#dadce0' }
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: m.land }}>
+      {/* water — bottom-left */}
+      <div style={{ position: 'absolute', left: -34, bottom: -34, width: 120, height: 96, background: m.water, borderRadius: '42% 58% 50% 50%', transform: 'rotate(-12deg)' }} />
+      {/* parks */}
+      <div style={{ position: 'absolute', right: 14, top: 12, width: 66, height: 42, background: m.park, borderRadius: 8 }} />
+      <div style={{ position: 'absolute', left: 20, top: -12, width: 42, height: 40, background: m.park, borderRadius: 7 }} />
+      <div style={{ position: 'absolute', right: 96, bottom: 8, width: 38, height: 30, background: m.park, borderRadius: 6 }} />
+      {/* city blocks */}
+      <div style={{ position: 'absolute', left: 108, top: 14, width: 30, height: 22, background: m.block, borderRadius: 3 }} />
+      <div style={{ position: 'absolute', left: 146, top: 12, width: 22, height: 26, background: m.block, borderRadius: 3 }} />
+      <div style={{ position: 'absolute', left: 110, top: 64, width: 26, height: 24, background: m.block, borderRadius: 3 }} />
+      <div style={{ position: 'absolute', left: 144, top: 66, width: 30, height: 20, background: m.block, borderRadius: 3 }} />
+      <div style={{ position: 'absolute', right: 22, bottom: 14, width: 28, height: 22, background: m.block, borderRadius: 3 }} />
+      {/* roads */}
+      <div style={{ position: 'absolute', left: -12, right: -12, top: 44, height: 7, background: m.roadMajor, transform: 'rotate(-5deg)' }} />
+      <div style={{ position: 'absolute', left: -12, right: -12, top: 96, height: 4, background: m.road, transform: 'rotate(-3deg)' }} />
+      <div style={{ position: 'absolute', left: -12, right: -12, top: 18, height: 3, background: m.road, transform: 'rotate(6deg)' }} />
+      <div style={{ position: 'absolute', top: -12, bottom: -12, left: 86, width: 5, background: m.road, transform: 'rotate(7deg)' }} />
+      <div style={{ position: 'absolute', top: -12, bottom: -12, left: 140, width: 4, background: m.road, transform: 'rotate(-4deg)' }} />
+      <div style={{ position: 'absolute', top: -12, bottom: -12, right: 70, width: 3, background: m.road, transform: 'rotate(10deg)' }} />
+      <div style={{ position: 'absolute', left: -24, right: -24, bottom: 28, height: 4, background: m.road, transform: 'rotate(19deg)' }} />
+      <div style={{ position: 'absolute', top: -24, bottom: -24, right: 38, width: 3, background: m.road, transform: 'rotate(-15deg)' }} />
     </div>
   )
 }
@@ -297,8 +359,6 @@ export default function Compete() {
   const { colors: c } = useTheme()
 
   const [userId, setUserId] = useState<string | null>(null)
-  const [scores, setScores] = useState<UserScores | null>(null)
-  const [campusRank, setCampusRank] = useState(0)
   const [loading, setLoading] = useState(true)
 
   const [computedChallenges, setComputedChallenges] = useState<ComputedChallenge[]>([])
@@ -311,10 +371,12 @@ export default function Compete() {
   const [groupsLeaderboard, setGroupsLeaderboard] = useState<GroupRow[]>([])
   const [myGroupIds, setMyGroupIds] = useState<Set<string>>(new Set())
   const [campusLeaderboard, setCampusLeaderboard] = useState<PersonRow[]>([])
+  const [weeklyTopPerformers, setWeeklyTopPerformers] = useState<PersonRow[]>([])
   const [pinnedRow, setPinnedRow] = useState<PersonRow | null>(null)
   const [liveChallenges, setLiveChallenges] = useState<LiveChallenge[]>([])
   const [rankChanges, setRankChanges] = useState<Record<string, number>>({})
   const [showFullModal, setShowFullModal] = useState<'friends' | 'campus' | 'groups' | null>(null)
+  const [showAccomplishments, setShowAccomplishments] = useState(false)
 
   const [notifications,     setNotifications]     = useState<AppNotification[]>(() => loadNotifs())
   const [showNotifDropdown, setShowNotifDropdown] = useState(false)
@@ -339,17 +401,8 @@ export default function Compete() {
         supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
         supabase.from('user_scores').select('*').eq('user_id', user.id).maybeSingle(),
       ])
-      if (scoresRes.data) setScores(scoresRes.data)
 
       const userScore = scoresRes.data?.ascend_score ?? 0
-
-      // Campus rank
-      const { count: higherCount } = await supabase
-        .from('user_scores')
-        .select('user_id', { count: 'exact', head: true })
-        .gt('ascend_score', userScore)
-      const myRank = (higherCount ?? 0) + 1
-      setCampusRank(myRank)
 
       // Today's community workout count
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
@@ -463,6 +516,12 @@ export default function Compete() {
           const inTop10 = rows.some(r => r.userId === user.id)
           if (!inTop10) {
             const inRows = rows.find(r => r.userId === user.id)
+            // Current user's campus rank for the pinned row when outside the top 15
+            const { count: higherCount } = await supabase
+              .from('user_scores')
+              .select('user_id', { count: 'exact', head: true })
+              .gt('ascend_score', userScore)
+            const myRank = (higherCount ?? 0) + 1
             setPinnedRow(inRows ?? {
               rank: myRank,
               initials: initials(profileRes.data?.name ?? '??'),
@@ -475,6 +534,48 @@ export default function Compete() {
             })
           }
         }
+      }
+
+      // Top performers this week — ranked by ascend score gained in the last 7 days
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const { data: weekWorkouts } = await supabase
+        .from('workouts')
+        .select('user_id, score_change')
+        .eq('completed', true)
+        .gte('workout_date', weekAgo)
+      const weekGains = new Map<string, number>()
+      for (const w of weekWorkouts ?? []) {
+        const uid = w.user_id as string
+        weekGains.set(uid, (weekGains.get(uid) ?? 0) + ((w.score_change as number) ?? 0))
+      }
+      const topWeek = [...weekGains.entries()]
+        .filter(([, gain]) => gain > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+      if (topWeek.length > 0) {
+        const topWeekIds = topWeek.map(([uid]) => uid)
+        const [weekProfiles, weekScores] = await Promise.all([
+          supabase.from('users').select('id, name, affiliation, avatar_url').in('id', topWeekIds),
+          supabase.from('user_scores').select('user_id, ascend_score, level').in('user_id', topWeekIds),
+        ])
+        const wpMap = new Map((weekProfiles.data ?? []).map(p => [p.id, p]))
+        const wsMap = new Map((weekScores.data ?? []).map(s => [s.user_id, s]))
+        const weekRows: PersonRow[] = topWeek.map(([uid, gain], i) => {
+          const p = wpMap.get(uid) as { name?: string; affiliation?: string; avatar_url?: string | null } | undefined
+          const s = wsMap.get(uid) as { ascend_score?: number; level?: number } | undefined
+          return {
+            rank: i + 1,
+            initials: initials(p?.name ?? '??'),
+            name: p?.name ?? 'Unknown',
+            subtitle: p?.affiliation ?? 'Penn',
+            score: s?.ascend_score ?? 0,
+            userId: uid,
+            level: s?.level ?? 1,
+            avatarUrl: p?.avatar_url ?? null,
+            weeklyGain: gain,
+          }
+        })
+        setWeeklyTopPerformers(weekRows)
       }
 
       // Groups leaderboard
@@ -732,7 +833,6 @@ export default function Compete() {
     )
   }
 
-  const ascendScore = scores?.ascend_score ?? 0
   const joinedChallenges = computedChallenges.filter(c => c.joined)
   const availableChallenges = computedChallenges.filter(c => !c.joined)
 
@@ -752,7 +852,7 @@ export default function Compete() {
       <div
         className="app-content page-scroll"
         style={{ background: c.bg }}
-        onClick={() => { showGymUsers && setShowGymUsers(false); showNotifDropdown && setShowNotifDropdown(false) }}
+        onClick={() => { if (showGymUsers) setShowGymUsers(false); if (showNotifDropdown) setShowNotifDropdown(false) }}
       >
         <div style={{ padding: '52px 20px 0' }}>
 
@@ -795,7 +895,7 @@ export default function Compete() {
 
             {/* Workouts + avatar cluster on same row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <p style={{ color: c.text, fontSize: 11, fontWeight: 700, margin: 0 }}>
+              <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: 0 }}>
                 <span style={{ color: c.accent }}>{todayWorkoutCount}</span>{' '}
                 {todayWorkoutCount === 1 ? 'workout' : 'workouts'} logged today
               </p>
@@ -834,6 +934,12 @@ export default function Compete() {
             </div>
           </div>
 
+          {/* Trending on Campus header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ color: c.text, fontSize: 13, fontWeight: 700 }}>Trending on Campus</span>
+            <button onClick={() => setShowAccomplishments(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.accent, fontSize: 12, padding: 0 }}>See all →</button>
+          </div>
+
           {/* 3-workout gate banner */}
           {userWorkoutsCompleted < 3 && (
             <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
@@ -850,30 +956,17 @@ export default function Compete() {
             </div>
           )}
 
-          {/* Personal rank card */}
-          <div style={{ background: c.accentBg, border: `1px solid ${c.accentBorder}`, borderRadius: 14, padding: 16, marginBottom: 20 }}>
-            <p style={{ color: c.textSub, fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>
-              YOUR RANK
-            </p>
-            <p style={{ color: c.accent, fontSize: 36, fontWeight: 700, margin: '0 0 4px', lineHeight: 1 }}>
-              #{campusRank > 0 ? campusRank : '—'}
-            </p>
-            <p style={{ color: c.text, fontSize: 18, fontWeight: 600, margin: '0 0 6px' }}>
-              Ascend Score: {ascendScore}
-            </p>
-            <p style={{ color: c.accent, fontSize: 13, margin: 0 }}>↑ Keep climbing</p>
-            {myGroupIds.size > 0 && groupsLeaderboard.length > 0 && (() => {
-              const myGroup = groupsLeaderboard.find(g => myGroupIds.has(g.groupId))
-              return myGroup ? (
-                <p style={{ color: c.textSub, fontSize: 12, margin: '6px 0 0' }}>
-                  {myGroup.name} is ranked <span style={{ color: c.text }}>#{myGroup.rank}</span> among Penn groups
-                </p>
-              ) : null
-            })()}
+          {/* Accomplishment boxes */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'stretch' }}>
+            {CAMPUS_ACCOMPLISHMENTS.slice(0, 2).map((item, i) => (
+              <div key={i} style={{ flex: 1 }}>
+                <AccomplishmentBox item={item} c={c} />
+              </div>
+            ))}
           </div>
 
-          {/* Challenges */}
-          <SectionHeader title="Challenges" c={c} />
+          {/* Gyms Live Now */}
+          <SectionHeader title="Gyms Live Now" c={c} />
 
           {userWorkoutsCompleted < 3 ? (
             <LockedCard hint="Monthly competitions with real prizes on the line" c={c} />
@@ -882,21 +975,36 @@ export default function Compete() {
               <p style={{ color: c.textSub, fontSize: 13, margin: 0 }}>Loading challenges…</p>
             </div>
           ) : computedChallenges.length === 0 ? (
-            <div style={{
-              background: c.surface,
-              border: `1px solid ${c.accentBorder}`,
-              borderRadius: 14,
-              padding: '28px 20px',
-              marginBottom: 20,
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>🏆</div>
-              <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 6px' }}>
-                Competitions Coming Soon
-              </p>
-              <p style={{ color: c.textSub, fontSize: 12, margin: 0, lineHeight: 1.6 }}>
-                Monthly competitions with real prizes on the line.{'\n'}Check back — challenges drop regularly.
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {/* Top — map-style placeholder */}
+              <div style={{
+                position: 'relative',
+                overflow: 'hidden',
+                border: `1px solid ${c.accentBorder}`,
+                borderRadius: 14,
+                height: 93,
+              }}>
+                <MapPlaceholder c={c} />
+                {/* Gym cards floating on the map */}
+                <div style={{ position: 'relative', height: '100%', display: 'flex', gap: 6, padding: 8, boxSizing: 'border-box' }}>
+                  {[
+                    { name: 'Pottruck Fitness Center', active: 8 },
+                    { name: 'Fox Fitness Center', active: 5 },
+                    { name: 'Private Gyms', active: 3 },
+                  ].map(g => (
+                    <div key={g.name} style={{ flex: 1, background: '#fff', borderRadius: 8, padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 1px 5px rgba(0,0,0,0.18)' }}>
+                      <p style={{ color: '#1a1a1a', fontSize: 11, fontWeight: 700, margin: 0, lineHeight: 1.25, height: 28, overflow: 'hidden' }}>{g.name}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                        <span style={{ color: '#555', fontSize: 10, fontWeight: 600 }}>{g.active} active</span>
+                        <span
+                          className="presence-dot"
+                          style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#3BF0A0', flexShrink: 0 }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
@@ -960,6 +1068,52 @@ export default function Compete() {
               ))}
             </div>
           )}
+
+          {/* Top Performers This Week */}
+          <SectionHeader
+            title="Top Performers This Week"
+            actionLabel="Full Leaderboard"
+            onAction={() => setShowFullModal('campus')}
+            c={c}
+          />
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '18px 12px', marginBottom: 20, display: 'flex', gap: 8 }}>
+            {topThreePeople(weeklyTopPerformers).map(row => {
+              const isUser = !row.isPlaceholder && row.userId === userId
+              return (
+                <div
+                  key={row.userId}
+                  onClick={() => (!row.isPlaceholder && !isUser ? navigate(`/profile/${row.userId}`) : undefined)}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: row.isPlaceholder ? 0.35 : 1, cursor: row.isPlaceholder || isUser ? 'default' : 'pointer' }}
+                >
+                  {/* Profile picture with rank badge on the top-left */}
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: c.border, border: isUser ? `2px solid ${c.accent}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 18, fontWeight: 700, overflow: 'hidden' }}>
+                      {row.avatarUrl
+                        ? <img src={row.avatarUrl} alt={row.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : row.initials}
+                    </div>
+                    <div style={{ position: 'absolute', top: -3, left: -3, width: 20, height: 20, borderRadius: '50%', background: RANK_COLORS[row.rank] ?? c.textSub, color: '#fff', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${c.surface}` }}>
+                      {row.rank}
+                    </div>
+                  </div>
+                  {/* Initials underneath */}
+                  <p style={{ color: c.text, fontSize: 12, fontWeight: 700, margin: '8px 0 0' }}>{row.initials}</p>
+                  {/* Ascend score underneath, in the user's theme color */}
+                  <p style={{ color: c.accent, fontSize: 13, fontWeight: 700, margin: '2px 0 0' }}>{row.score}</p>
+                  {/* Ascend score gained this week */}
+                  <p style={{ color: '#3BF0A0', fontSize: 11, fontWeight: 600, margin: '2px 0 0' }}>
+                    {row.weeklyGain ? `+${row.weeklyGain} this wk` : '—'}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Group Activity */}
+          <div style={{ background: '#fff', borderRadius: 14, padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 5px rgba(0,0,0,0.12)' }}>
+            <span style={{ color: '#1a1a1a', fontSize: 14, fontWeight: 700 }}>Group Activity</span>
+            <span style={{ color: '#888', fontSize: 12, fontWeight: 600 }}>This Week</span>
+          </div>
 
           {/* Campus Standings — always-live computed competitions */}
           {liveChallenges.length > 0 && (
@@ -1280,6 +1434,34 @@ export default function Compete() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Trending on Campus — full list (styled like the Feed page) */}
+      {showAccomplishments && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: c.bg, overflow: 'auto' }}>
+          <div style={{ padding: '52px 16px 100px' }}>
+
+            {/* Header — back arrow + title, matches Feed page */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <button
+                onClick={() => setShowAccomplishments(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 18l-6-6 6-6" stroke={c.text} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <span style={{ color: c.text, fontSize: 20, fontWeight: 700 }}>Trending on Campus</span>
+            </div>
+
+            {/* Boxes — two per row, same size as the Campus preview */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {CAMPUS_ACCOMPLISHMENTS.map((item, i) => (
+                <AccomplishmentBox key={i} item={item} c={c} />
+              ))}
+            </div>
           </div>
         </div>
       )}

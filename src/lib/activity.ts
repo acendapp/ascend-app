@@ -29,6 +29,16 @@ export async function logActivity(opts: {
   }
 }
 
+// Records the ascend-score delta a workout produced, so weekly-gain
+// leaderboards can sum score_change over a time window.
+export async function recordScoreChange(workoutId: string, delta: number): Promise<void> {
+  try {
+    await supabase.from('workouts').update({ score_change: delta }).eq('id', workoutId)
+  } catch (err) {
+    console.error('recordScoreChange failed:', err)
+  }
+}
+
 export async function logCheckin(userId: string, gymName: string): Promise<void> {
   await Promise.all([
     logActivity({ userId, eventType: 'checkin', title: 'checked in', subtitle: gymName }),
