@@ -18,14 +18,14 @@ function activeWorkoutPath(): string | null {
       const s = JSON.parse(raw)
       if (Date.now() - s.startEpoch < SESSION_TTL) return '/workout/ascend'
     }
-  } catch {}
+  } catch { /* ignore */ }
   try {
     const raw = localStorage.getItem('ascend_custom_workout')
     if (raw) {
       const s = JSON.parse(raw)
       if (Date.now() - s.startEpoch < SESSION_TTL) return '/workout/custom'
     }
-  } catch {}
+  } catch { /* ignore */ }
   return null
 }
 

@@ -105,11 +105,11 @@ export default function WorkoutTypeSelector() {
     try {
       const raw = localStorage.getItem('ascend_active_workout')
       if (raw) { const s = JSON.parse(raw); if (Date.now() - s.startEpoch < SESSION_TTL) return { path: '/workout/ascend', label: 'Ascend Method' } }
-    } catch {}
+    } catch { /* ignore */ }
     try {
       const raw = localStorage.getItem('ascend_custom_workout')
       if (raw) { const s = JSON.parse(raw); if (Date.now() - s.startEpoch < SESSION_TTL) return { path: '/workout/custom', label: s.templateName ?? 'Custom Workout' } }
-    } catch {}
+    } catch { /* ignore */ }
     return null
   })()
 

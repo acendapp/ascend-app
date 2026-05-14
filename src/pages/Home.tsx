@@ -115,7 +115,7 @@ function storeRankSnapshot(userId: string, rank: number) {
     const snap = JSON.parse(localStorage.getItem(RANK_SNAP_KEY) ?? '{}') as Record<string, number>
     snap[userId] = rank
     localStorage.setItem(RANK_SNAP_KEY, JSON.stringify(snap))
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ export default function Home() {
         const currentScore = scoresRes.data?.ascend_score ?? 0
         localStorage.setItem(`${SCORE_SNAP_KEY}_${user.id}`, String(currentScore))
         void prevStr
-      } catch {}
+      } catch { /* ignore */ }
 
       // Live gym
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
@@ -415,7 +415,7 @@ export default function Home() {
     for (const [key, msg] of Object.entries(MILESTONE_MSGS)) {
       if (workoutsCompleted >= Number(key)) addNotif(`wk-${key}`, msg)
     }
-  }, [workoutsCompleted]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [workoutsCompleted])
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -519,7 +519,7 @@ export default function Home() {
       <div
         className="app-content"
         style={{ background: c.bg }}
-        onClick={() => { showGymDropdown && setShowGymDropdown(false); showGymUsers && setShowGymUsers(false); showNotifDropdown && setShowNotifDropdown(false) }}
+        onClick={() => { if (showGymDropdown) setShowGymDropdown(false); if (showGymUsers) setShowGymUsers(false); if (showNotifDropdown) setShowNotifDropdown(false) }}
       >
         <div style={{ padding: '52px 16px calc(env(safe-area-inset-bottom, 0px) + 88px)' }}>
 
