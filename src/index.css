@@ -126,3 +126,7 @@ input[type="range"]::-moz-range-thumb {
   scrollbar-width: none;
 }
 .friend-scroll::-webkit-scrollbar { display: none; }
+
+/* Generic hide-scrollbar utility (still scrollable via touch/drag/wheel) */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

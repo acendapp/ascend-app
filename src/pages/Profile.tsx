@@ -363,17 +363,15 @@ export default function Profile() {
           .gt('ascend_score', scoresRes.data?.ascend_score ?? 0)
         setCampusRank((higherCount ?? 0) + 1)
 
-        // Top 5 PRs (best per exercise)
         const prMap = new Map<string, number>()
         for (const pr of allPRsRes.data ?? []) {
           const cur = prMap.get(pr.exercise_name) ?? 0
           if (pr.weight > cur) prMap.set(pr.exercise_name, pr.weight)
         }
-        const top5 = Array.from(prMap.entries())
+        const allPRs = Array.from(prMap.entries())
           .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
           .map(([exercise_name, weight]) => ({ exercise_name, weight }))
-        setPrs(top5)
+        setPrs(allPRs)
 
         // Streak dots and 30-day consistency count
         const today = new Date()

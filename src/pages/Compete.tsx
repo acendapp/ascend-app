@@ -105,22 +105,15 @@ function daysLeft(endDate: string) {
 
 const RANK_COLORS: Record<number, string> = { 1: '#F5A623', 2: '#B0B8C4', 3: '#CD7F32' }
 
-function tierBadge(level: number, isDark: boolean): { label: string; bg: string; color: string } {
-  if (level >= 7) return { label: `Lv ${level}`, bg: isDark ? '#2D1B4E' : '#F5EEFF', color: isDark ? '#9B59B6' : '#7B2FBE' }
-  if (level >= 5) return { label: `Lv ${level}`, bg: isDark ? '#2D2000' : '#FFF3DC', color: isDark ? '#F5A623' : '#B07400' }
-  if (level >= 3) return { label: `Lv ${level}`, bg: isDark ? '#0D2040' : '#DEEEFF', color: isDark ? '#4A9EFF' : '#2B7FE0' }
-  return { label: `Lv ${level}`, bg: isDark ? '#1A2A42' : '#E8EEF8', color: isDark ? '#5A7A9A' : '#4A6A8A' }
-}
-
 interface ThemeColors {
   bg: string; surface: string; surfaceHigh: string; border: string; borderSub: string
   text: string; textSub: string; textMuted: string; textFaint: string
   accent: string; accentBg: string; accentBorder: string; inputBg: string; isDark: boolean
 }
 
-function AvatarCircle({ avatarUrl, ini, highlight, c }: { avatarUrl: string | null; ini: string; highlight: boolean; c: ThemeColors }) {
+function AvatarCircle({ avatarUrl, ini, highlight, c, size = 32 }: { avatarUrl: string | null; ini: string; highlight: boolean; c: ThemeColors; size?: number }) {
   return (
-    <div style={{ width: 32, height: 32, borderRadius: '50%', background: c.border, border: highlight ? `1px solid ${c.accent}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: 11, fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: c.border, border: highlight ? `1px solid ${c.accent}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.accent, fontSize: Math.max(9, Math.round(size * 0.34)), fontWeight: 700, flexShrink: 0, overflow: 'hidden' }}>
       {avatarUrl
         ? <img src={avatarUrl} alt={ini} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : ini}
@@ -159,22 +152,71 @@ function storeLeaderboardSnapshot(rows: PersonRow[]) {
     localStorage.setItem(LB_SNAP_KEY, JSON.stringify(snap))
   } catch { /* ignore */ }
 }
-function daysUntilMonthEnd(): number {
-  const now = new Date()
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  return Math.ceil((lastDay.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-}
 
-interface LiveChallenge {
+// ── Builtin always-available challenges ──────────────────────────────────────
+
+type BuiltinChallengeKind = 'most_workouts' | 'most_volume' | 'most_prs' | 'longest_streak'
+
+interface BuiltinChallengeMeta {
+  id: string       // stable UUID matching migrations_v7 seed
   title: string
   icon: string
-  userRank: number
+  kind: BuiltinChallengeKind
+  autoEnroll: boolean
+  valueLabel: (value: number) => string
+}
+
+const BUILTIN_CHALLENGES: BuiltinChallengeMeta[] = [
+  {
+    id: '11111111-1111-1111-1111-111111111111',
+    title: 'Monthly Grind',
+    icon: '🔥',
+    kind: 'most_workouts',
+    autoEnroll: true,
+    valueLabel: v => `${v} workout${v === 1 ? '' : 's'}`,
+  },
+  {
+    id: '22222222-2222-2222-2222-222222222222',
+    title: 'Volume Leader',
+    icon: '💪',
+    kind: 'most_volume',
+    autoEnroll: true,
+    valueLabel: v => `${v.toLocaleString()} lb`,
+  },
+  {
+    id: '33333333-3333-3333-3333-333333333333',
+    title: 'PR Hunter',
+    icon: '🏆',
+    kind: 'most_prs',
+    autoEnroll: false,
+    valueLabel: v => `${v} PR${v === 1 ? '' : 's'}`,
+  },
+  {
+    id: '44444444-4444-4444-4444-444444444444',
+    title: 'Streak Master',
+    icon: '⚡',
+    kind: 'longest_streak',
+    autoEnroll: false,
+    valueLabel: v => `${v} day${v === 1 ? '' : 's'}`,
+  },
+]
+
+interface ChallengeLeaderEntry {
+  userId: string
+  name: string
+  initials: string
+  avatarUrl: string | null
+  level: number
+  value: number
+}
+
+interface BuiltinChallengeData {
+  meta: BuiltinChallengeMeta
+  joined: boolean
   totalParticipants: number
+  userRank: number              // 0 if user has no value / not joined
   userValue: number
-  valueLabel: string
-  aboveName: string | null
-  aboveValue: number | null
-  daysLabel: string
+  leaderboard: ChallengeLeaderEntry[]
 }
 
 function SectionHeader({ title, onAction, actionLabel = 'See all →', c }: { title: string; onAction?: () => void; actionLabel?: string; c: ThemeColors }) {
@@ -219,6 +261,45 @@ function LockedCard({ hint, c }: { hint: string; c: ThemeColors }) {
   )
 }
 
+// ── Active Challenges UI ──────────────────────────────────────────────────────
+
+function ChallengeGridCard({
+  data, joiningId, onJoin, onOpen, c,
+}: {
+  data: BuiltinChallengeData
+  joiningId: string | null
+  onJoin: (id: string) => void
+  onOpen: () => void
+  c: ThemeColors
+}) {
+  const { meta, joined, totalParticipants, userRank } = data
+  return (
+    <div
+      onClick={onOpen}
+      style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6, minWidth: 0 }}
+    >
+      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+        {meta.icon}
+      </div>
+      <p style={{ color: c.text, fontSize: 12, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{meta.title}</p>
+      <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>
+        {joined && userRank > 0 ? `#${userRank} of ${totalParticipants}` : `${totalParticipants} in`}
+      </p>
+      {joined ? (
+        <span style={{ color: c.textSub, fontSize: 11, fontWeight: 600 }}>Joined</span>
+      ) : (
+        <button
+          onClick={e => { e.stopPropagation(); onJoin(meta.id) }}
+          disabled={joiningId === meta.id}
+          style={{ background: 'none', border: 'none', padding: 0, color: c.accent, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+        >
+          {joiningId === meta.id ? 'Joining…' : 'Join'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── Campus accomplishments (placeholder data) ─────────────────────────────────
 
 type Accomplishment = { icon: string; text: string; label: string }
@@ -230,21 +311,21 @@ const CAMPUS_ACCOMPLISHMENTS: Accomplishment[] = [
   { icon: '🎯', text: 'Quakers won the squat challenge', label: 'Challenges' },
 ]
 
-function AccomplishmentBox({ item, c }: { item: Accomplishment; c: ThemeColors }) {
+function AccomplishmentBox({ item, c, compact = false }: { item: Accomplishment; c: ThemeColors; compact?: boolean }) {
   return (
     <div style={{
       background: c.surface,
       border: `1px solid ${c.border}`,
-      borderRadius: 14,
-      padding: 14,
+      borderRadius: compact ? 12 : 14,
+      padding: compact ? 10 : 14,
       height: '100%',
       boxSizing: 'border-box',
       display: 'flex',
       flexDirection: 'column',
     }}>
-      <div style={{ fontSize: 22, marginBottom: 8, lineHeight: 1 }}>{item.icon}</div>
-      <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 4px', lineHeight: 1.3 }}>{item.text}</p>
-      <p style={{ color: c.textSub, fontSize: 11, margin: 0, marginTop: 'auto', paddingTop: 4 }}>{item.label}</p>
+      <div style={{ fontSize: compact ? 16 : 22, marginBottom: compact ? 5 : 8, lineHeight: 1 }}>{item.icon}</div>
+      <p style={{ color: c.text, fontSize: compact ? 11 : 14, fontWeight: 700, margin: '0 0 3px', lineHeight: 1.3 }}>{item.text}</p>
+      <p style={{ color: c.textSub, fontSize: compact ? 9 : 11, margin: 0, marginTop: 'auto', paddingTop: 3 }}>{item.label}</p>
     </div>
   )
 }
@@ -352,6 +433,192 @@ async function computeChallengeRankings(
   return { userRank, aboveName }
 }
 
+// ── Builtin challenge loader ──────────────────────────────────────────────────
+
+function currentStreakDays(workoutDates: Set<string>): number {
+  // workoutDates contains YYYY-MM-DD strings. Streak counts consecutive days
+  // ending today (or yesterday if the user hasn't worked out yet today).
+  const today = new Date()
+  const ymd = (d: Date) => d.toISOString().slice(0, 10)
+  const cursor = new Date(today)
+  if (!workoutDates.has(ymd(cursor))) {
+    cursor.setDate(cursor.getDate() - 1)
+    if (!workoutDates.has(ymd(cursor))) return 0
+  }
+  let streak = 0
+  while (workoutDates.has(ymd(cursor))) {
+    streak++
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return streak
+}
+
+async function loadBuiltinChallenges(currentUserId: string): Promise<BuiltinChallengeData[]> {
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  monthStart.setHours(0, 0, 0, 0)
+  const monthStartIso = monthStart.toISOString()
+
+  // 1. Every user with an account — auto-enroll universe
+  const { data: allUserRows } = await supabase.from('users').select('id, name, avatar_url')
+  const allUserIds = (allUserRows ?? []).map(u => u.id as string)
+
+  // 2. Month workouts → values for auto-enroll challenges
+  const { data: mWorkouts } = await supabase
+    .from('workouts')
+    .select('id, user_id, workout_date')
+    .eq('completed', true)
+    .gte('workout_date', monthStartIso)
+
+  const workoutsByUser = new Map<string, number>()
+  const workoutIdToUser = new Map<string, string>()
+  for (const w of mWorkouts ?? []) {
+    const uid = w.user_id as string
+    workoutsByUser.set(uid, (workoutsByUser.get(uid) ?? 0) + 1)
+    workoutIdToUser.set(w.id as string, uid)
+  }
+  // Default everyone to 0 so they all appear on the leaderboard
+  for (const uid of allUserIds) {
+    if (!workoutsByUser.has(uid)) workoutsByUser.set(uid, 0)
+  }
+
+  // 3. Volume per user from exercise_logs (default everyone to 0)
+  const volumeByUser = new Map<string, number>()
+  const wIds = [...workoutIdToUser.keys()]
+  if (wIds.length > 0) {
+    const { data: volLogs } = await supabase
+      .from('exercise_logs').select('workout_id, weight, reps').in('workout_id', wIds)
+    for (const l of volLogs ?? []) {
+      const uid = workoutIdToUser.get(l.workout_id as string)
+      if (!uid) continue
+      volumeByUser.set(uid, (volumeByUser.get(uid) ?? 0) + ((l.weight as number) ?? 0) * ((l.reps as number) ?? 0))
+    }
+  }
+  for (const uid of allUserIds) {
+    if (!volumeByUser.has(uid)) volumeByUser.set(uid, 0)
+  }
+
+  // 4. Opt-in participants for PR Hunter + Streak Master
+  const optInIds = BUILTIN_CHALLENGES.filter(b => !b.autoEnroll).map(b => b.id)
+  const { data: optInParts } = await supabase
+    .from('challenge_participants')
+    .select('challenge_id, user_id')
+    .in('challenge_id', optInIds)
+  const partsByChallenge = new Map<string, string[]>()
+  for (const p of optInParts ?? []) {
+    const cid = p.challenge_id as string
+    const uid = p.user_id as string
+    const arr = partsByChallenge.get(cid) ?? []
+    arr.push(uid)
+    partsByChallenge.set(cid, arr)
+  }
+
+  // 5. PR Hunter: count personal_records logged this month for joined users
+  const prHunterId = BUILTIN_CHALLENGES.find(b => b.kind === 'most_prs')!.id
+  const prHunterParticipants = partsByChallenge.get(prHunterId) ?? []
+  const prsByUser = new Map<string, number>()
+  if (prHunterParticipants.length > 0) {
+    const { data: prRows } = await supabase
+      .from('personal_records')
+      .select('user_id, logged_at')
+      .in('user_id', prHunterParticipants)
+      .gte('logged_at', monthStartIso)
+    for (const r of prRows ?? []) {
+      const uid = r.user_id as string
+      prsByUser.set(uid, (prsByUser.get(uid) ?? 0) + 1)
+    }
+    for (const uid of prHunterParticipants) {
+      if (!prsByUser.has(uid)) prsByUser.set(uid, 0)
+    }
+  }
+
+  // 6. Streak Master: longest current streak from last 365 days of workouts
+  const streakId = BUILTIN_CHALLENGES.find(b => b.kind === 'longest_streak')!.id
+  const streakParticipants = partsByChallenge.get(streakId) ?? []
+  const streakByUser = new Map<string, number>()
+  if (streakParticipants.length > 0) {
+    const yearAgo = new Date(Date.now() - 365 * 86400000).toISOString()
+    const { data: streakWorkouts } = await supabase
+      .from('workouts')
+      .select('user_id, workout_date')
+      .eq('completed', true)
+      .in('user_id', streakParticipants)
+      .gte('workout_date', yearAgo)
+    const datesByUser = new Map<string, Set<string>>()
+    for (const w of streakWorkouts ?? []) {
+      const uid = w.user_id as string
+      const d = new Date(w.workout_date as string).toISOString().slice(0, 10)
+      const set = datesByUser.get(uid) ?? new Set<string>()
+      set.add(d)
+      datesByUser.set(uid, set)
+    }
+    for (const uid of streakParticipants) {
+      streakByUser.set(uid, currentStreakDays(datesByUser.get(uid) ?? new Set()))
+    }
+  }
+
+  // 7. Profile + score lookup for every user that may appear on a leaderboard
+  const profileMap = new Map(
+    (allUserRows ?? []).map(p => [p.id as string, { name: p.name as string, avatarUrl: (p as { avatar_url?: string | null }).avatar_url ?? null }])
+  )
+  const { data: scoreRows } = allUserIds.length > 0
+    ? await supabase.from('user_scores').select('user_id, ascend_score').in('user_id', allUserIds)
+    : { data: [] }
+  const scoreMap = new Map((scoreRows ?? []).map(s => [s.user_id as string, s.ascend_score as number]))
+  const levelOf = (uid: string) => {
+    const score = scoreMap.get(uid) ?? 0
+    return Math.max(1, Math.floor(score / 100) + 1)
+  }
+
+  const buildLeaderboard = (valueByUser: Map<string, number>): ChallengeLeaderEntry[] => {
+    const entries: ChallengeLeaderEntry[] = []
+    for (const [uid, value] of valueByUser.entries()) {
+      const prof = profileMap.get(uid)
+      if (!prof) continue
+      entries.push({
+        userId: uid,
+        name: prof.name,
+        initials: initials(prof.name),
+        avatarUrl: prof.avatarUrl,
+        level: levelOf(uid),
+        value,
+      })
+    }
+    entries.sort((a, b) => b.value - a.value)
+    return entries
+  }
+
+  const result: BuiltinChallengeData[] = []
+  for (const meta of BUILTIN_CHALLENGES) {
+    let valueByUser: Map<string, number>
+    let joined: boolean
+    if (meta.kind === 'most_workouts') {
+      valueByUser = workoutsByUser
+      joined = true
+    } else if (meta.kind === 'most_volume') {
+      valueByUser = new Map([...volumeByUser.entries()].map(([k, v]) => [k, Math.round(v)]))
+      joined = true
+    } else if (meta.kind === 'most_prs') {
+      valueByUser = prsByUser
+      joined = (partsByChallenge.get(meta.id) ?? []).includes(currentUserId)
+    } else {
+      valueByUser = streakByUser
+      joined = (partsByChallenge.get(meta.id) ?? []).includes(currentUserId)
+    }
+    const leaderboard = buildLeaderboard(valueByUser)
+    const userIdx = leaderboard.findIndex(e => e.userId === currentUserId)
+    result.push({
+      meta,
+      joined,
+      totalParticipants: leaderboard.length,
+      userRank: userIdx >= 0 ? userIdx + 1 : 0,
+      userValue: valueByUser.get(currentUserId) ?? 0,
+      leaderboard,
+    })
+  }
+  return result
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Compete() {
@@ -373,7 +640,10 @@ export default function Compete() {
   const [campusLeaderboard, setCampusLeaderboard] = useState<PersonRow[]>([])
   const [weeklyTopPerformers, setWeeklyTopPerformers] = useState<PersonRow[]>([])
   const [pinnedRow, setPinnedRow] = useState<PersonRow | null>(null)
-  const [liveChallenges, setLiveChallenges] = useState<LiveChallenge[]>([])
+  const [builtinChallenges, setBuiltinChallenges] = useState<BuiltinChallengeData[]>([])
+  const [joiningBuiltinId, setJoiningBuiltinId] = useState<string | null>(null)
+  const [showAllChallenges, setShowAllChallenges] = useState(false)
+  const [openChallengeId, setOpenChallengeId] = useState<string | null>(null)
   const [rankChanges, setRankChanges] = useState<Record<string, number>>({})
   const [showFullModal, setShowFullModal] = useState<'friends' | 'campus' | 'groups' | null>(null)
   const [showAccomplishments, setShowAccomplishments] = useState(false)
@@ -450,26 +720,29 @@ export default function Compete() {
       if (friendIds.length > 0) {
         const allIds = [user.id, ...friendIds]
         const [friendScores, friendProfiles] = await Promise.all([
-          supabase.from('user_scores').select('user_id, ascend_score, level').in('user_id', allIds).gt('ascend_score', 0),
+          supabase.from('user_scores').select('user_id, ascend_score, level').in('user_id', allIds),
           supabase.from('users').select('id, name, affiliation, avatar_url').in('id', allIds),
         ])
-        if (friendScores.data && friendProfiles.data) {
-          const profileMap = new Map(friendProfiles.data.map(p => [p.id, p]))
-          const rows: PersonRow[] = friendScores.data
-            .sort((a, b) => (b.ascend_score as number) - (a.ascend_score as number))
-            .map((s, i) => {
-              const p = profileMap.get(s.user_id as string)
+        if (friendProfiles.data) {
+          const scoreMap = new Map(
+            (friendScores.data ?? []).map(s => [s.user_id as string, s as { ascend_score?: number; level?: number }])
+          )
+          const rows: PersonRow[] = friendProfiles.data
+            .map(p => {
+              const s = scoreMap.get(p.id as string)
               return {
-                rank: i + 1,
+                rank: 0,
                 initials: initials((p as { name?: string })?.name ?? '??'),
                 name: (p as { name?: string })?.name ?? 'Unknown',
                 subtitle: (p as { affiliation?: string })?.affiliation ?? 'Penn',
-                score: s.ascend_score as number,
-                userId: s.user_id as string,
-                level: (s.level as number) ?? 1,
+                score: s?.ascend_score ?? 0,
+                userId: p.id as string,
+                level: s?.level ?? 1,
                 avatarUrl: (p as { avatar_url?: string | null })?.avatar_url ?? null,
               }
             })
+            .sort((a, b) => b.score - a.score)
+            .map((r, i) => ({ ...r, rank: i + 1 }))
           setFriendsLeaderboard(rows)
         }
       }
@@ -626,91 +899,11 @@ export default function Compete() {
         }
       } catch { /* groups non-critical */ }
 
-      // Live computed challenges (Monthly Grind + Volume King)
+      // Builtin always-available challenges (Monthly Grind, Volume Leader, PR Hunter, Streak Master)
       try {
-        const monthStart = new Date()
-        monthStart.setDate(1)
-        monthStart.setHours(0, 0, 0, 0)
-
-        const { data: mWorkouts } = await supabase
-          .from('workouts')
-          .select('id, user_id')
-          .eq('completed', true)
-          .gte('workout_date', monthStart.toISOString())
-
-        if (mWorkouts && mWorkouts.length > 0) {
-          const cntMap = new Map<string, number>()
-          const wMap = new Map<string, string>()
-          for (const w of mWorkouts) {
-            const uid = w.user_id as string
-            cntMap.set(uid, (cntMap.get(uid) ?? 0) + 1)
-            wMap.set(w.id as string, uid)
-          }
-
-          const sortedCnt = [...cntMap.entries()].sort((a, b) => b[1] - a[1])
-          const myGrindIdx = sortedCnt.findIndex(([id]) => id === user.id)
-          const myGrindRank = myGrindIdx >= 0 ? myGrindIdx + 1 : sortedCnt.length + 1
-          const myGrindCount = cntMap.get(user.id) ?? 0
-          const aboveCntEntry = myGrindIdx > 0 ? sortedCnt[myGrindIdx - 1] : null
-
-          let aboveGrindName: string | null = null
-          if (aboveCntEntry) {
-            const { data: p } = await supabase.from('users').select('name').eq('id', aboveCntEntry[0]).maybeSingle()
-            aboveGrindName = p ? shortName(p.name as string) : null
-          }
-
-          const newChallenges: LiveChallenge[] = [{
-            title: 'Monthly Grind',
-            icon: '🔥',
-            userRank: myGrindRank,
-            totalParticipants: sortedCnt.length,
-            userValue: myGrindCount,
-            valueLabel: `workout${myGrindCount !== 1 ? 's' : ''} this month`,
-            aboveName: aboveGrindName,
-            aboveValue: aboveCntEntry ? aboveCntEntry[1] : null,
-            daysLabel: `${daysUntilMonthEnd()}d left`,
-          }]
-
-          // Volume King: total lbs lifted this month
-          const wIds = mWorkouts.map(w => w.id as string)
-          const { data: volLogs } = await supabase
-            .from('exercise_logs').select('workout_id, weight, reps').in('workout_id', wIds)
-
-          if (volLogs && volLogs.length > 0) {
-            const volMap = new Map<string, number>()
-            for (const l of volLogs) {
-              const uid = wMap.get(l.workout_id as string)
-              if (!uid) continue
-              volMap.set(uid, (volMap.get(uid) ?? 0) + ((l.weight as number) ?? 0) * ((l.reps as number) ?? 0))
-            }
-            const sortedVol = [...volMap.entries()].sort((a, b) => b[1] - a[1])
-            const myVolIdx = sortedVol.findIndex(([id]) => id === user.id)
-            const myVolRank = myVolIdx >= 0 ? myVolIdx + 1 : sortedVol.length + 1
-            const myVol = volMap.get(user.id) ?? 0
-            const aboveVolEntry = myVolIdx > 0 ? sortedVol[myVolIdx - 1] : null
-
-            let aboveVolName: string | null = null
-            if (aboveVolEntry) {
-              const { data: p } = await supabase.from('users').select('name').eq('id', aboveVolEntry[0]).maybeSingle()
-              aboveVolName = p ? shortName(p.name as string) : null
-            }
-
-            newChallenges.push({
-              title: 'Volume King',
-              icon: '💪',
-              userRank: myVolRank,
-              totalParticipants: sortedVol.length,
-              userValue: Math.round(myVol),
-              valueLabel: 'lb volume this month',
-              aboveName: aboveVolName,
-              aboveValue: aboveVolEntry ? Math.round(aboveVolEntry[1]) : null,
-              daysLabel: `${daysUntilMonthEnd()}d left`,
-            })
-          }
-
-          setLiveChallenges(newChallenges)
-        }
-      } catch { /* live challenges non-critical */ }
+        const data = await loadBuiltinChallenges(user.id)
+        setBuiltinChallenges(data)
+      } catch (err) { console.error('[Compete] builtin challenges error:', err) }
 
     } catch (err) {
       console.error('[Compete] loadData error:', err)
@@ -725,13 +918,15 @@ export default function Compete() {
     setChallengeLoading(true)
     try {
       const now = new Date().toISOString()
-      const { data: challenges } = await supabase
+      const builtinIds = new Set(BUILTIN_CHALLENGES.map(b => b.id))
+      const { data: allChallenges } = await supabase
         .from('challenges')
         .select('id, title, description, challenge_type, start_date, end_date')
         .gte('end_date', now)
         .order('start_date', { ascending: true })
 
-      if (!challenges || challenges.length === 0) {
+      const challenges = (allChallenges ?? []).filter(c => !builtinIds.has(c.id as string))
+      if (challenges.length === 0) {
         setComputedChallenges([])
         return
       }
@@ -805,6 +1000,40 @@ export default function Compete() {
       }
     } finally {
       setJoiningId(null)
+    }
+  }
+
+  async function handleJoinBuiltin(challengeId: string) {
+    if (!userId || joiningBuiltinId) return
+    setJoiningBuiltinId(challengeId)
+    try {
+      await supabase.from('challenge_participants').insert({
+        challenge_id: challengeId,
+        user_id: userId,
+      })
+      const fresh = await loadBuiltinChallenges(userId)
+      setBuiltinChallenges(fresh)
+    } catch (err) {
+      console.error('[Compete] join builtin error:', err)
+    } finally {
+      setJoiningBuiltinId(null)
+    }
+  }
+
+  async function handleLeaveBuiltin(challengeId: string) {
+    if (!userId || joiningBuiltinId) return
+    setJoiningBuiltinId(challengeId)
+    try {
+      await supabase.from('challenge_participants')
+        .delete()
+        .eq('challenge_id', challengeId)
+        .eq('user_id', userId)
+      const fresh = await loadBuiltinChallenges(userId)
+      setBuiltinChallenges(fresh)
+    } catch (err) {
+      console.error('[Compete] leave builtin error:', err)
+    } finally {
+      setJoiningBuiltinId(null)
     }
   }
 
@@ -980,10 +1209,10 @@ export default function Compete() {
           )}
 
           {/* Accomplishment boxes */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'stretch' }}>
-            {CAMPUS_ACCOMPLISHMENTS.slice(0, 2).map((item, i) => (
-              <div key={i} style={{ flex: 1 }}>
-                <AccomplishmentBox item={item} c={c} />
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'stretch' }}>
+            {CAMPUS_ACCOMPLISHMENTS.slice(0, 3).map((item, i) => (
+              <div key={i} style={{ flex: 1, minWidth: 0 }}>
+                <AccomplishmentBox item={item} c={c} compact />
               </div>
             ))}
           </div>
@@ -1140,48 +1369,36 @@ export default function Compete() {
             </div>
           )}
 
-          {/* Group Activity */}
-          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 5px rgba(0,0,0,0.12)' }}>
-            <span style={{ color: c.text, fontSize: 14, fontWeight: 700 }}>Group Activity</span>
-            <span style={{ color: c.textSub, fontSize: 12, fontWeight: 600 }}>This Week</span>
-          </div>
-
-          {/* Campus Standings — always-live computed competitions */}
-          {liveChallenges.length > 0 && (
-            <>
-              <SectionHeader title="Campus Standings" c={c} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-                {liveChallenges.map(lc => (
-                  <div key={lc.title} style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <div>
-                        <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>
-                          {lc.icon} {lc.title}
-                        </p>
-                        <p style={{ color: c.textSub, fontSize: 12, margin: 0 }}>
-                          {lc.userValue.toLocaleString()} {lc.valueLabel}
-                        </p>
-                      </div>
-                      <span style={{ background: c.accentBg, color: c.accent, fontSize: 11, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
-                        {lc.daysLabel}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ color: c.accent, fontSize: 20, fontWeight: 700 }}>#{lc.userRank}</span>
-                      <span style={{ color: c.textSub, fontSize: 11 }}>of {lc.totalParticipants}</span>
-                    </div>
-                    {lc.userRank === 1 ? (
-                      <p style={{ color: c.textSub, fontSize: 12, margin: '6px 0 0' }}>You're leading! 🏆</p>
-                    ) : lc.aboveName && lc.aboveValue !== null ? (
-                      <p style={{ color: c.textSub, fontSize: 12, margin: '6px 0 0' }}>
-                        {lc.aboveName} is {ordinal(lc.userRank - 1)} with {lc.aboveValue.toLocaleString()} {lc.valueLabel}.
-                      </p>
-                    ) : null}
-                  </div>
-                ))}
+          {/* Active Challenges — preview top 3 (side by side in one box) */}
+          <SectionHeader title="Active Challenges" onAction={() => setShowAllChallenges(true)} c={c} />
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '10px 6px', marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+            {builtinChallenges.slice(0, 3).map((bc, i) => (
+              <div
+                key={bc.meta.id}
+                onClick={() => setOpenChallengeId(bc.meta.id)}
+                style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 4, padding: '2px 4px', borderLeft: i > 0 ? `1px solid ${c.border}` : 'none', minWidth: 0 }}
+              >
+                <div style={{ width: 26, height: 26, borderRadius: '50%', background: c.accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                  {bc.meta.icon}
+                </div>
+                <p style={{ color: c.text, fontSize: 11, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{bc.meta.title}</p>
+                <p style={{ color: c.textSub, fontSize: 9, margin: 0 }}>
+                  {bc.joined && bc.userRank > 0 ? `#${bc.userRank} of ${bc.totalParticipants}` : `${bc.totalParticipants} in`}
+                </p>
+                {bc.joined ? (
+                  <span style={{ color: c.textSub, fontSize: 9, fontWeight: 600 }}>Joined</span>
+                ) : (
+                  <button
+                    onClick={e => { e.stopPropagation(); handleJoinBuiltin(bc.meta.id) }}
+                    disabled={joiningBuiltinId === bc.meta.id}
+                    style={{ background: 'none', border: 'none', padding: 0, color: c.accent, fontSize: 9, fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    {joiningBuiltinId === bc.meta.id ? 'Joining…' : 'Join'}
+                  </button>
+                )}
               </div>
-            </>
-          )}
+            ))}
+          </div>
 
           {/* Friends leaderboard — top 3 snapshot */}
           <SectionHeader title="Friends" onAction={hasFriends ? () => setShowFullModal('friends') : undefined} c={c} />
@@ -1195,36 +1412,33 @@ export default function Compete() {
               </p>
             </div>
           ) : (
-            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '2px 10px', marginBottom: 20 }}>
               {topThreePeople(friendsLeaderboard).map((row, idx) => {
                 const isUser = !row.isPlaceholder && row.userId === userId
                 return (
                   <div
                     key={row.userId}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '12px 0',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 0',
                       borderBottom: idx < 2 ? `1px solid ${c.border}` : 'none',
                       opacity: row.isPlaceholder ? 0.35 : 1,
                       background: isUser ? c.accentBg : 'transparent',
-                      borderRadius: isUser ? 8 : 0,
+                      borderRadius: isUser ? 6 : 0,
                       margin: isUser ? '2px -4px' : 0,
-                      paddingLeft: isUser ? 8 : 0,
-                      paddingRight: isUser ? 8 : 0,
+                      paddingLeft: isUser ? 6 : 0,
+                      paddingRight: isUser ? 6 : 0,
                     }}
                   >
-                    <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
+                    <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 11, fontWeight: 700, width: 16, textAlign: 'center' }}>
                       {row.rank}
                     </span>
-                    <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                        {!row.isPlaceholder && (() => { const t = tierBadge(row.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
-                      </div>
-                      <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
+                    <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} size={26} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ color: isUser ? c.accent : c.text, fontSize: 12, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                      <p style={{ color: c.textSub, fontSize: 10, margin: 0 }}>{row.subtitle}</p>
                     </div>
-                    <span style={{ color: row.isPlaceholder ? c.textSub : c.accent, fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
+                    <span style={{ color: row.isPlaceholder ? c.textSub : c.accent, fontSize: 12, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
                   </div>
                 )
               })}
@@ -1236,34 +1450,35 @@ export default function Compete() {
           {userWorkoutsCompleted < 3 ? (
             <LockedCard hint="See which Penn group reigns supreme" c={c} />
           ) : (
-          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '2px 10px', marginBottom: 20 }}>
             {topThreeGroups(groupsLeaderboard).map((row, idx) => {
               const isMyGroup = !row.isPlaceholder && myGroupIds.has(row.groupId)
               return (
                 <div
                   key={row.groupId}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '12px 0',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 0',
                     borderBottom: idx < 2 ? `1px solid ${c.border}` : 'none',
                     opacity: row.isPlaceholder ? 0.35 : 1,
                     background: isMyGroup ? c.accentBg : 'transparent',
-                    borderRadius: isMyGroup ? 8 : 0,
+                    borderRadius: isMyGroup ? 6 : 0,
                     margin: isMyGroup ? '2px -4px' : 0,
-                    paddingLeft: isMyGroup ? 8 : 0,
-                    paddingRight: isMyGroup ? 8 : 0,
+                    paddingLeft: isMyGroup ? 6 : 0,
+                    paddingRight: isMyGroup ? 6 : 0,
                   }}
                 >
-                  <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
+                  <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 11, fontWeight: 700, width: 16, textAlign: 'center' }}>
                     {row.rank}
                   </span>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                    <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>
+                  <AvatarCircle avatarUrl={null} ini={initials(row.name)} highlight={isMyGroup} c={c} size={26} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ color: c.text, fontSize: 12, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                    <p style={{ color: c.textSub, fontSize: 10, margin: 0 }}>
                       {row.isPlaceholder ? 'Placeholder' : `${row.category} · ${row.memberCount} members`}
                     </p>
                   </div>
-                  <span style={{ color: row.isPlaceholder ? c.textSub : c.accent, fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.avgScore}</span>
+                  <span style={{ color: row.isPlaceholder ? c.textSub : c.accent, fontSize: 12, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.avgScore}</span>
                 </div>
               )
             })}
@@ -1275,36 +1490,33 @@ export default function Compete() {
           {userWorkoutsCompleted < 3 ? (
             <LockedCard hint="See where you rank among all Penn students" c={c} />
           ) : (
-          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px', marginBottom: 20 }}>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: '2px 10px', marginBottom: 20 }}>
             {topThreePeople(campusLeaderboard).map((row, idx) => {
               const isUser = !row.isPlaceholder && row.userId === userId
               return (
                 <div
                   key={row.userId}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '12px 0',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 0',
                     borderBottom: idx < 2 ? `1px solid ${c.border}` : 'none',
                     opacity: row.isPlaceholder ? 0.35 : 1,
                     background: isUser ? c.accentBg : 'transparent',
-                    borderRadius: isUser ? 8 : 0,
+                    borderRadius: isUser ? 6 : 0,
                     margin: isUser ? '2px -4px' : 0,
-                    paddingLeft: isUser ? 8 : 0,
-                    paddingRight: isUser ? 8 : 0,
+                    paddingLeft: isUser ? 6 : 0,
+                    paddingRight: isUser ? 6 : 0,
                   }}
                 >
-                  <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 18, textAlign: 'center' }}>
+                  <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 11, fontWeight: 700, width: 16, textAlign: 'center' }}>
                     {row.rank}
                   </span>
-                  <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                      {!row.isPlaceholder && (() => { const t = tierBadge(row.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
-                    </div>
-                    <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
+                  <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} size={26} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ color: isUser ? c.accent : c.text, fontSize: 12, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                    <p style={{ color: c.textSub, fontSize: 10, margin: 0 }}>{row.subtitle}</p>
                   </div>
-                  <span style={{ color: row.isPlaceholder ? c.textSub : c.accent, fontSize: 14, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
+                  <span style={{ color: row.isPlaceholder ? c.textSub : c.accent, fontSize: 12, fontWeight: 700 }}>{row.isPlaceholder ? '—' : row.score}</span>
                 </div>
               )
             })}
@@ -1385,10 +1597,7 @@ export default function Compete() {
                       <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
                       <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} />
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                          {(() => { const t = tierBadge(row.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
-                        </div>
+                        <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
                         <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                       </div>
                       <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{row.score}</span>
@@ -1408,6 +1617,7 @@ export default function Compete() {
                   return (
                     <div key={row.groupId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < groupsLeaderboard.length - 1 ? `1px solid ${c.border}` : 'none', background: isMyGroup ? c.accentBg : 'transparent', borderRadius: isMyGroup ? 8 : 0, margin: isMyGroup ? '2px -4px' : 0, paddingLeft: isMyGroup ? 8 : 0, paddingRight: isMyGroup ? 8 : 0 }}>
                       <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
+                      <AvatarCircle avatarUrl={null} ini={initials(row.name)} highlight={isMyGroup} c={c} />
                       <div style={{ flex: 1 }}>
                         <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
                         <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.category} · {row.memberCount} members</p>
@@ -1431,10 +1641,7 @@ export default function Compete() {
                       <span style={{ color: RANK_COLORS[row.rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{row.rank}</span>
                       <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} />
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
-                          {(() => { const t = tierBadge(row.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
-                        </div>
+                        <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
                         <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{row.subtitle}</p>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -1456,10 +1663,7 @@ export default function Compete() {
                       <span style={{ color: c.textSub, fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{pinnedRow.rank}</span>
                       <AvatarCircle avatarUrl={pinnedRow.avatarUrl} ini={pinnedRow.initials} highlight={true} c={c} />
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <p style={{ color: c.accent, fontSize: 13, fontWeight: 700, margin: 0 }}>{pinnedRow.name}</p>
-                          {(() => { const t = tierBadge(pinnedRow.level, c.isDark); return <span style={{ background: t.bg, color: t.color, fontSize: 9, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{t.label}</span> })()}
-                        </div>
+                        <p style={{ color: c.accent, fontSize: 13, fontWeight: 700, margin: 0 }}>{pinnedRow.name}</p>
                         <p style={{ color: c.textSub, fontSize: 11, margin: 0 }}>{pinnedRow.subtitle}</p>
                       </div>
                       <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{pinnedRow.score}</span>
@@ -1499,6 +1703,102 @@ export default function Compete() {
           </div>
         </div>
       )}
+
+      {/* All challenges — 3 per row grid */}
+      {showAllChallenges && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: c.bg, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '52px 20px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${c.border}`, flexShrink: 0 }}>
+            <h2 style={{ color: c.text, fontSize: 18, fontWeight: 700, margin: 0 }}>Active Challenges</h2>
+            <button
+              onClick={() => setShowAllChallenges(false)}
+              style={{ background: 'none', border: 'none', color: c.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+            >
+              Done
+            </button>
+          </div>
+          <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px 100px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              {builtinChallenges.map(bc => (
+                <ChallengeGridCard
+                  key={bc.meta.id}
+                  data={bc}
+                  joiningId={joiningBuiltinId}
+                  onJoin={handleJoinBuiltin}
+                  onOpen={() => { setShowAllChallenges(false); setOpenChallengeId(bc.meta.id) }}
+                  c={c}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single-challenge leaderboard modal */}
+      {openChallengeId && (() => {
+        const ch = builtinChallenges.find(b => b.meta.id === openChallengeId)
+        if (!ch) return null
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 320, background: c.bg, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '52px 20px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${c.border}`, flexShrink: 0 }}>
+              <h2 style={{ color: c.text, fontSize: 18, fontWeight: 700, margin: 0 }}>
+                {ch.meta.icon} {ch.meta.title}
+              </h2>
+              <button
+                onClick={() => setOpenChallengeId(null)}
+                style={{ background: 'none', border: 'none', color: c.accent, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              >
+                Done
+              </button>
+            </div>
+            <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px 100px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ color: c.textSub, fontSize: 12 }}>
+                  {ch.totalParticipants} {ch.totalParticipants === 1 ? 'participant' : 'participants'}
+                </span>
+                {ch.meta.autoEnroll ? (
+                  <span style={{ color: c.textSub, fontSize: 12, fontWeight: 600 }}>Joined</span>
+                ) : ch.joined ? (
+                  <button
+                    onClick={() => handleLeaveBuiltin(ch.meta.id)}
+                    disabled={joiningBuiltinId === ch.meta.id}
+                    style={{ background: 'none', border: `1px solid ${c.border}`, color: c.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '6px 14px', borderRadius: 8 }}
+                  >
+                    {joiningBuiltinId === ch.meta.id ? 'Leaving…' : 'Leave'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleJoinBuiltin(ch.meta.id)}
+                    disabled={joiningBuiltinId === ch.meta.id}
+                    style={{ background: c.accent, border: 'none', color: c.bg, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '6px 14px', borderRadius: 8 }}
+                  >
+                    {joiningBuiltinId === ch.meta.id ? 'Joining…' : 'Join'}
+                  </button>
+                )}
+              </div>
+              <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '4px 14px' }}>
+                {ch.leaderboard.length === 0 ? (
+                  <p style={{ color: c.textSub, fontSize: 13, textAlign: 'center', padding: '20px 0', margin: 0 }}>
+                    {ch.joined ? 'Be the first to set a score.' : 'No participants yet — join to be the first.'}
+                  </p>
+                ) : ch.leaderboard.map((row, idx) => {
+                  const rank = idx + 1
+                  const isUser = row.userId === userId
+                  return (
+                    <div key={row.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: idx < ch.leaderboard.length - 1 ? `1px solid ${c.border}` : 'none', background: isUser ? c.accentBg : 'transparent', borderRadius: isUser ? 8 : 0, margin: isUser ? '2px -4px' : 0, paddingLeft: isUser ? 8 : 0, paddingRight: isUser ? 8 : 0 }}>
+                      <span style={{ color: RANK_COLORS[rank] ?? c.textSub, fontSize: 13, fontWeight: 700, width: 22, textAlign: 'center' }}>{rank}</span>
+                      <AvatarCircle avatarUrl={row.avatarUrl} ini={row.initials} highlight={isUser} c={c} />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ color: isUser ? c.accent : c.text, fontSize: 13, fontWeight: 700, margin: 0 }}>{row.name}</p>
+                      </div>
+                      <span style={{ color: c.accent, fontSize: 14, fontWeight: 700 }}>{ch.meta.valueLabel(row.value)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

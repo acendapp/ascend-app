@@ -6,7 +6,7 @@ INSERT INTO challenges (id, title, description, challenge_type, start_date, end_
 VALUES
   (
     gen_random_uuid(),
-    'Penn Volume King',
+    'Penn Volume Leader',
     'Lift the most total weight this month. Sets × reps × weight counts.',
     'most_volume',
     date_trunc('month', now()),
