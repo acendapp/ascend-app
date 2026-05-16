@@ -41,7 +41,7 @@ const DEMO_FEED: FeedDisplayItem[] = [
   { id: 'df3', name: 'Marcus Lee',     mainText: 'checked in',              subText: 'Pottruck Fitness Center', timeStr: '2h ago',  activityType: 'checkin',     isPlaceholder: true },
   { id: 'df4', name: 'Priya Patel',    mainText: 'moved up',                subText: 'Now ranked #2 at Penn',   timeStr: '3h ago',  activityType: 'leaderboard', leaderboardDelta: 4, isPlaceholder: true },
   { id: 'df5', name: 'Tyler Ross',     mainText: 'hit a new PR',            subText: '225 lb Bench Press',      timeStr: '5h ago',  activityType: 'pr',          isPlaceholder: true },
-  { id: 'df6', name: 'Alex Kim',       mainText: 'reached Contender',       subText: 'New rank achieved',       timeStr: '6h ago',  activityType: 'rank',        rankTier: 3, isPlaceholder: true },
+  { id: 'df6', name: 'Alex Kim',       mainText: 'reached Rookie',          subText: 'New rank achieved',       timeStr: '6h ago',  activityType: 'rank',        rankTier: 3, isPlaceholder: true },
   { id: 'df7', name: 'Jordan Wu',      mainText: 'worked out',              subText: 'Upper Body',              timeStr: '8h ago',  activityType: 'workout',     isPlaceholder: true },
   { id: 'df8', name: 'Emma Liu',       mainText: 'checked in',              subText: 'Fox Fitness Center',      timeStr: '10h ago', activityType: 'checkin',     isPlaceholder: true },
   { id: 'df9', name: 'Kai Nguyen',     mainText: 'hit a new PR',            subText: '185 lb Deadlift',         timeStr: '1d ago',  activityType: 'pr',          isPlaceholder: true },

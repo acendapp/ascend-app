@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs, calculateConsistencyScore, calculateAscendScore, getRankInfo } from '../lib/scoring'
+import { calculateXPGain, getLevelFromXP, calculateStrengthScoreFromLogs, calculateConsistencyScore, calculateAscendScoreGain, getRankInfo } from '../lib/scoring'
 import { logActivity, isStreakMilestone, recordScoreChange } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 import exerciseDB from '../data/exercises.json'
@@ -42,6 +42,7 @@ const CUSTOM_SESSION_TTL = 10 * 60 * 60 * 1000
 
 interface CustomSession {
   startEpoch: number
+  templateId: string | null
   templateName: string
   exercises: TemplateExercise[]
   completedSets: Record<number, number>
@@ -97,7 +98,7 @@ export default function CustomWorkout() {
 
   // Workout state
   const [activeTemplate, setActiveTemplate] = useState<Template | null>(() =>
-    savedSession ? { id: '', name: savedSession.templateName, last_used_at: null, exercises: savedSession.exercises } : null
+    savedSession ? { id: savedSession.templateId ?? '', name: savedSession.templateName, last_used_at: null, exercises: savedSession.exercises } : null
   )
   const [completedSets, setCompletedSets] = useState<Record<number, number>>(() => savedSession?.completedSets ?? {})
   const [setWeights, setSetWeights] = useState<Record<string, number>>(() => savedSession?.setWeights ?? {})
@@ -197,17 +198,33 @@ export default function CustomWorkout() {
     const saved = loadCustomSession()
     const epoch = saved?.startEpoch ?? Date.now()
     startTimeRef.current = epoch
-    setElapsedSeconds(Math.floor((Date.now() - epoch) / 1000))
-    timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000)
-    return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null } }
+    // Tick is computed from wall-clock so the timer stays accurate even when
+    // the browser throttles setInterval in background tabs / minimized windows.
+    const tick = () => setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000))
+    tick()
+    timerRef.current = setInterval(tick, 1000)
+    // Snap back to wall-clock the moment the tab/app returns to the foreground.
+    const onVisible = () => { if (document.visibilityState === 'visible') tick() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', tick)
+    return () => {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', tick)
+    }
   }, [phase])
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
 
   useEffect(() => {
     if (phase !== 'workout' || !activeTemplate) return
+    // Don't save until startTimeRef is set by the timer effect — otherwise a
+    // race on first render could overwrite the saved startEpoch with Date.now()
+    // and reset the elapsed time to 0.
+    if (!startTimeRef.current) return
     saveCustomSession({
-      startEpoch: startTimeRef.current || Date.now(),
+      startEpoch: startTimeRef.current,
+      templateId: activeTemplate.id || null,
       templateName: activeTemplate.name,
       exercises: activeTemplate.exercises,
       completedSets,
@@ -344,20 +361,30 @@ export default function CustomWorkout() {
   async function handleFinish() {
     if (!activeTemplate || !userId || finishing) return
     setFinishing(true)
+    setSaveError(null)
     try {
       const duration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 60000))
 
-      const { data: workoutRecord } = await supabase.from('workouts').insert({
+      // template_id must be a UUID or null — never an empty string (Postgres rejects '')
+      const templateIdForInsert = activeTemplate.id && activeTemplate.id.length === 36
+        ? activeTemplate.id
+        : null
+
+      const { data: workoutRecord, error: wErr } = await supabase.from('workouts').insert({
         user_id: userId,
         workout_date: new Date().toISOString(),
         workout_type: activeTemplate.name,
         duration,
         completed: true,
         workout_source: 'custom',
-        template_id: activeTemplate.id,
+        template_id: templateIdForInsert,
       }).select().single()
 
-      if (!workoutRecord) return
+      if (wErr || !workoutRecord) {
+        console.error('Custom workout save error:', wErr)
+        setSaveError('Could not save your workout. Check your connection and try again.')
+        return
+      }
 
       let totalVolume = 0
       let totalSets = 0
@@ -385,9 +412,11 @@ export default function CustomWorkout() {
         })
       }
 
-      await supabase.from('workout_templates')
-        .update({ last_used_at: new Date().toISOString() })
-        .eq('id', activeTemplate.id)
+      if (templateIdForInsert) {
+        await supabase.from('workout_templates')
+          .update({ last_used_at: new Date().toISOString() })
+          .eq('id', templateIdForInsert)
+      }
 
       const { data: curScores } = await supabase
         .from('user_scores').select('xp, level, streak_days, strength_score, social_score, ascend_score').eq('user_id', userId).maybeSingle()
@@ -413,6 +442,7 @@ export default function CustomWorkout() {
       const { count: weekCount } = await supabase
         .from('workouts').select('id', { count: 'exact', head: true })
         .eq('user_id', userId).eq('completed', true).gte('workout_date', monday.toISOString())
+        .neq('workout_source', 'rest')
       const consistencyScore = calculateConsistencyScore(weekCount ?? 0)
 
       const weightLogs: { weight: number }[] = []
@@ -429,7 +459,16 @@ export default function CustomWorkout() {
         if (newStrength > strengthScore) strengthScore = newStrength
       }
 
-      const ascendScore = calculateAscendScore(strengthScore, consistencyScore, curScores?.social_score ?? 0, newStreak)
+      const prevAscend = curScores?.ascend_score ?? 0
+      const scoreGain = calculateAscendScoreGain({
+        source: 'workout',
+        workoutsThisWeek: weekCount ?? 0,
+        streakDays: newStreak,
+        socialScore: curScores?.social_score ?? 0,
+        // Custom workouts don't track PRs against personal_records yet
+        newPRsCount: 0,
+      })
+      const ascendScore = prevAscend + scoreGain.total
 
       await supabase.from('user_scores').update({
         xp: newXP, level: newLevel, streak_days: newStreak,
@@ -441,9 +480,9 @@ export default function CustomWorkout() {
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))
 
       // ── Activity feed events ──────────────────────────────────────────────
-      const prevScore = curScores?.ascend_score ?? 0
+      const prevScore = prevAscend
       // Record this workout's score delta for weekly-gain leaderboards
-      await recordScoreChange(workoutRecord.id as string, ascendScore - prevScore)
+      await recordScoreChange(workoutRecord.id as string, scoreGain.total)
       await logActivity({
         userId,
         eventType: 'workout',
@@ -481,6 +520,9 @@ export default function CustomWorkout() {
         xpGain: xp,
       })
       setPhase('summary')
+    } catch (err) {
+      console.error('Finish custom workout error:', err)
+      setSaveError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setFinishing(false)
     }
@@ -924,6 +966,10 @@ export default function CustomWorkout() {
                 See you tomorrow 💪
               </button>
             ) : (
+              <>
+              {saveError && (
+                <p style={{ color: '#EF4444', fontSize: 12, margin: '0 0 10px', textAlign: 'center' }}>{saveError}</p>
+              )}
               <button
                 onClick={handleFinish}
                 disabled={!anyDone || finishing}
@@ -938,6 +984,7 @@ export default function CustomWorkout() {
               >
                 {finishing ? 'Saving…' : 'Finish Workout ✓'}
               </button>
+              </>
             )}
 
           </div>

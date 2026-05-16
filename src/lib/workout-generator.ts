@@ -4,11 +4,21 @@
 import { supabase } from './supabase'
 import exerciseDB from '../data/exercises.json'
 
-type ExerciseEntry = typeof exerciseDB[0]
+type ExerciseEntry = {
+  name: string
+  primary: string[]
+  secondary: string[]
+  min_equipment: string
+  contraindications: string[]
+  difficulty: string
+  custom_only?: boolean
+}
 
 function buildExerciseLibrary(userEquipment: string | null, excludeContraindications: string[]): string {
   const tier = userEquipment ?? 'gym'
   const allowed = (exerciseDB as ExerciseEntry[]).filter(e => {
+    // Olympic lifts and other custom-only entries are not surfaced to the AI generator
+    if (e.custom_only) return false
     // equipment filter: bodyweight users only get bodyweight exercises; gym/both get everything
     if (tier === 'bodyweight' && e.min_equipment !== 'bodyweight') return false
     // exclude exercises that conflict with any active contraindication

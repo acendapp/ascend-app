@@ -93,7 +93,7 @@ const DEMO_FEED: FeedDisplayItem[] = [
   { id: 'df3', name: 'Marcus Lee',     mainText: 'checked in',               subText: 'Pottruck Fitness Center', timeStr: '2h ago',  activityType: 'checkin',     isPlaceholder: true },
   { id: 'df4', name: 'Priya Patel',    mainText: 'moved up',                 subText: 'Now ranked #2 at Penn',  timeStr: '3h ago',  activityType: 'leaderboard', leaderboardDelta: 4, isPlaceholder: true },
   { id: 'df5', name: 'Tyler Ross',     mainText: 'hit a new PR',             subText: '225 lb Bench Press',     timeStr: '5h ago',  activityType: 'pr',          isPlaceholder: true },
-  { id: 'df6', name: 'Alex Kim',       mainText: 'reached Contender',        subText: 'New rank achieved',       timeStr: '6h ago',  activityType: 'rank',        rankTier: 3,  isPlaceholder: true },
+  { id: 'df6', name: 'Alex Kim',       mainText: 'reached Rookie',           subText: 'New rank achieved',       timeStr: '6h ago',  activityType: 'rank',        rankTier: 3,  isPlaceholder: true },
 ]
 const RANK_SNAP_KEY  = 'ascend_rank_snap'
 const SCORE_SNAP_KEY = 'ascend_score_snap'
@@ -187,7 +187,8 @@ export default function Home() {
       // Today's workout
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
       const { data: todayWks } = await supabase.from('workouts').select('id')
-        .eq('user_id', user.id).eq('completed', true).gte('workout_date', todayStart.toISOString()).limit(1)
+        .eq('user_id', user.id).eq('completed', true).neq('workout_source', 'rest')
+        .gte('workout_date', todayStart.toISOString()).limit(1)
       const hasToday = (todayWks?.length ?? 0) > 0
       setWorkoutCompletedToday(hasToday)
       if (hasToday) localStorage.setItem('ascend_workout_today', '1')
@@ -237,7 +238,7 @@ export default function Home() {
 
       // Total workouts + campus rank
       const { count: workoutCount } = await supabase.from('workouts').select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id).eq('completed', true)
+        .eq('user_id', user.id).eq('completed', true).neq('workout_source', 'rest')
       const wc = workoutCount ?? 0
       setHasAnyWorkout(wc > 0)
       setWorkoutsCompleted(wc)
@@ -279,7 +280,7 @@ export default function Home() {
           supabase.from('group_members').select('group_id').eq('user_id', user.id).limit(1),
           supabase.from('groups').select('id, name'),
           supabase.from('group_members').select('user_id, group_id'),
-          supabase.from('workouts').select('user_id').eq('completed', true).gte('workout_date', monday2.toISOString()),
+          supabase.from('workouts').select('user_id').eq('completed', true).neq('workout_source', 'rest').gte('workout_date', monday2.toISOString()),
         ])
         const myGid = (myGroupRes.data?.[0] as { group_id: string } | undefined)?.group_id ?? null
         if (myGid && allGroupsRes.data && allMembersRes.data && weekWorkoutsRes.data) {

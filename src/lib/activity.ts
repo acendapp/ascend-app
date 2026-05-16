@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { getRankInfo } from './scoring'
 
-export type EventType = 'workout' | 'pr' | 'checkin' | 'streak' | 'rank'
+export type EventType = 'workout' | 'pr' | 'checkin' | 'streak' | 'rank' | 'rest'
 
 export const STREAK_MILESTONES = [3, 7, 14, 21, 30, 60, 90, 100, 180, 365]
 

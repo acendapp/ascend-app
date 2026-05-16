@@ -15,6 +15,7 @@ import Workout from './pages/Workout'
 import WorkoutTypeSelector from './pages/WorkoutTypeSelector'
 import CustomWorkout from './pages/CustomWorkout'
 import ClassWorkout from './pages/ClassWorkout'
+import RestDay from './pages/RestDay'
 import Groups from './pages/Groups'
 import Compete from './pages/Compete'
 import Profile from './pages/Profile'
@@ -162,6 +163,7 @@ function AppRoutes() {
             <Route path="/workout/ascend" element={authed ? <Workout /> : <Navigate to="/auth" replace />} />
             <Route path="/workout/custom" element={authed ? <CustomWorkout /> : <Navigate to="/auth" replace />} />
             <Route path="/workout/class" element={authed ? <ClassWorkout /> : <Navigate to="/auth" replace />} />
+            <Route path="/workout/rest" element={authed ? <RestDay /> : <Navigate to="/auth" replace />} />
             <Route path="/groups"  element={authed ? <Groups />  : <Navigate to="/auth" replace />} />
             <Route path="/compete" element={authed ? <Compete /> : <Navigate to="/auth" replace />} />
             <Route path="/profile" element={authed ? <Profile /> : <Navigate to="/auth" replace />} />

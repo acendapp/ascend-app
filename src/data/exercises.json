@@ -232,5 +232,24 @@
   { "name": "Isometric Wall Push", "primary": ["chest"], "secondary": ["triceps", "shoulders"], "min_equipment": "bodyweight", "contraindications": ["wrists"], "difficulty": "beginner" },
   { "name": "Reverse Hyperextension", "primary": ["glutes"], "secondary": ["hamstrings", "back"], "min_equipment": "gym", "contraindications": [], "difficulty": "intermediate" },
   { "name": "Poliquin Step-Up", "primary": ["quads"], "secondary": ["calves"], "min_equipment": "gym", "contraindications": ["knees"], "difficulty": "intermediate" },
-  { "name": "Trap Bar Jump", "primary": ["quads"], "secondary": ["glutes", "calves"], "min_equipment": "gym", "contraindications": ["knees", "lower_back"], "difficulty": "advanced" }
+  { "name": "Trap Bar Jump", "primary": ["quads"], "secondary": ["glutes", "calves"], "min_equipment": "gym", "contraindications": ["knees", "lower_back"], "difficulty": "advanced" },
+
+  { "name": "Power Clean", "primary": ["back"], "secondary": ["glutes", "hamstrings", "shoulders", "quads"], "min_equipment": "gym", "contraindications": ["lower_back", "wrists", "shoulders", "knees"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Hang Power Clean", "primary": ["back"], "secondary": ["glutes", "hamstrings", "shoulders", "quads"], "min_equipment": "gym", "contraindications": ["lower_back", "wrists", "shoulders"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Clean", "primary": ["quads"], "secondary": ["back", "glutes", "hamstrings", "shoulders"], "min_equipment": "gym", "contraindications": ["lower_back", "wrists", "shoulders", "knees"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Hang Clean", "primary": ["quads"], "secondary": ["back", "glutes", "hamstrings", "shoulders"], "min_equipment": "gym", "contraindications": ["lower_back", "wrists", "shoulders", "knees"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Power Snatch", "primary": ["shoulders"], "secondary": ["back", "glutes", "hamstrings", "quads"], "min_equipment": "gym", "contraindications": ["lower_back", "wrists", "shoulders"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Hang Power Snatch", "primary": ["shoulders"], "secondary": ["back", "glutes", "hamstrings", "quads"], "min_equipment": "gym", "contraindications": ["lower_back", "wrists", "shoulders"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Snatch", "primary": ["shoulders"], "secondary": ["back", "glutes", "hamstrings", "quads", "core"], "min_equipment": "gym", "contraindications": ["lower_back", "wrists", "shoulders", "knees"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Hang Snatch", "primary": ["shoulders"], "secondary": ["back", "glutes", "hamstrings", "quads", "core"], "min_equipment": "gym", "contraindications": ["lower_back", "wrists", "shoulders"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Clean and Jerk", "primary": ["shoulders"], "secondary": ["back", "glutes", "hamstrings", "quads", "triceps"], "min_equipment": "gym", "contraindications": ["lower_back", "wrists", "shoulders", "knees"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Split Jerk", "primary": ["shoulders"], "secondary": ["triceps", "quads", "glutes", "core"], "min_equipment": "gym", "contraindications": ["shoulders", "wrists", "lower_back"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Push Jerk", "primary": ["shoulders"], "secondary": ["triceps", "quads", "glutes"], "min_equipment": "gym", "contraindications": ["shoulders", "wrists", "lower_back"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Clean Pull", "primary": ["back"], "secondary": ["glutes", "hamstrings", "calves"], "min_equipment": "gym", "contraindications": ["lower_back"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Snatch Pull", "primary": ["back"], "secondary": ["glutes", "hamstrings", "calves"], "min_equipment": "gym", "contraindications": ["lower_back"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Muscle Clean", "primary": ["shoulders"], "secondary": ["back", "biceps"], "min_equipment": "gym", "contraindications": ["lower_back", "shoulders", "wrists"], "difficulty": "intermediate", "custom_only": true },
+  { "name": "Muscle Snatch", "primary": ["shoulders"], "secondary": ["back", "triceps"], "min_equipment": "gym", "contraindications": ["lower_back", "shoulders", "wrists"], "difficulty": "intermediate", "custom_only": true },
+  { "name": "Snatch Grip Deadlift", "primary": ["back"], "secondary": ["hamstrings", "glutes", "forearms"], "min_equipment": "gym", "contraindications": ["lower_back"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Clean Grip Deadlift", "primary": ["back"], "secondary": ["hamstrings", "glutes"], "min_equipment": "gym", "contraindications": ["lower_back"], "difficulty": "advanced", "custom_only": true },
+  { "name": "Snatch Balance", "primary": ["shoulders"], "secondary": ["quads", "core"], "min_equipment": "gym", "contraindications": ["shoulders", "wrists", "knees", "lower_back"], "difficulty": "advanced", "custom_only": true }
 ]

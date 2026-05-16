@@ -6,11 +6,14 @@ import { generateWorkout, suggestSubstitution, parseReps } from '../lib/workout-
 import type { GeneratedWorkout, ExerciseItem } from '../lib/workout-generator'
 import type { UserProfile } from '../types'
 import {
-  calculateAscendScore,
+  calculateAscendScoreGain,
   calculateConsistencyScore,
   calculateStrengthScoreFromLogs,
   calculateXPGain,
   getLevelFromXP,
+  estimateCalories,
+  metFromRpe,
+  parseBodyWeightKg,
 } from '../lib/scoring'
 import { notificationPermission, requestPushPermission } from '../lib/notifications'
 import { logActivity, maybeLogRankUp, recordScoreChange, isStreakMilestone } from '../lib/activity'
@@ -25,6 +28,7 @@ interface SummaryData {
   exercisesCompleted: number
   totalVolume: number
   durationMinutes: number
+  estimatedCalories: number
   newPRs: { exercise: string; weight: number }[]
   scoreChange: number
   xpGain: number
@@ -680,19 +684,26 @@ export default function Workout() {
     return () => clearInterval(id)
   }, [phase])
 
-  // Workout elapsed timer — starts when phase becomes 'workout', restored across app exits
+  // Workout elapsed timer — starts when phase becomes 'workout', restored across app exits.
+  // Every tick reads wall-clock time so the timer stays accurate even when the browser
+  // throttles setInterval in background tabs, minimized windows, or backgrounded apps.
   useEffect(() => {
     if (phase !== 'workout') {
       if (workoutTimerRef.current) { clearInterval(workoutTimerRef.current); workoutTimerRef.current = null }
       return
     }
     if (!startTimeRef.current) startTimeRef.current = Date.now()
-    setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000))
-    workoutTimerRef.current = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000))
-    }, 1000)
+    const tick = () => setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000))
+    tick()
+    workoutTimerRef.current = setInterval(tick, 1000)
+    // Snap to wall-clock immediately when the tab/app returns to the foreground.
+    const onVisible = () => { if (document.visibilityState === 'visible') tick() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', tick)
     return () => {
       if (workoutTimerRef.current) { clearInterval(workoutTimerRef.current); workoutTimerRef.current = null }
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', tick)
     }
   }, [phase])
 
@@ -898,11 +909,15 @@ export default function Workout() {
       const newPRs: { exercise: string; weight: number }[] = []
       let exercisesCompleted = 0
       let totalVolume = 0
+      let totalSets = 0
+      let rpeWeightedSum = 0   // Σ (rpe × sets), for avg RPE weighted by sets
 
       for (const { ex, key } of allExercises) {
         const sets = completedSets[key] ?? 0
         if (sets === 0) continue
         exercisesCompleted++
+        totalSets += sets
+        if (ex.rpe_target && ex.rpe_target > 0) rpeWeightedSum += ex.rpe_target * sets
 
         const bw = isBodyweightExercise(ex)
         const weight = bw ? 0 : getWeightForKey(key, sets, setWeights, ex.suggested_weight)
@@ -980,6 +995,7 @@ export default function Workout() {
         const { data: weekWk } = await supabase
           .from('workouts').select('workout_date')
           .eq('user_id', user.id).eq('completed', true).gte('workout_date', monday.toISOString())
+          .neq('workout_source', 'rest')
         const weekCount = weekWk?.length ?? 0
         weekDays = [false, false, false, false, false, false, false]
         for (const w of weekWk ?? []) {
@@ -1009,7 +1025,16 @@ export default function Workout() {
           }
         }
 
-        ascendScore = calculateAscendScore(strengthScore, consistencyScore, socialScore, newStreakDays)
+        // Additive Ascend Score: previous score + per-workout gain. Strength is
+        // a sub-score snapshot only; PRs feed in via the gain formula directly.
+        const scoreGain = calculateAscendScoreGain({
+          source: 'workout',
+          workoutsThisWeek: weekCount,
+          streakDays: newStreakDays,
+          socialScore,
+          newPRsCount: newPRs.length,
+        })
+        ascendScore = previousAscendScore + scoreGain.total
 
         const isFirstWorkout = wids.length <= 1
         xpGain = calculateXPGain(exercisesCompleted, newPRs.length, isFirstWorkout)
@@ -1030,7 +1055,7 @@ export default function Workout() {
         if (scoreUpdateErr) throw new Error(scoreUpdateErr.message)
 
         // Record this workout's score delta for weekly-gain leaderboards
-        await recordScoreChange(workoutRecord.id as string, ascendScore - previousAscendScore)
+        await recordScoreChange(workoutRecord.id as string, scoreGain.total)
 
         try {
           await supabase.from('user_scores').update({ workouts_completed: wids.length }).eq('user_id', profileId)
@@ -1073,6 +1098,7 @@ export default function Workout() {
         const { data: recentWk } = await supabase
           .from('workouts').select('id, workout_date')
           .eq('user_id', user.id).eq('completed', true)
+          .neq('workout_source', 'rest')
           .order('workout_date', { ascending: false }).limit(8)
         const recentIds = (recentWk ?? []).map(w => w.id as string)
         if (recentIds.length > 0) {
@@ -1092,11 +1118,22 @@ export default function Workout() {
         console.error('Volume trend fetch error:', vErr)
       }
 
+      const finalDurationMinutes = Math.round((Date.now() - startTimeRef.current) / 60000)
+      const avgRpe = totalSets > 0 ? rpeWeightedSum / totalSets : 0
+      const bodyWeightKg = parseBodyWeightKg(localStorage.getItem('onboarding_weight'))
+      const estimatedCalories = estimateCalories({
+        actualMinutes: finalDurationMinutes,
+        totalSets,
+        bodyWeightKg,
+        met: avgRpe > 0 ? metFromRpe(avgRpe) : undefined,
+      })
+
       setSummaryData({
         sessionLabel: workout.session_label,
         exercisesCompleted,
         totalVolume: Math.round(totalVolume),
-        durationMinutes: Math.round((Date.now() - startTimeRef.current) / 60000),
+        durationMinutes: finalDurationMinutes,
+        estimatedCalories,
         newPRs,
         scoreChange: Math.max(0, ascendScore - previousAscendScore),
         xpGain,
@@ -1723,8 +1760,7 @@ export default function Workout() {
 
   if (phase === 'summary' && summaryData) {
     const firstName = profile?.name?.trim().split(' ')[0] ?? ''
-    // Rough resistance-training estimate (~6.5 kcal/min)
-    const estimatedCalories = Math.round(summaryData.durationMinutes * 6.5)
+    const estimatedCalories = summaryData.estimatedCalories
     const totalTimeStr = summaryData.durationMinutes >= 60
       ? `${Math.floor(summaryData.durationMinutes / 60)}h ${summaryData.durationMinutes % 60}m`
       : `${summaryData.durationMinutes}m`

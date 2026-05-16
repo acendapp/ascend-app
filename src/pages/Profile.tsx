@@ -336,8 +336,8 @@ export default function Profile() {
           supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
           supabase.from('user_scores').select('*').eq('user_id', user.id).maybeSingle(),
           supabase.from('personal_records').select('exercise_name, weight').eq('user_id', user.id).order('weight', { ascending: false }),
-          supabase.from('workouts').select('id', { count: 'exact' }).eq('user_id', user.id).eq('completed', true),
-          supabase.from('workouts').select('id, workout_date').eq('user_id', user.id).eq('completed', true).gte('workout_date', thirtyAgo),
+          supabase.from('workouts').select('id', { count: 'exact' }).eq('user_id', user.id).eq('completed', true).neq('workout_source', 'rest'),
+          supabase.from('workouts').select('id, workout_date').eq('user_id', user.id).eq('completed', true).neq('workout_source', 'rest').gte('workout_date', thirtyAgo),
         ])
 
         let profileData = profileRes.data
@@ -1024,12 +1024,15 @@ export default function Profile() {
             style={{ background: c.surface, border: `0.5px solid ${c.border}`, borderRadius: 18, padding: '20px 22px', width: 'calc(100% - 48px)', maxWidth: 320 }}
             onClick={e => e.stopPropagation()}
           >
-            <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: '0 0 16px' }}>How it's calculated</p>
+            <p style={{ color: c.text, fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>How it's calculated</p>
+            <p style={{ color: c.textSub, fontSize: 12, lineHeight: 1.55, margin: '0 0 14px' }}>
+              Every workout adds ~6–10 points to your Ascend Score. The bars below show your current training state — consistency, streak, and community engagement contribute the most, while strength rewards come from PRs.
+            </p>
             {[
-              { name: 'Strength',    desc: 'Based on your heaviest lifts normalized against bodyweight. The bar resets every 15 points as you climb.' },
-              { name: 'Consistency', desc: 'Tracks sessions completed this week against a 5-workout target, with 2 free rest days built in.' },
-              { name: 'Social',      desc: 'Earned by adding friends and checking into the gym. Reflects how active you are in the Penn community.' },
-              { name: 'Streak',      desc: 'Your streak normalized to 30 days. Bonus points unlock at 7 days (+5), 14 days (+10), and 30 days (+20) — these can push your score above 100.' },
+              { name: 'Strength',    desc: 'A snapshot of your heaviest lifts. New PRs add +1.5 each to your per-workout gain — strength itself does not drive ongoing score growth.' },
+              { name: 'Consistency', desc: 'Sessions completed this week. 3+ workouts adds +1 to each session; 5+ adds +2. Two free rest days are built in.' },
+              { name: 'Social',      desc: 'Friends added, gym check-ins, and community activity. Scales the per-workout bonus by up to +2.' },
+              { name: 'Streak',      desc: 'Up to +3 added to each workout, scaling with your streak length (capped at 30 days). Rest days keep your streak alive and add +2.' },
             ].map((f, i, arr) => (
               <div key={f.name} style={{ paddingBottom: i < arr.length - 1 ? 12 : 0, marginBottom: i < arr.length - 1 ? 12 : 0, borderBottom: i < arr.length - 1 ? `1px solid ${c.border}` : 'none' }}>
                 <p style={{ color: c.text, fontSize: 13, fontWeight: 700, margin: '0 0 3px' }}>{f.name}</p>

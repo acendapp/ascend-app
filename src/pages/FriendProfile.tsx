@@ -45,6 +45,7 @@ const SOURCE_META: Record<string, { emoji: string; label: string }> = {
   ascend_method: { emoji: '⚡', label: 'Ascend Method' },
   custom: { emoji: '✏️', label: 'Custom' },
   class: { emoji: '🏃', label: 'Class' },
+  rest: { emoji: '💤', label: 'Rest Day' },
 }
 
 function goBack(navigate: ReturnType<typeof useNavigate>) {

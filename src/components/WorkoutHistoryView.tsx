@@ -190,6 +190,7 @@ export default function WorkoutHistoryView() {
         .select('id, workout_date, workout_type, duration')
         .eq('user_id', user.id)
         .eq('completed', true)
+        .neq('workout_source', 'rest')
         .order('workout_date', { ascending: false })
         .limit(20)
 
@@ -202,6 +203,7 @@ export default function WorkoutHistoryView() {
         .select('id, workout_date')
         .eq('user_id', user.id)
         .eq('completed', true)
+        .neq('workout_source', 'rest')
         .gte('workout_date', eightWeeksAgo.toISOString())
         .order('workout_date', { ascending: true })
 

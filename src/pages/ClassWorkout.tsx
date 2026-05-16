@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { calculateXPGain, getLevelFromXP, calculateConsistencyScore, calculateAscendScore, getRankInfo } from '../lib/scoring'
+import { calculateXPGain, getLevelFromXP, calculateConsistencyScore, calculateAscendScoreGain, getRankInfo } from '../lib/scoring'
 import { logActivity, isStreakMilestone, recordScoreChange } from '../lib/activity'
 import { useTheme } from '../lib/theme'
 
@@ -89,11 +89,19 @@ export default function ClassWorkout() {
       const { count: weekCount } = await supabase
         .from('workouts').select('id', { count: 'exact', head: true })
         .eq('user_id', user.id).eq('completed', true).gte('workout_date', monday.toISOString())
+        .neq('workout_source', 'rest')
       const consistencyScore = calculateConsistencyScore(weekCount ?? 0)
 
-      // Strength score unchanged — class workouts don't involve progressive overload
-      const strengthScore = curScores?.strength_score ?? 0
-      const ascendScore = calculateAscendScore(strengthScore, consistencyScore, curScores?.social_score ?? 0, newStreak)
+      const prevScore = curScores?.ascend_score ?? 0
+      const scoreGain = calculateAscendScoreGain({
+        source: 'workout',
+        workoutsThisWeek: weekCount ?? 0,
+        streakDays: newStreak,
+        socialScore: curScores?.social_score ?? 0,
+        // Class workouts don't track lifts → no PRs
+        newPRsCount: 0,
+      })
+      const ascendScore = prevScore + scoreGain.total
 
       await supabase.from('user_scores').update({
         xp: newXP, level: newLevel, streak_days: newStreak,
@@ -105,10 +113,9 @@ export default function ClassWorkout() {
       window.dispatchEvent(new CustomEvent('ascend-badge-update'))
 
       // ── Activity feed events ──────────────────────────────────────────────
-      const prevScore = curScores?.ascend_score ?? 0
       // Record this workout's score delta for weekly-gain leaderboards
       if (workoutRecord) {
-        await recordScoreChange(workoutRecord.id as string, ascendScore - prevScore)
+        await recordScoreChange(workoutRecord.id as string, scoreGain.total)
       }
       await logActivity({
         userId: user.id,

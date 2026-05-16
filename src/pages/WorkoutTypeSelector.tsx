@@ -263,6 +263,33 @@ export default function WorkoutTypeSelector() {
                 })}
               </div>
 
+              {/* Log a rest day — first-class option, visually softer than workout cards */}
+              {!isPreview && (
+                <button
+                  onClick={() => selectType('rest', '/workout/rest')}
+                  style={{
+                    background: 'transparent',
+                    border: `1px dashed ${c.border}`,
+                    borderRadius: 14,
+                    padding: '14px 16px',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    cursor: 'pointer', textAlign: 'left', width: '100%',
+                    marginTop: 12,
+                  }}
+                >
+                  <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>💤</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: c.text, fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>Log a Rest Day</p>
+                    <p style={{ color: c.textSub, fontSize: 11, margin: 0, lineHeight: 1.4 }}>
+                      Recovery is part of training. Your streak stays intact.
+                    </p>
+                  </div>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, opacity: 0.4 }}>
+                    <path d="M9 18l6-6-6-6" stroke={c.text} strokeWidth="2.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+
               {/* Quick-repeat section for saved custom templates — hidden in preview */}
               {ready && recentTemplates.length > 0 && !isPreview && (
                 <div style={{ marginTop: 28 }}>

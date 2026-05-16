@@ -10,19 +10,22 @@ export interface RankInfo {
   nextScore: number | null
 }
 
+// Tuned for the additive Ascend Score (each workout adds ~6–10 pts, rest +2).
+// Early ranks are dense so new users see progress quickly; later ranks widen so
+// the top tiers stay meaningful for long-term lifters (Ascendant ≈ 3+ years).
 export const RANKS: RankInfo[] = [
-  { tier: 1,  name: 'Unranked',   color: '#6B7280', minScore: 0,   nextScore: 32  },
-  { tier: 2,  name: 'Initiate',   color: '#B45309', minScore: 32,  nextScore: 50  },
-  { tier: 3,  name: 'Contender',  color: '#D97706', minScore: 50,  nextScore: 62  },
-  { tier: 4,  name: 'Competitor', color: '#9CA3AF', minScore: 62,  nextScore: 72  },
-  { tier: 5,  name: 'Proven',     color: '#D1D5DB', minScore: 72,  nextScore: 80  },
-  { tier: 6,  name: 'Elite',      color: '#FBBF24', minScore: 80,  nextScore: 86  },
-  { tier: 7,  name: 'Vanguard',   color: '#F59E0B', minScore: 86,  nextScore: 91  },
-  { tier: 8,  name: 'Titan',      color: '#FDE68A', minScore: 91,  nextScore: 95  },
-  { tier: 9,  name: 'Apex',       color: '#E2E8F0', minScore: 95,  nextScore: 99  },
-  { tier: 10, name: 'Immortal',   color: '#F472B6', minScore: 99,  nextScore: 103 },
-  { tier: 11, name: 'Ascendant',  color: '#A78BFA', minScore: 103, nextScore: 108 },
-  { tier: 12, name: 'Sovereign',  color: 'accent',  minScore: 108, nextScore: null },
+  { tier: 1,  name: 'Entrant',     color: '#6B7280', minScore: 0,    nextScore: 50    },
+  { tier: 2,  name: 'Initiate',    color: '#B45309', minScore: 50,   nextScore: 150   },
+  { tier: 3,  name: 'Rookie',      color: '#D97706', minScore: 150,  nextScore: 350   },
+  { tier: 4,  name: 'Focused',     color: '#9CA3AF', minScore: 350,  nextScore: 600   },
+  { tier: 5,  name: 'Consistent',  color: '#D1D5DB', minScore: 600,  nextScore: 900   },
+  { tier: 6,  name: 'Proven',      color: '#FBBF24', minScore: 900,  nextScore: 1300  },
+  { tier: 7,  name: 'Established', color: '#F59E0B', minScore: 1300, nextScore: 1800  },
+  { tier: 8,  name: 'Prime',       color: '#FDE68A', minScore: 1800, nextScore: 2500  },
+  { tier: 9,  name: 'Elite',       color: '#E2E8F0', minScore: 2500, nextScore: 3500  },
+  { tier: 10, name: 'Leader',      color: '#F472B6', minScore: 3500, nextScore: 5000  },
+  { tier: 11, name: 'Premier',     color: '#A78BFA', minScore: 5000, nextScore: 7000  },
+  { tier: 12, name: 'Ascendant',   color: 'accent',  minScore: 7000, nextScore: null  },
 ]
 
 export function getRankInfo(ascendScore: number): RankInfo {
@@ -160,9 +163,8 @@ function getStreakBonus(streakDays: number): number {
 }
 
 /**
- * Ascend Score: weighted combination of all four sub-scores plus a streak bonus.
- * Streak contributes both as a weighted component (0–100 normalized) and a flat bonus.
- * The bonus can push the final score above 100.
+ * @deprecated Snapshot weighted score — kept only for backfill / legacy callers.
+ * Live writes go through `calculateAscendScoreGain` (additive lifetime model).
  */
 export function calculateAscendScore(
   strengthScore: number,
@@ -179,4 +181,102 @@ export function calculateAscendScore(
     streakScore      * SCORE_WEIGHTS.streak
   )
   return weighted + getStreakBonus(streakDays)
+}
+
+/**
+ * Per-entry Ascend Score gain — the additive model.
+ * Each completed workout adds roughly 6–10 points to a user's lifetime Ascend
+ * Score, with the breakdown skewed toward consistency, streak, and community
+ * engagement (strength only contributes via PRs). Rest days earn a small flat
+ * bump so honest logging is rewarded without incentivizing rest spam.
+ *
+ * Typical gains:
+ *   Casual session  (3 wk, 4-day streak, social 20, 0 PR) → ~6
+ *   Steady session  (5 wk, 10-day streak, social 40, 0 PR) → ~8
+ *   PR + long streak (5 wk, 30-day streak, social 60, 1 PR) → ~11
+ *   Rest day → 2
+ */
+export interface AscendScoreGain {
+  total: number
+  parts: {
+    base: number
+    streak: number
+    consistency: number
+    social: number
+    pr: number
+  }
+}
+
+export function calculateAscendScoreGain(params: {
+  source: 'workout' | 'rest'
+  workoutsThisWeek: number      // completed sessions Mon→now, including the current one
+  streakDays: number            // streak length after this entry
+  socialScore: number           // current social_score, 0–100
+  newPRsCount?: number          // PRs hit in this session (default 0)
+}): AscendScoreGain {
+  const { source, workoutsThisWeek, streakDays, socialScore, newPRsCount = 0 } = params
+
+  if (source === 'rest') {
+    return { total: 2, parts: { base: 2, streak: 0, consistency: 0, social: 0, pr: 0 } }
+  }
+
+  const base = 4
+  // Streak — caps at 30 days (3 pts)
+  const streak = Math.min(Math.round(streakDays * 0.1 * 10) / 10, 3)
+  // Consistency — partial credit at 3/week, full credit at 5/week
+  const consistency = workoutsThisWeek >= 5 ? 2 : workoutsThisWeek >= 3 ? 1 : 0
+  // Social — scales linearly with current social_score
+  const social = Math.round(Math.min((socialScore / 100) * 2, 2) * 10) / 10
+  // PR — strength's only per-workout contribution
+  const pr = newPRsCount * 1.5
+
+  const total = Math.round((base + streak + consistency + social + pr) * 10) / 10
+  return { total, parts: { base, streak, consistency, social, pr } }
+}
+
+// ── Calorie estimation ───────────────────────────────────────────────────────
+// Uses the ACSM formula (kcal/min = MET × kg × 3.5 / 200) on an "effective"
+// time floor so the estimate stays sane when users click through quickly or
+// log a workout after the fact.
+
+const DEFAULT_BODYWEIGHT_KG = 75   // ~165 lb fallback when no profile data
+const MINUTES_PER_SET = 1.5        // ~30s work + ~60s rest (incl. setup/warmup overhead)
+const DEFAULT_MET = 5.5            // moderate resistance training
+
+// Parse the freeform onboarding weight string ("165", "165 lbs", "75kg").
+// Heuristic: if no unit and the number is ≥ 100, treat as lb; otherwise kg.
+export function parseBodyWeightKg(raw: string | null | undefined): number | undefined {
+  if (!raw) return undefined
+  const normalized = raw.toLowerCase().trim()
+  const num = parseFloat(normalized.replace(/[^\d.]/g, ''))
+  if (isNaN(num) || num <= 0) return undefined
+  if (normalized.includes('kg')) return num
+  if (normalized.includes('lb')) return num * 0.453592
+  return num >= 100 ? num * 0.453592 : num
+}
+
+// Map a class workout's intensity tag → MET.
+export function metFromClassIntensity(intensity: 'easy' | 'moderate' | 'intense' | string): number {
+  if (intensity === 'easy')    return 4
+  if (intensity === 'intense') return 7
+  return 5.5
+}
+
+// Map an average RPE (1–10 scale) to a resistance-training MET.
+// RPE 5 → ~4.5,  RPE 7 → ~5.5,  RPE 8 → ~6,  RPE 9+ → ~6.5+
+export function metFromRpe(avgRpe: number): number {
+  if (avgRpe <= 0) return DEFAULT_MET
+  return Math.max(4, Math.min(7.5, 3 + avgRpe * 0.4))
+}
+
+export function estimateCalories(opts: {
+  actualMinutes: number
+  totalSets: number
+  bodyWeightKg?: number
+  met?: number           // explicit MET (e.g., from class intensity or RPE)
+}): number {
+  const bodyKg = opts.bodyWeightKg && opts.bodyWeightKg > 0 ? opts.bodyWeightKg : DEFAULT_BODYWEIGHT_KG
+  const effectiveMinutes = Math.max(opts.actualMinutes || 0, opts.totalSets * MINUTES_PER_SET)
+  const met = opts.met && opts.met > 0 ? opts.met : DEFAULT_MET
+  return Math.round(effectiveMinutes * (met * bodyKg * 3.5) / 200)
 }
